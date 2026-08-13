@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        pgcrypto  → gen_random_uuid(), default das PKs
+        unaccent  → busca sem acento (LOWER(unaccent(nome)) LIKE ...)
+    -->
+    <changeSet id="001-enable-extensions" author="eduardo">
+        <sql>CREATE EXTENSION IF NOT EXISTS "pgcrypto";</sql>
+        <sql>CREATE EXTENSION IF NOT EXISTS "unaccent";</sql>
+        <rollback>
+            <sql>DROP EXTENSION IF EXISTS "unaccent";</sql>
+            <sql>DROP EXTENSION IF EXISTS "pgcrypto";</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        O login passa a barrar o cliente com prazo vencido antes mesmo de a
+        rotina diária inativá-lo, e registra a falha como ACESSO_EXPIRADO.
+
+        `ck_login_log_motivo_falha` é lista fechada (004): sem estender o CHECK,
+        o registro da falha estoura no banco justamente no caminho de erro.
+    -->
+    <changeSet id="008-login-log-motivo-acesso-expirado" author="eduardo">
+
+        <sql>
+            ALTER TABLE login_log DROP CONSTRAINT ck_login_log_motivo_falha;
+        </sql>
+        <sql>
+            ALTER TABLE login_log ADD CONSTRAINT ck_login_log_motivo_falha
+            CHECK (motivo_falha IS NULL OR motivo_falha IN
+                ('SENHA_INVALIDA','USUARIO_INEXISTENTE','USUARIO_INATIVO',
+                 'TENANT_INATIVO','BLOQUEADO','ACESSO_EXPIRADO'));
+        </sql>
+
+        <rollback>
+            <sql>
+                ALTER TABLE login_log DROP CONSTRAINT ck_login_log_motivo_falha;
+            </sql>
+            <sql>
+                ALTER TABLE login_log ADD CONSTRAINT ck_login_log_motivo_falha
+                CHECK (motivo_falha IS NULL OR motivo_falha IN
+                    ('SENHA_INVALIDA','USUARIO_INEXISTENTE','USUARIO_INATIVO',
+                     'TENANT_INATIVO','BLOQUEADO'));
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

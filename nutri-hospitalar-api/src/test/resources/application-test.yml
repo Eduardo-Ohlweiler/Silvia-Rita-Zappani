@@ -1,0 +1,76 @@
+# Configuração usada APENAS pela suíte de testes automatizados
+# (`./run-dev.sh test`). A aplicação em si nunca usa este arquivo.
+#
+# Por que um banco separado (`nutridb_test`) e não o de desenvolvimento:
+# o setup de cada teste apaga TODAS as linhas das tabelas, e o Liquibase recria
+# o schema do zero a cada execução (`drop-first`). Se apontasse para o
+# `nutridb`, rodar os testes destruiria os tenants, usuários e pacientes que
+# você cadastrou à mão para experimentar o sistema.
+#
+# São dois bancos no PostgreSQL local, não dois bancos do sistema. Em produção
+# existe um só.
+#
+# Não usamos H2: sem `unaccent`, com tratamento diferente de NULL em constraint
+# única e aceitando SQL que o Postgres rejeita, ele daria falsa confiança
+# exatamente onde dói. Nem Testcontainers, porque o projeto não usa Docker.
+
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/nutridb_test}
+    username: ${TEST_DB_USER:${DB_USER:postgres}}
+    password: ${TEST_DB_PASSWORD:${DB_PASSWORD:postgres}}
+    hikari:
+      maximum-pool-size: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  liquibase:
+    enabled: true
+    drop-first: true
+    change-log: classpath:db/changelog/changelog-master.xml
+
+  jackson:
+    time-zone: UTC
+    default-property-inclusion: non_null
+
+  data:
+    web:
+      pageable:
+        default-page-size: 20
+        max-page-size: 100
+
+jwt:
+  secret: chave-de-teste-com-mais-de-32-caracteres-para-hmac-sha256
+  access-ttl: PT8H
+  refresh-ttl: P7D
+
+app:
+  cors:
+    allowed-origins: http://localhost:5173
+  superadmin:
+    tenant-nome: Nutri Hospitalar Admin
+    nome: Superadmin Teste
+    email: superadmin@teste.local
+    senha: SenhaDeTeste123@
+  seguranca:
+    max-tentativas-login: 5
+    duracao-bloqueio: PT15M
+    rate-limit-por-minuto: 1000        # desligado nos testes
+  auditoria:
+    retencao-meses: 12
+  acesso:
+    fuso-horario: America/Sao_Paulo
+
+logging:
+  level:
+    root: WARN
+    com.nutri.hospitalar: INFO
+    liquibase: WARN

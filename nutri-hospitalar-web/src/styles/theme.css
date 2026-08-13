@@ -1,0 +1,222 @@
+@import "tailwindcss";
+
+/* Fontes self-hosted — o CSP bloqueia host externo, e é uma requisição a menos */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/lato/400.css";
+@import "@fontsource/lato/700.css";
+
+/* Tema escuro por atributo, não por media query — o usuário escolhe */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  /* ── Marca — valores de paletadecores.svg ──────────────────────── */
+  --color-navy: #000F27;
+  --color-blue: #1E4686;
+  --color-blue-muted: #5F7FB1;
+  --color-blue-soft: #BBD1F3;
+  --color-offwhite: #FAF6FE;
+  --color-silver: #DADADA;
+  --color-mist: #E9F0F2;
+
+  /* ── Escala do azul ────────────────────────────────────────────── */
+  --color-brand-50: #F4F8FD;
+  --color-brand-100: #E6EEFA;
+  --color-brand-200: #BBD1F3;
+  --color-brand-300: #8DA8D2;
+  --color-brand-400: #5F7FB1;
+  --color-brand-500: #3F639C;
+  --color-brand-600: #2E5491;
+  --color-brand-700: #1E4686;
+  --color-brand-800: #0F2A56;
+  --color-brand-900: #071C3E;
+  --color-brand-950: #000F27;
+
+  /* ── Acentos de contexto ───────────────────────────────────────── */
+  --color-sage: #7FA88F;
+  --color-sage-bg: #EDF3EE;
+  --color-sage-text: #4A7259;
+  --color-peach: #E0A188;
+  --color-peach-bg: #FAF0EB;
+  --color-peach-text: #9E5334;
+
+  /* ── Semânticos ────────────────────────────────────────────────── */
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  /* ── Tokens de superfície, ligados às variáveis de tema ────────── */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-active-text: var(--sidebar-active-text);
+  --color-txt: var(--txt);
+  --color-txt-secondary: var(--txt-secondary);
+  --color-txt-muted: var(--txt-muted);
+  --color-txt-inverse: var(--txt-inverse);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+
+  /* ── Tipografia ────────────────────────────────────────────────── */
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Lato", ui-sans-serif, system-ui, sans-serif;
+
+  --text-display: 1.875rem;
+  --text-display--line-height: 2.5rem;
+  --text-h1: 1.5rem;
+  --text-h1--line-height: 2rem;
+  --text-h2: 1.125rem;
+  --text-h2--line-height: 1.625rem;
+  --text-h3: 0.9375rem;
+  --text-h3--line-height: 1.375rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.375rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+
+  /* ── Raio — generoso ───────────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* ── Sombra — difusa, nunca dura ───────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgb(0 15 39 / 0.04);
+  --shadow-card: 0 1px 3px rgb(0 15 39 / 0.04), 0 6px 20px rgb(0 15 39 / 0.05);
+  --shadow-hover: 0 2px 6px rgb(0 15 39 / 0.06), 0 12px 32px rgb(0 15 39 / 0.08);
+  --shadow-modal: 0 12px 48px rgb(0 15 39 / 0.16);
+
+  /* ── Alturas — densidade confortável ───────────────────────────── */
+  --spacing-campo: 38px;
+  --spacing-linha: 44px;
+  --spacing-header: 60px;
+  --spacing-sidebar: 248px;
+  --spacing-sidebar-min: 68px;
+}
+
+/* ══ TEMA CLARO (padrão) ══════════════════════════════════════════ */
+:root,
+[data-theme="light"] {
+  --bg: #FAF6FE;
+  --surface: #FFFFFF;
+  --surface-alt: #F4F8FD;
+
+  --sidebar: #FFFFFF;
+  --sidebar-text: #3F639C;
+  --sidebar-active-bg: #E6EEFA;
+  --sidebar-active-text: #1E4686;
+
+  --txt: #000F27;
+  --txt-secondary: #3F639C;
+  --txt-muted: #5F7FB1;
+  --txt-inverse: #FFFFFF;
+
+  --line: #EAEEF6;
+  --line-strong: #D5DDEB;
+
+  --primary: #1E4686;
+  --primary-hover: #2E5491;
+  --primary-active: #0F2A56;
+
+  --success: #0E7C5A;  --success-bg: #E6F4EF;
+  --warning: #B45309;  --warning-bg: #FDF3E6;
+  --danger:  #B42318;  --danger-bg:  #FCECEA;
+  --info:    #0B6E8F;  --info-bg:    #E6F2F7;
+}
+
+/* ══ TEMA ESCURO ══════════════════════════════════════════════════
+ *
+ * Opção de conforto, não o padrão — o tema da marca é o claro.
+ *
+ * O ponto que a primeira versão errou: `#071C3E` sobre `#000F27` são dois
+ * tons colados, e o resultado era uma mancha azul chapada, sem hierarquia.
+ * Aqui os degraus são reais e crescentes — canvas → superfície → superfície
+ * elevada — cada um com separação visível do anterior.
+ */
+[data-theme="dark"] {
+  --bg: #00091A;              /* mais fundo que o navy da marca, para o resto subir */
+  --surface: #0B2145;         /* card, header — degrau claro sobre o canvas */
+  --surface-alt: #12305C;     /* zebra, header de grid, hover */
+
+  --sidebar: #061631;         /* entre o canvas e a superfície: ancora sem pesar */
+  --sidebar-text: #8DA8D2;
+  --sidebar-active-bg: #16345F;
+  --sidebar-active-text: #BBD1F3;
+
+  --txt: #F2F6FC;
+  --txt-secondary: #9DB4DA;
+  --txt-muted: #6B87B8;
+  --txt-inverse: #00091A;
+
+  --line: #16305A;
+  --line-strong: #24487E;
+
+  --primary: #5F8FD8;         /* claro o bastante para o botão saltar do fundo */
+  --primary-hover: #7BA5E4;
+  --primary-active: #4A78BE;
+
+  --success: #46D3A5;  --success-bg: #0A3A2E;
+  --warning: #F5B44E;  --warning-bg: #402C0C;
+  --danger:  #F58279;  --danger-bg:  #451915;
+  --info:    #6FC1E3;  --info-bg:    #0A3242;
+
+  /* Acentos de contexto no escuro: dessaturados, sem virar néon */
+  --color-sage: #6E9A80;
+  --color-sage-bg: #10281C;
+  --color-sage-text: #9CC4AA;
+  --color-peach: #C98D76;
+  --color-peach-bg: #30201A;
+  --color-peach-text: #E8B79F;
+}
+
+/* ══ Base ═════════════════════════════════════════════════════════ */
+html {
+  background-color: var(--bg);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--txt);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Foco visível — o sistema é usado com teclado, à beira do leito */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Números tabulares em resultado de cálculo e coluna numérica */
+.numeric {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

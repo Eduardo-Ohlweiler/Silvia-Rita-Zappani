@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Refresh token de uso único, com rotação.
+
+        Guardamos apenas o HASH SHA-256 do token: token em claro no banco é
+        senha em claro (OWASP A02).
+    -->
+    <changeSet id="005-create-refresh-token" author="eduardo">
+
+        <createTable tableName="refresh_token">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_refresh_token"/>
+            </column>
+
+            <column name="usuario_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_refresh_token_usuario"
+                             references="usuario(id)"
+                             deleteCascade="true"/>
+            </column>
+
+            <!--
+                Sessão à qual este token pertence. O refresh emite um access
+                token novo carregando o MESMO session_id, para que o logout e o
+                job de expiração continuem fechando a sessão certa.
+            -->
+            <column name="session_id" type="UUID">
+                <constraints foreignKeyName="fk_refresh_token_session"
+                             references="login_log(id)"/>
+            </column>
+
+            <column name="token_hash" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expira_em" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revogado_em" type="TIMESTAMP WITH TIME ZONE"/>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <addUniqueConstraint tableName="refresh_token"
+                             columnNames="token_hash"
+                             constraintName="uk_refresh_token_hash"/>
+
+        <createIndex tableName="refresh_token" indexName="idx_refresh_token_usuario_id">
+            <column name="usuario_id"/>
+        </createIndex>
+        <createIndex tableName="refresh_token" indexName="idx_refresh_token_expira_em">
+            <column name="expira_em"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="refresh_token"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

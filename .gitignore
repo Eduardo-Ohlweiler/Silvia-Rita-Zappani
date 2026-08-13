@@ -1,0 +1,38 @@
+# ── Segredos ─────────────────────────────────────────────────────────
+.env
+.env.local
+*.pem
+*.key
+
+# ── Java / Maven ─────────────────────────────────────────────────────
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.log
+
+# ── Node / Vite ──────────────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# ── IDE ──────────────────────────────────────────────────────────────
+.idea/
+*.iml
+# O settings.json é versionado de propósito: aponta o JDK 21 e evita que a
+# IDE compile com o 17 (erro "release version 21 not supported").
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.settings/
+.classpath
+.project
+
+# ── SO ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# Export bruto do Figma: 15,7 MB, com um JPEG de 11 MB embutido em base64.
+# O que o projeto usa está extraído e limpo em
+# nutri-hospitalar-web/src/assets/brand/ (23 KB no total).
+logo.svg

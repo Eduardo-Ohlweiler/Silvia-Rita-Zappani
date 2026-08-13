@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Licença do cliente: o tenant passa a ter prazo de acesso.
+
+        Fica no TENANT e não no usuário porque quem assina é o cliente — e
+        desligar o tenant já derruba a equipe inteira pelo caminho que existe
+        (o login barra tenant inativo). Prazo por usuário exigiria renovar
+        assento por assento.
+
+        O default é INDETERMINADO com data nula: os clientes que já existem
+        continuam livres. Nenhum acesso pode ser perdido pela subida da versão.
+    -->
+    <changeSet id="007-tenant-periodo-acesso" author="eduardo">
+
+        <addColumn tableName="tenant">
+            <column name="periodo_acesso" type="VARCHAR(20)" defaultValue="INDETERMINADO">
+                <constraints nullable="false"/>
+            </column>
+            <column name="acesso_expira_em" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+
+        <!-- O enum também é validado no banco, como em usuario.role -->
+        <sql>
+            ALTER TABLE tenant ADD CONSTRAINT ck_tenant_periodo_acesso
+            CHECK (periodo_acesso IN
+                ('INDETERMINADO','UM_MES','DOIS_MESES','TRES_MESES',
+                 'SEIS_MESES','UM_ANO','DOIS_ANOS'));
+        </sql>
+
+        <!--
+            Invariante: acesso livre é exatamente acesso sem data. Sem isto,
+            um INDETERMINADO com data velha seria desligado pela rotina, e uma
+            data nula com prazo definido nunca expiraria.
+        -->
+        <sql>
+            ALTER TABLE tenant ADD CONSTRAINT ck_tenant_acesso_coerente
+            CHECK ((periodo_acesso = 'INDETERMINADO' AND acesso_expira_em IS NULL)
+                OR (periodo_acesso &lt;&gt; 'INDETERMINADO' AND acesso_expira_em IS NOT NULL));
+        </sql>
+
+        <!--
+            Índice parcial: a rotina diária só varre quem está ativo e tem
+            prazo. Liquibase não expressa o WHERE em createIndex.
+        -->
+        <sql>
+            CREATE INDEX idx_tenant_acesso_expira_em ON tenant (acesso_expira_em)
+            WHERE ativo = true AND acesso_expira_em IS NOT NULL;
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_tenant_acesso_expira_em;</sql>
+            <dropColumn tableName="tenant" columnName="acesso_expira_em"/>
+            <dropColumn tableName="tenant" columnName="periodo_acesso"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

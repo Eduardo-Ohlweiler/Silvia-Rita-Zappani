@@ -1,0 +1,99 @@
+spring:
+  application:
+    name: nutri-hospitalar
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 25
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/changelog-master.xml
+
+  jackson:
+    time-zone: UTC
+    default-property-inclusion: non_null
+
+  data:
+    web:
+      pageable:
+        default-page-size: 20
+        max-page-size: 100
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+  compression:
+    enabled: true
+  forward-headers-strategy: framework
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-ttl: PT8H
+  refresh-ttl: P7D
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}      # obrigatório em produção
+  superadmin:
+    tenant-nome: ${SUPERADMIN_TENANT_NOME:Nutri Hospitalar Admin}
+    nome: ${SUPERADMIN_NAME}
+    email: ${SUPERADMIN_EMAIL}
+    senha: ${SUPERADMIN_PASSWORD}
+  seguranca:
+    max-tentativas-login: 5
+    duracao-bloqueio: PT15M
+    rate-limit-por-minuto: 5
+  auditoria:
+    retencao-meses: 12
+  acesso:
+    # Fuso em que o período de acesso vence — sempre no fim do dia local.
+    fuso-horario: ${ACESSO_FUSO_HORARIO:America/Sao_Paulo}
+
+logging:
+  level:
+    root: INFO
+    com.nutri.hospitalar: INFO
+
+# OWASP A05 — superfície mínima em produção
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

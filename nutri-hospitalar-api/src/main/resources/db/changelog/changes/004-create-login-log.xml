@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Log de acesso — OWASP A09.
+
+        tenant_id e usuario_id são NULLABLE de propósito: uma tentativa de
+        login com e-mail inexistente não tem nem tenant nem usuário, e é
+        justamente a tentativa que mais importa registrar.
+
+        Nunca gravar senha, token ou dado clínico aqui.
+    -->
+    <changeSet id="004-create-login-log" author="eduardo">
+
+        <createTable tableName="login_log">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_login_log"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints foreignKeyName="fk_login_log_tenant"
+                             references="tenant(id)"/>
+            </column>
+            <column name="usuario_id" type="UUID">
+                <constraints foreignKeyName="fk_login_log_usuario"
+                             references="usuario(id)"/>
+            </column>
+
+            <column name="email_tentativa" type="VARCHAR(255)"/>
+
+            <column name="sucesso" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="motivo_falha" type="VARCHAR(30)"/>
+
+            <column name="data_login" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="data_logout" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="tipo_logout" type="VARCHAR(20)"/>
+
+            <column name="endereco_ip" type="VARCHAR(45)"/>
+            <column name="user_agent" type="VARCHAR(512)"/>
+
+            <!-- Preenchido quando um SUPERADMIN entrou neste tenant -->
+            <column name="impersonado_por" type="UUID">
+                <constraints foreignKeyName="fk_login_log_impersonado_por"
+                             references="usuario(id)"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <sql>
+            ALTER TABLE login_log ADD CONSTRAINT ck_login_log_motivo_falha
+            CHECK (motivo_falha IS NULL OR motivo_falha IN
+                ('SENHA_INVALIDA','USUARIO_INEXISTENTE','USUARIO_INATIVO',
+                 'TENANT_INATIVO','BLOQUEADO'));
+        </sql>
+        <sql>
+            ALTER TABLE login_log ADD CONSTRAINT ck_login_log_tipo_logout
+            CHECK (tipo_logout IS NULL OR tipo_logout IN ('MANUAL','EXPIRACAO'));
+        </sql>
+
+        <createIndex tableName="login_log" indexName="idx_login_log_tenant_data">
+            <column name="tenant_id"/>
+            <column name="data_login" descending="true"/>
+        </createIndex>
+        <createIndex tableName="login_log" indexName="idx_login_log_usuario_id">
+            <column name="usuario_id"/>
+        </createIndex>
+        <createIndex tableName="login_log" indexName="idx_login_log_impersonado_por">
+            <column name="impersonado_por"/>
+        </createIndex>
+        <!-- Suporta o expurgo por retenção -->
+        <createIndex tableName="login_log" indexName="idx_login_log_data_login">
+            <column name="data_login"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="login_log"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

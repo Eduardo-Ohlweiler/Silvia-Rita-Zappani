@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        O e-mail passa a ser único no sistema inteiro, não por tenant.
+
+        Exceção deliberada à regra "toda unique é composta com tenant_id"
+        (07-banco-liquibase.md): e-mail aqui não é campo de negócio, é a
+        CREDENCIAL DE LOGIN. O login acontece antes de o tenant ser conhecido
+        e busca só por e-mail — com o mesmo e-mail em dois tenants,
+        `findByEmailIgnoreCase` encontra duas linhas e o login quebra.
+
+        Consequência aceita: uma nutricionista que atenda em duas clínicas
+        precisa de um e-mail por clínica. Suportar o contrário exigiria login
+        com tenant explícito, complexidade que o sistema não pede.
+    -->
+    <changeSet id="006-usuario-email-unico-global" author="eduardo">
+
+        <dropUniqueConstraint tableName="usuario"
+                              constraintName="uk_usuario_tenant_email"/>
+
+        <addUniqueConstraint tableName="usuario"
+                             columnNames="email"
+                             constraintName="uk_usuario_email"/>
+
+        <rollback>
+            <dropUniqueConstraint tableName="usuario"
+                                  constraintName="uk_usuario_email"/>
+            <addUniqueConstraint tableName="usuario"
+                                 columnNames="tenant_id, email"
+                                 constraintName="uk_usuario_tenant_email"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

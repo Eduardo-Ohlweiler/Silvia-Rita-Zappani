@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Autorização por nível único, guardado como enum na própria linha:
+
+          SUPERADMIN  tudo do sistema, atravessa tenants
+          ADMIN       tudo dentro do próprio tenant
+          USER        operação dentro do próprio tenant
+
+        Sem tabela role e sem grupo de acesso — o sistema tem três níveis
+        fixos. Permissão por módulo, se um dia for necessária, entra como
+        migration nova sem quebrar o que existe.
+    -->
+    <changeSet id="003-create-usuario" author="eduardo">
+
+        <createTable tableName="usuario">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_usuario"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_usuario_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="senha" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="telefone" type="VARCHAR(20)"/>
+            <column name="codigo_pais" type="VARCHAR(4)" defaultValue="55">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="role" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Bloqueio por tentativas de login (OWASP A07) -->
+            <column name="tentativas_falhas" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="bloqueado_ate" type="TIMESTAMP WITH TIME ZONE"/>
+
+            <column name="created_by" type="UUID"/>
+            <column name="updated_by" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <!-- Auto-referências de auditoria: só após a tabela existir -->
+        <addForeignKeyConstraint baseTableName="usuario" baseColumnNames="created_by"
+                                 referencedTableName="usuario" referencedColumnNames="id"
+                                 constraintName="fk_usuario_created_by"/>
+        <addForeignKeyConstraint baseTableName="usuario" baseColumnNames="updated_by"
+                                 referencedTableName="usuario" referencedColumnNames="id"
+                                 constraintName="fk_usuario_updated_by"/>
+
+        <!-- O enum também é validado no banco -->
+        <sql>
+            ALTER TABLE usuario ADD CONSTRAINT ck_usuario_role
+            CHECK (role IN ('SUPERADMIN', 'ADMIN', 'USER'));
+        </sql>
+
+        <createIndex tableName="usuario" indexName="idx_usuario_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- O login busca por e-mail ANTES de conhecer o tenant -->
+        <createIndex tableName="usuario" indexName="idx_usuario_email">
+            <column name="email"/>
+        </createIndex>
+
+        <createIndex tableName="usuario" indexName="idx_usuario_tenant_nome">
+            <column name="tenant_id"/>
+            <column name="nome"/>
+        </createIndex>
+
+        <!-- Unicidade sempre composta com o tenant -->
+        <addUniqueConstraint tableName="usuario"
+                             columnNames="tenant_id, email"
+                             constraintName="uk_usuario_tenant_email"/>
+
+        <rollback>
+            <dropTable tableName="usuario"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
