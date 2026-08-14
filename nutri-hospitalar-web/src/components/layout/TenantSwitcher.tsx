@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'react-toastify'
-import { IconTenants } from '@/assets/icons'
+import { TCombo } from '@/components/common'
 import { useAuth } from '@/hooks/useAuth'
 import { handleApiError } from '@/services/api'
 import { tenantService } from '@/services/tenantService'
-import type { SelectOption } from '@/types/comum'
 
 /**
  * Troca de tenant do superadmin.
@@ -12,22 +11,21 @@ import type { SelectOption } from '@/types/comum'
  * O superadmin **não fura** o filtro de tenant — ele muda o valor do filtro. O
  * backend reemite o token com o tenant de destino, e todo o resto do sistema
  * continua filtrando normalmente.
+ *
+ * A busca é no servidor, e não um `<select>` com a lista inteira: o
+ * `/tenants/select` devolve no máximo 100, então com mais clientes que isso os
+ * seguintes em ordem alfabética ficariam **inalcançáveis** — não é questão de
+ * conforto, é cliente que não dá para abrir.
  */
 export function TenantSwitcher() {
   const { sessao, switchTenant, exitTenant } = useAuth()
-  const [tenants, setTenants] = useState<SelectOption[]>([])
   const [trocando, setTrocando] = useState(false)
 
   const ehSuperadmin = sessao?.role === 'SUPERADMIN'
 
-  useEffect(() => {
-    // A guarda vai DENTRO do efeito: hooks rodam antes do early return, então
-    // sem isto um ADMIN dispararia /tenants/select, tomaria 403 e veria um
-    // toast de "sem permissão" logo ao entrar.
-    if (!ehSuperadmin) return
-    tenantService.select().then(setTenants).catch(handleApiError)
-  }, [ehSuperadmin])
-
+  // Sem lista pré-carregada, some também o efeito que disparava
+  // `/tenants/select` na montagem — o ADMIN nem chegava a ver o componente,
+  // mas tomava 403 e um toast ao entrar no sistema.
   if (!ehSuperadmin || !sessao) return null
 
   /**
@@ -43,9 +41,8 @@ export function TenantSwitcher() {
     if (!tenantId || tenantId === sessao?.tenantId) return
     setTrocando(true)
     try {
-      const nome = tenants.find((t) => t.id === tenantId)?.nome
-      await switchTenant(tenantId)
-      toast.success(nome ? `Você entrou em "${nome}"` : 'Você entrou em outro tenant')
+      const { tenantNome } = await switchTenant(tenantId)
+      toast.success(`Você entrou em "${tenantNome}"`)
     } catch (erro) {
       handleApiError(erro)
     } finally {
@@ -67,32 +64,20 @@ export function TenantSwitcher() {
 
   return (
     <div className="flex items-center gap-2">
-      <label className="sr-only" htmlFor="seletor-tenant">
-        Tenant
-      </label>
-      <div className="relative">
-        <IconTenants className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-txt-muted" />
-        <select
-          id="seletor-tenant"
-          value={sessao.tenantId}
-          disabled={trocando}
-          onChange={(e) => void trocar(e.target.value)}
-          className="h-9 max-w-47.5 appearance-none truncate rounded-md border border-line-strong
-            bg-surface pl-8 pr-3 text-caption text-txt
-            focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10
-            disabled:opacity-60"
-        >
-          {/* O tenant atual pode não estar na lista se estiver inativo */}
-          {!tenants.some((t) => t.id === sessao.tenantId) && (
-            <option value={sessao.tenantId}>{sessao.tenantNome}</option>
-          )}
-          {tenants.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.nome}
-            </option>
-          ))}
-        </select>
-      </div>
+      <TCombo
+        label="Tenant"
+        rotuloOculto
+        tamanho="sm"
+        className="w-full lg:w-56"
+        value={sessao.tenantId}
+        /* O tenant atual pode estar fora dos 100 primeiros — ou inativo, e
+           portanto fora da busca. O nome já está na sessão: use-o. */
+        rotuloInicial={sessao.tenantNome}
+        buscar={tenantService.select}
+        onChange={(id) => void trocar(id)}
+        disabled={trocando}
+        placeholder="Buscar cliente…"
+      />
 
       {sessao.impersonating && (
         <button

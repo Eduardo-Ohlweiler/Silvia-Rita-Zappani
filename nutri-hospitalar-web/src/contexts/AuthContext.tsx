@@ -18,8 +18,9 @@ interface AuthContextValor {
   autenticado: boolean
   login: (dados: LoginRequest) => Promise<void>
   logout: () => Promise<void>
-  switchTenant: (tenantId: string) => Promise<void>
-  exitTenant: () => Promise<void>
+  /** Devolve a sessão nova — quem troca precisa do nome do destino. */
+  switchTenant: (tenantId: string) => Promise<Sessao>
+  exitTenant: () => Promise<Sessao>
   /** Conveniência visual. A autorização real é o `@PreAuthorize` do backend. */
   hasRole: (...roles: Role[]) => boolean
 }
@@ -47,7 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokenStore.setAccessToken(resposta.accessToken)
     // Na troca de tenant o refresh vem nulo: o token atual continua valendo.
     if (resposta.refreshToken) tokenStore.setRefreshToken(resposta.refreshToken)
-    setSessao(paraSessao(resposta))
+
+    const nova = paraSessao(resposta)
+    setSessao(nova)
+    return nova
   }, [])
 
   const encerrar = useCallback(() => {
@@ -85,7 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       carregando,
       autenticado: sessao !== null,
 
-      login: async (dados) => aplicar(await authService.login(dados)),
+      login: async (dados) => {
+        aplicar(await authService.login(dados))
+      },
 
       logout: async () => {
         try {

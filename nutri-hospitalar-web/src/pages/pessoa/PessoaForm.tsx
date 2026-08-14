@@ -78,6 +78,10 @@ const schema = z.object({
       id: z.string().optional(),
       tipoEnderecoId: z.string().min(1, 'Informe o tipo'),
       cidadeId: z.string().min(1, 'Informe a cidade'),
+      /* Só para exibição: o combo precisa do nome do que já está gravado, e o
+         endpoint de cidade devolve no máximo 100 — o id de Viamão não estaria
+         lá, e o campo apareceria vazio. Não vai no payload. */
+      cidadeRotulo: z.string().optional(),
       cep: z.string().optional(),
       rua: z.string().optional(),
       numero: z.string().optional(),
@@ -90,6 +94,8 @@ const schema = z.object({
     z.object({
       id: z.string().optional(),
       pessoaId: z.string().min(1, 'Informe a pessoa'),
+      /** Só para exibição, como `cidadeRotulo`. */
+      pessoaRotulo: z.string().optional(),
       tipo: z.enum(['RESPONSAVEL', 'DEPENDENTE', 'CONJUGE', 'FAMILIAR']),
       observacao: z.string().optional(),
     }),
@@ -205,6 +211,7 @@ export function PessoaForm() {
             id: e.id,
             tipoEnderecoId: e.tipoEnderecoId,
             cidadeId: e.cidadeId,
+            cidadeRotulo: `${e.cidadeNome} — ${e.estadoSigla}`,
             cep: e.cep ? mascararCep(e.cep) : '',
             rua: e.rua ?? '',
             numero: e.numero ?? '',
@@ -215,6 +222,9 @@ export function PessoaForm() {
           vinculos: p.vinculos.map((v) => ({
             id: v.id,
             pessoaId: v.pessoaId,
+            pessoaRotulo: v.documento
+              ? `${v.pessoaNome} (${formatarDocumento(v.documento)})`
+              : v.pessoaNome,
             tipo: v.tipo,
             observacao: v.observacao ?? '',
           })),
@@ -270,6 +280,7 @@ export function PessoaForm() {
         usuario: r.usuario || undefined,
         url: r.url || undefined,
       })),
+      // `cidadeRotulo` e `pessoaRotulo` ficam de fora: são de exibição.
       enderecos: dados.enderecos.map((e) => ({
         id: e.id,
         tipoEnderecoId: e.tipoEnderecoId,
@@ -577,6 +588,7 @@ export function PessoaForm() {
                 enderecos.append({
                   tipoEnderecoId: tiposEndereco[0]?.valor ?? '',
                   cidadeId: '',
+                  cidadeRotulo: '',
                   cep: '',
                   rua: '',
                   numero: '',
@@ -625,6 +637,7 @@ export function PessoaForm() {
                           label="Cidade"
                           placeholder="Busque pelo nome"
                           value={field.value}
+                          rotuloInicial={watch(`enderecos.${i}.cidadeRotulo`)}
                           onChange={field.onChange}
                           buscar={localidadeService.cidadesParaCombo}
                           error={errors.enderecos?.[i]?.cidadeId?.message}
@@ -668,7 +681,12 @@ export function PessoaForm() {
           actions={
             <BotaoAcrescentar
               onClick={() =>
-                vinculos.append({ pessoaId: '', tipo: 'RESPONSAVEL', observacao: '' })
+                vinculos.append({
+                  pessoaId: '',
+                  pessoaRotulo: '',
+                  tipo: 'RESPONSAVEL',
+                  observacao: '',
+                })
               }
             />
           }
@@ -692,6 +710,7 @@ export function PessoaForm() {
                           className="flex-1"
                           placeholder="Busque por nome ou documento"
                           value={field.value}
+                          rotuloInicial={watch(`vinculos.${i}.pessoaRotulo`)}
                           onChange={field.onChange}
                           buscar={(termo) =>
                             pessoaService

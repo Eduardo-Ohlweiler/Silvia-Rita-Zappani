@@ -21,6 +21,16 @@ interface TComboProps {
    * inicial. Deve apontar para um endpoint `/select`.
    */
   buscar: (termo?: string) => Promise<SelectOption[]>
+  /**
+   * Nome do que já está selecionado, quando o chamador o conhece — carga de um
+   * formulário, sessão em curso.
+   *
+   * **Passe sempre que tiver.** Sem isto o componente tenta adivinhar o rótulo
+   * procurando o id numa busca sem termo, e todo endpoint `/select` é truncado
+   * (100 itens): com 5.570 municípios, o id quase nunca está lá e o campo
+   * aparece vazio, como se o dado tivesse sumido.
+   */
+  rotuloInicial?: string
   /** Rótulo da opção que limpa a seleção. Sem ele, a seleção é obrigatória. */
   vazio?: string
   placeholder?: string
@@ -28,6 +38,15 @@ interface TComboProps {
   ajuda?: string
   className?: string
   disabled?: boolean
+  /** Mantém o rótulo para leitor de tela, sem ocupar espaço. Para cabeçalho. */
+  rotuloOculto?: boolean
+  /** `sm` cabe em barra de navegação; `md` é o de formulário. */
+  tamanho?: 'md' | 'sm'
+}
+
+const TAMANHOS = {
+  md: 'h-[38px] text-body',
+  sm: 'h-9 text-caption',
 }
 
 /**
@@ -44,12 +63,15 @@ export function TCombo({
   value,
   onChange,
   buscar,
+  rotuloInicial,
   vazio,
   placeholder = 'Selecione…',
   error,
   ajuda,
   className = '',
   disabled = false,
+  rotuloOculto = false,
+  tamanho = 'md',
 }: TComboProps) {
   const idBase = useId()
   const idInput = `${idBase}-input`
@@ -63,7 +85,7 @@ export function TCombo({
   const [destacado, setDestacado] = useState(0)
   const [carregando, setCarregando] = useState(false)
   /** Guardado à parte: o rótulo do selecionado precisa sobreviver ao filtro. */
-  const [rotuloSelecionado, setRotuloSelecionado] = useState('')
+  const [rotuloSelecionado, setRotuloSelecionado] = useState(rotuloInicial ?? '')
 
   const termoBusca = useDebounce(termo, 300)
 
@@ -95,16 +117,34 @@ export function TCombo({
       setRotuloSelecionado('')
       return
     }
+
     const naLista = opcoes.find((o) => o.id === value)
-    if (naLista) setRotuloSelecionado(naLista.nome)
-    else if (!rotuloSelecionado) {
-      buscar().then((r) => {
+    if (naLista) {
+      setRotuloSelecionado(naLista.nome)
+      return
+    }
+
+    // Só quando ainda não se sabe o rótulo: um já conhecido não pode ser
+    // sobrescrito, senão digitar uma busca nova trocaria o nome do que está
+    // selecionado pelo nome antigo.
+    if (rotuloSelecionado) return
+
+    if (rotuloInicial) {
+      setRotuloSelecionado(rotuloInicial)
+      return
+    }
+
+    // Último recurso, e falho de propósito: procurar o id numa busca sem termo
+    // só acha o que estiver na primeira página do endpoint. É exatamente para
+    // não depender disto que existe `rotuloInicial`.
+    buscar()
+      .then((r) => {
         const achado = r.find((o) => o.id === value)
         if (achado) setRotuloSelecionado(achado.nome)
-      }).catch(() => {})
-    }
+      })
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, opcoes])
+  }, [value, opcoes, rotuloInicial])
 
   // Clique fora fecha
   useEffect(() => {
@@ -145,7 +185,10 @@ export function TCombo({
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`} ref={raiz}>
-      <label htmlFor={idInput} className="text-caption text-txt-secondary">
+      <label
+        htmlFor={idInput}
+        className={rotuloOculto ? 'sr-only' : 'text-caption text-txt-secondary'}
+      >
         {label}
       </label>
 
@@ -170,10 +213,11 @@ export function TCombo({
           }}
           onFocus={() => setAberto(true)}
           onKeyDown={aoTeclar}
-          className={`h-[38px] w-full rounded-md border bg-surface pl-9 pr-16 text-body text-txt
+          className={`w-full truncate rounded-md border bg-surface pl-9 pr-16 text-txt
             placeholder:text-txt-muted transition-shadow duration-150
             focus:outline-none focus:ring-[3px]
             disabled:cursor-not-allowed disabled:opacity-60
+            ${TAMANHOS[tamanho]}
             ${
               error
                 ? 'border-danger focus:border-danger focus:ring-danger/15'
@@ -182,7 +226,12 @@ export function TCombo({
         />
 
         <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-          {value && !disabled && (
+          {/*
+            Limpar só faz sentido onde não escolher é uma opção — que é
+            exatamente o que `vazio` declara. Sem ele, o campo é obrigatório e
+            oferecer o × contradiz isso; trocar continua sendo escolher outro.
+          */}
+          {vazio && value && !disabled && (
             <button
               type="button"
               aria-label="Limpar seleção"
