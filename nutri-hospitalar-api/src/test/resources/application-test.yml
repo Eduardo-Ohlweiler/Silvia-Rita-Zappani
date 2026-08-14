@@ -15,6 +15,22 @@
 # exatamente onde dói. Nem Testcontainers, porque o projeto não usa Docker.
 
 spring:
+  # Lê o .env sozinho, sem depender de quem disparou os testes.
+  #
+  # O `run-dev.sh` faz `source .env` antes do Maven, mas o ▶ da IDE não faz —
+  # e aí a senha caía no fallback `postgres`, o Liquibase não conectava, o
+  # contexto não subia e CADA classe de teste imprimia trinta linhas de
+  # "ApplicationContext failure threshold (1) exceeded". Trezentas linhas de
+  # cascata para uma senha errada.
+  #
+  # `optional:` porque em CI não há .env — lá as variáveis vêm do ambiente.
+  # Só no perfil de teste: em dev o .env traz valores entre aspas
+  # (SUPERADMIN_NAME="Eduardo Ohlweiler") que o parser de properties manteria
+  # literais. Aqui isso não afeta nada — os valores do superadmin estão
+  # fixados neste arquivo, e do .env só interessa a credencial do banco.
+  config:
+    import: optional:file:./.env[.properties]
+
   datasource:
     url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/nutridb_test}
     username: ${TEST_DB_USER:${DB_USER:postgres}}
