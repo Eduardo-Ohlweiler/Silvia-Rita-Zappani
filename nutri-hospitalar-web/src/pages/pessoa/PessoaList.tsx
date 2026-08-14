@@ -126,6 +126,15 @@ export function PessoaList() {
       },
     },
     {
+      chave: 'cidade',
+      cabecalho: 'Cidade',
+      secundaria: true,
+      render: (p) => {
+        const principal = p.enderecos.find((e) => e.principal) ?? p.enderecos[0]
+        return principal ? `${principal.cidadeNome}/${principal.estadoSigla}` : '—'
+      },
+    },
+    {
       chave: 'situacao',
       cabecalho: 'Situação',
       render: (p) =>

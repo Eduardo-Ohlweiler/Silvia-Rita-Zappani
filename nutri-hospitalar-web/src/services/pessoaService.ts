@@ -19,9 +19,12 @@ export const pessoaService = {
 
   findById: (id: string) => api.get<PessoaResponse>(`/pessoas/${id}`).then((r) => r.data),
 
-  select: (termo?: string, tipoCadastroId?: string) =>
+  /** `ignorarId` tira uma pessoa do resultado — o vínculo não se faz consigo. */
+  select: (termo?: string, tipoCadastroId?: string, ignorarId?: string) =>
     api
-      .get<PessoaSelect[]>('/pessoas/select', { params: { termo, tipoCadastroId } })
+      .get<PessoaSelect[]>('/pessoas/select', {
+        params: { termo, tipoCadastroId, ignorarId },
+      })
       .then((r) => r.data),
 
   create: (dto: PessoaCreate) =>

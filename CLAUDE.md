@@ -48,13 +48,14 @@ sistema silvia/
         ├── assets/icons/          # SVG inline, módulo único
         ├── styles/theme.css       # tokens Tailwind v4 + temas claro/escuro
         ├── components/common/     # TPage TPanel TDataGrid TDataGridFooter
-        │                          # TEntry TSelect TCombo TButton TBadge TThemeToggle
+        │                          # TEntry TSelect TCombo TButton TBadge TModal TThemeToggle
         ├── components/layout/     # Layout · Sidebar · TenantSwitcher · TProtected
         ├── contexts/              # AuthContext · ThemeContext
         ├── hooks/                 # useAuth · useTheme · useDebounce
         ├── services/              # api.ts (interceptor + refresh) + um por módulo
         ├── pages/                 # auth/Login · Dashboard · usuario · tenant
         │                          # pessoa · loginlog · perfil
+        ├── components/pessoa/     # PessoaRapidaModal (cadastro rápido)
         ├── types/ utils/
         └── routes/AppRoutes.tsx
 ```
@@ -70,11 +71,11 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 |---|---|
 | **1 — Base, acesso e auditoria** | ✅ pronta |
 | **2 — Casca do front e área administrativa** | ✅ pronta |
-| **3 — Pessoas (etapa A)** | ✅ pronta · porte do eroERP |
-| **3 — Pessoas (etapa B)** | ⬅️ **próxima** — endereços com cidade/estado do IBGE e vínculos |
-| 4 a 9 — Atendimento · Antropometria · Necessidades · Pediatria · Catálogos · Acompanhamento | pendentes |
+| **3 — Pessoas** | ✅ pronta · porte do eroERP, com endereços (IBGE) e vínculos |
+| **4 — Atendimento** | ⬅️ **próxima** |
+| 5 a 9 — Antropometria · Necessidades · Pediatria · Catálogos · Acompanhamento | pendentes |
 
-**74 testes** no total, contra o banco `nutridb_test`.
+**90 testes** no total, contra o banco `nutridb_test`.
 
 **Bloqueio conhecido:** as fatias 5 a 7 (cálculo) dependem de um documento que
 **ainda não existe** — a especificação numérica das fórmulas, a extrair de
@@ -84,8 +85,10 @@ fórmula nutricional deve ser implementada por inferência: o sistema prescreve
 dieta para paciente de UTI. As fatias 3 e 4 não dependem disso.
 
 Também não implementado, de propósito: **recuperação de senha** (depende de
-definir o serviço de e-mail) e **`audit_log`** de operações de negócio (entra
-com a fatia 3). Detalhe em [README da API](nutri-hospitalar-api/README.md).
+definir o serviço de e-mail) e **`audit_log`** de operações de negócio — este
+entra como fatia própria agora que o cadastro de pessoas fechou, e não junto
+dele: auditar CRUD antes de o cadastro estar estável significaria refazer o log
+a cada mudança de campo. Detalhe em [README da API](nutri-hospitalar-api/README.md).
 
 ## Modelo de acesso
 
@@ -210,7 +213,7 @@ desatualizada — reinicie.
 | [docs/05-identidade-visual.md](docs/05-identidade-visual.md) | Paleta, tipografia, tokens, marca |
 | [docs/06-seguranca-owasp.md](docs/06-seguranca-owasp.md) | OWASP Top 10 aplicado a Java/Spring |
 | [docs/07-banco-liquibase.md](docs/07-banco-liquibase.md) | PostgreSQL + Liquibase |
-| [docs/08-modulo-pessoas.md](docs/08-modulo-pessoas.md) | Cadastro de pessoas — PF/PJ, tipos de cadastro, contatos |
+| [docs/08-modulo-pessoas.md](docs/08-modulo-pessoas.md) | Cadastro de pessoas — PF/PJ, contatos, endereços e vínculos |
 
 ---
 

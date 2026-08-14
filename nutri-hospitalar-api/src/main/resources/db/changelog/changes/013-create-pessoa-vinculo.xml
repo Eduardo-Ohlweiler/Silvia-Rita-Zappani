@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Vínculo entre duas pessoas: responsável, dependente, cônjuge, familiar.
+        Numa UTI, saber quem responde pelo paciente não é dado administrativo.
+
+        UMA LINHA SERVE OS DOIS LADOS. Cadastrar "Maria é responsável de José"
+        faz José aparecer como "dependente" no cadastro de Maria, sem segunda
+        linha. Para isso a orientação é CANÔNICA — origem é sempre a pessoa de
+        menor id — e o tipo é gravado nessa orientação, invertido na leitura de
+        quem está do outro lado (RESPONSAVEL ↔ DEPENDENTE; cônjuge e familiar
+        são simétricos).
+
+        Sem a orientação canônica, o mesmo par entraria duas vezes invertido e
+        a unique abaixo não veria a duplicata.
+    -->
+    <changeSet id="013-create-pessoa-vinculo" author="eduardo">
+
+        <createTable tableName="pessoa_vinculo">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_pessoa_vinculo"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_pessoa_vinculo_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="pessoa_origem_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_pessoa_vinculo_origem"
+                             references="pessoa(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="pessoa_destino_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_pessoa_vinculo_destino"
+                             references="pessoa(id)"
+                             deleteCascade="true"/>
+            </column>
+
+            <column name="tipo" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="observacao" type="VARCHAR(255)"/>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <addUniqueConstraint tableName="pessoa_vinculo"
+                             columnNames="tenant_id, pessoa_origem_id, pessoa_destino_id"
+                             constraintName="uk_pessoa_vinculo_par"/>
+
+        <sql>
+            ALTER TABLE pessoa_vinculo ADD CONSTRAINT ck_pessoa_vinculo_tipo
+            CHECK (tipo IN ('RESPONSAVEL', 'DEPENDENTE', 'CONJUGE', 'FAMILIAR'));
+        </sql>
+
+        <!-- Ninguém é responsável por si mesmo -->
+        <sql>
+            ALTER TABLE pessoa_vinculo ADD CONSTRAINT ck_pessoa_vinculo_distintas
+            CHECK (pessoa_origem_id &lt;&gt; pessoa_destino_id);
+        </sql>
+
+        <createIndex tableName="pessoa_vinculo" indexName="idx_pessoa_vinculo_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex tableName="pessoa_vinculo" indexName="idx_pessoa_vinculo_origem">
+            <column name="pessoa_origem_id"/>
+        </createIndex>
+        <createIndex tableName="pessoa_vinculo" indexName="idx_pessoa_vinculo_destino">
+            <column name="pessoa_destino_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="pessoa_vinculo"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

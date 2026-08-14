@@ -20,5 +20,8 @@
     <!-- ══ Fatia 3 — cadastro de pessoas ════════════════════════════ -->
     <include file="db/changelog/changes/009-catalogos-pessoa.xml"/>
     <include file="db/changelog/changes/010-create-pessoa.xml"/>
+    <include file="db/changelog/changes/011-estado-cidade-ibge.xml"/>
+    <include file="db/changelog/changes/012-create-endereco.xml"/>
+    <include file="db/changelog/changes/013-create-pessoa-vinculo.xml"/>
 
 </databaseChangeLog>

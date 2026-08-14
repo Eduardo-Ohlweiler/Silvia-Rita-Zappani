@@ -397,14 +397,16 @@ distinto, então o catálogo global e o de cada tenant podem ter nomes iguais.
 
 ### 6.1 Catálogos de referência puros — sem coluna de tenant
 
-`tipo_cadastro`, `tipo_telefone`, `tipo_email` e `tipo_rede_social` (fatia 3)
-vão além: **não têm `tenant_id` nenhum**.
+`tipo_cadastro`, `tipo_telefone`, `tipo_email`, `tipo_rede_social`,
+`tipo_endereco`, `estado` e `cidade` (fatia 3) vão além: **não têm
+`tenant_id` nenhum**.
 
 A diferença para o caso híbrido é o que a tabela guarda. Fórmula enteral é
 conhecimento clínico que o cliente pode querer estender. "Celular",
-"WhatsApp", "Paciente" são rótulos de referência: significam o mesmo em todo
-lugar, não contêm dado de paciente e replicá-los por tenant só produziria
-grafias divergentes.
+"WhatsApp", "Paciente" e "Porto Alegre" são referência: significam o mesmo em
+todo lugar, não contêm dado de paciente e replicá-los por tenant só produziria
+grafias divergentes. Município então é caso extremo — são 5.570, vindos do
+IBGE, e nenhuma clínica tem a sua própria lista.
 
 ```java
 @MappedSuperclass

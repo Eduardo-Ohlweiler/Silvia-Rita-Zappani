@@ -59,11 +59,15 @@ public class PessoaController {
 
     @GetMapping("/select")
     @Operation(summary = "Pessoas ativas para combo",
-            description = "Busca por nome, CPF ou CNPJ. `tipoCadastroId` restringe a um tipo.")
+            description = """
+                    Busca por nome, CPF ou CNPJ. `tipoCadastroId` restringe a um
+                    tipo; `ignorarId` tira uma pessoa do resultado — é como o
+                    combo de vínculo evita oferecer a própria pessoa.""")
     public ResponseEntity<List<PessoaSelectDto>> select(
             @RequestParam(required = false) String termo,
-            @RequestParam(required = false) UUID tipoCadastroId) {
-        return ResponseEntity.ok(pessoaService.select(termo, tipoCadastroId));
+            @RequestParam(required = false) UUID tipoCadastroId,
+            @RequestParam(required = false) UUID ignorarId) {
+        return ResponseEntity.ok(pessoaService.select(termo, tipoCadastroId, ignorarId));
     }
 
     @GetMapping("/{id}")

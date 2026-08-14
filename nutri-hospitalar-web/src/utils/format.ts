@@ -59,6 +59,11 @@ export function mascararCnpj(valor: string): string {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
 
+export function mascararCep(valor: string): string {
+  const d = valor.replace(/\D/g, '').slice(0, 8)
+  return d.replace(/^(\d{5})(\d)/, '$1-$2')
+}
+
 export function mascararTelefone(valor: string): string {
   const d = valor.replace(/\D/g, '').slice(0, 11)
   if (d.length <= 10) return d.replace(/^(\d{2})(\d{4})(\d)/, '($1) $2-$3')

@@ -72,6 +72,70 @@ export interface RedeSocialItem {
   observacao?: string
 }
 
+// ─── Endereço ─────────────────────────────────────────────────────────
+
+export interface EnderecoResponse {
+  id: string
+  tipoEnderecoId: string
+  tipoEnderecoNome: string
+  cidadeId: string
+  cidadeNome: string
+  estadoSigla: string
+  estadoNome: string
+  cep: string | null
+  rua: string | null
+  numero: string | null
+  bairro: string | null
+  complemento: string | null
+  principal: boolean
+}
+
+export interface EnderecoItem {
+  id?: string
+  tipoEnderecoId: string
+  cidadeId: string
+  cep?: string
+  rua?: string
+  numero?: string
+  bairro?: string
+  complemento?: string
+  principal?: boolean
+}
+
+// ─── Vínculo ──────────────────────────────────────────────────────────
+
+/** Espelha o enum `TipoVinculo`. Responsável e dependente são inversos. */
+export type TipoVinculo = 'RESPONSAVEL' | 'DEPENDENTE' | 'CONJUGE' | 'FAMILIAR'
+
+export const TIPO_VINCULO_LABEL: Record<TipoVinculo, string> = {
+  RESPONSAVEL: 'Responsável',
+  DEPENDENTE: 'Dependente',
+  CONJUGE: 'Cônjuge',
+  FAMILIAR: 'Familiar',
+}
+
+export const OPCOES_TIPO_VINCULO = (Object.keys(TIPO_VINCULO_LABEL) as TipoVinculo[]).map(
+  (t) => ({ valor: t, rotulo: TIPO_VINCULO_LABEL[t] }),
+)
+
+/** Os dados são sempre da **outra** pessoa; o tipo é o papel dela. */
+export interface VinculoResponse {
+  id: string
+  pessoaId: string
+  pessoaNome: string
+  documento: string | null
+  tipo: TipoVinculo
+  tipoDescricao: string
+  observacao: string | null
+}
+
+export interface VinculoItem {
+  id?: string
+  pessoaId: string
+  tipo: TipoVinculo
+  observacao?: string
+}
+
 // ─── Pessoa ───────────────────────────────────────────────────────────
 
 export interface PessoaResponse {
@@ -92,6 +156,8 @@ export interface PessoaResponse {
   telefones: TelefoneResponse[]
   emails: EmailResponse[]
   redesSociais: RedeSocialResponse[]
+  enderecos: EnderecoResponse[]
+  vinculos: VinculoResponse[]
   createdAt: string
   updatedAt: string | null
 }
@@ -112,6 +178,8 @@ export interface PessoaCreate {
   telefones?: TelefoneItem[]
   emails?: EmailItem[]
   redesSociais?: RedeSocialItem[]
+  enderecos?: EnderecoItem[]
+  vinculos?: VinculoItem[]
 }
 
 export type PessoaUpdate = PessoaCreate

@@ -31,4 +31,7 @@ public class Telefone extends ContatoEntity {
 
     @Column(name = "principal", nullable = false)
     private Boolean principal = false;
+
+    @Column(name = "observacao", length = 255)
+    private String observacao;
 }

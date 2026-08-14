@@ -91,10 +91,12 @@ public interface PessoaRepository extends JpaRepository<Pessoa, UUID> {
                     SELECT 1 FROM pessoa_tipo_cadastro ptc
                     WHERE ptc.pessoa_id = p.id
                       AND ptc.tipo_cadastro_id = CAST(:tipoCadastroId AS uuid)))
+              AND (CAST(:ignorarId AS uuid) IS NULL OR p.id <> CAST(:ignorarId AS uuid))
             ORDER BY p.nome
             LIMIT 100
             """, nativeQuery = true)
     List<Pessoa> findForSelect(@Param("tenantId") UUID tenantId,
                                @Param("termo") String termo,
-                               @Param("tipoCadastroId") UUID tipoCadastroId);
+                               @Param("tipoCadastroId") UUID tipoCadastroId,
+                               @Param("ignorarId") UUID ignorarId);
 }

@@ -3,6 +3,7 @@ package com.nutri.hospitalar.pessoa.entity;
 import com.nutri.hospitalar.baseentity.TenantEntity;
 import com.nutri.hospitalar.catalogo.entity.TipoCadastro;
 import com.nutri.hospitalar.contato.entity.Email;
+import com.nutri.hospitalar.contato.entity.Endereco;
 import com.nutri.hospitalar.contato.entity.RedeSocial;
 import com.nutri.hospitalar.contato.entity.Telefone;
 import com.nutri.hospitalar.pessoa.enums.TipoPessoa;
@@ -110,6 +111,9 @@ public class Pessoa extends TenantEntity {
 
     @OneToMany(mappedBy = "pessoa", fetch = FetchType.LAZY)
     private List<RedeSocial> redesSociais = new ArrayList<>();
+
+    @OneToMany(mappedBy = "pessoa", fetch = FetchType.LAZY)
+    private List<Endereco> enderecos = new ArrayList<>();
 
     public boolean ehPessoaFisica() {
         return TipoPessoa.PESSOA_FISICA.equals(this.tipoPessoa);

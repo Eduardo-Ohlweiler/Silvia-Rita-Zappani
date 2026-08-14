@@ -5,8 +5,11 @@ import com.nutri.hospitalar.contato.mapper.ContatoMapper;
 import com.nutri.hospitalar.pessoa.dtos.PessoaResponseDto;
 import com.nutri.hospitalar.pessoa.dtos.PessoaSelectDto;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
+import com.nutri.hospitalar.vinculo.entity.PessoaVinculo;
+import com.nutri.hospitalar.vinculo.mapper.PessoaVinculoMapper;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -14,7 +17,18 @@ public final class PessoaMapper {
 
     private PessoaMapper() {}
 
+    /**
+     * Para a listagem: sem vínculos.
+     *
+     * <p>Vínculo não é coleção da pessoa — mora nos dois sentidos e exige
+     * consulta própria. Carregá-lo por linha na listagem seria um N+1 para
+     * mostrar o que a tela nem exibe.
+     */
     public static PessoaResponseDto toResponse(Pessoa pessoa) {
+        return toResponse(pessoa, List.of());
+    }
+
+    public static PessoaResponseDto toResponse(Pessoa pessoa, List<PessoaVinculo> vinculos) {
         return new PessoaResponseDto(
                 pessoa.getId(),
                 pessoa.getNome(),
@@ -33,6 +47,8 @@ public final class PessoaMapper {
                 ContatoMapper.toTelefoneList(pessoa.getTelefones()),
                 ContatoMapper.toEmailList(pessoa.getEmails()),
                 ContatoMapper.toRedeSocialList(pessoa.getRedesSociais()),
+                ContatoMapper.toEnderecoList(pessoa.getEnderecos()),
+                PessoaVinculoMapper.toResponseList(pessoa, vinculos),
                 pessoa.getCreatedAt(),
                 pessoa.getUpdatedAt());
     }

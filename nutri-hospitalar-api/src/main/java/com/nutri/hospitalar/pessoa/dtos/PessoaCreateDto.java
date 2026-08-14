@@ -1,9 +1,11 @@
 package com.nutri.hospitalar.pessoa.dtos;
 
 import com.nutri.hospitalar.contato.dtos.EmailItemDto;
+import com.nutri.hospitalar.contato.dtos.EnderecoItemDto;
 import com.nutri.hospitalar.contato.dtos.RedeSocialItemDto;
 import com.nutri.hospitalar.contato.dtos.TelefoneItemDto;
 import com.nutri.hospitalar.pessoa.enums.TipoPessoa;
+import com.nutri.hospitalar.vinculo.dtos.VinculoItemDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -64,5 +66,9 @@ public record PessoaCreateDto(
 
         List<@Valid EmailItemDto> emails,
 
-        List<@Valid RedeSocialItemDto> redesSociais
+        List<@Valid RedeSocialItemDto> redesSociais,
+
+        List<@Valid EnderecoItemDto> enderecos,
+
+        List<@Valid VinculoItemDto> vinculos
 ) {}

@@ -2,17 +2,21 @@ package com.nutri.hospitalar.contato.service;
 
 import com.nutri.hospitalar.catalogo.service.CatalogoService;
 import com.nutri.hospitalar.contato.dtos.EmailItemDto;
+import com.nutri.hospitalar.contato.dtos.EnderecoItemDto;
 import com.nutri.hospitalar.contato.dtos.RedeSocialItemDto;
 import com.nutri.hospitalar.contato.dtos.TelefoneItemDto;
 import com.nutri.hospitalar.contato.entity.ContatoEntity;
 import com.nutri.hospitalar.contato.entity.Email;
+import com.nutri.hospitalar.contato.entity.Endereco;
 import com.nutri.hospitalar.contato.entity.RedeSocial;
 import com.nutri.hospitalar.contato.entity.Telefone;
 import com.nutri.hospitalar.contato.repository.EmailRepository;
+import com.nutri.hospitalar.contato.repository.EnderecoRepository;
 import com.nutri.hospitalar.contato.repository.RedeSocialRepository;
 import com.nutri.hospitalar.contato.repository.TelefoneRepository;
 import com.nutri.hospitalar.exceptions.BadRequestException;
 import com.nutri.hospitalar.exceptions.NotFoundException;
+import com.nutri.hospitalar.localidade.service.LocalidadeService;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -49,7 +53,9 @@ public class ContatoService {
     private final TelefoneRepository telefoneRepository;
     private final EmailRepository emailRepository;
     private final RedeSocialRepository redeSocialRepository;
+    private final EnderecoRepository enderecoRepository;
     private final CatalogoService catalogoService;
+    private final LocalidadeService localidadeService;
 
     @Transactional
     public List<Telefone> sincronizarTelefones(Pessoa pessoa, List<TelefoneItemDto> itens) {
@@ -107,6 +113,40 @@ public class ContatoService {
             email.setPrincipal(ehOPrincipal(item.principal(), algumPrincipal, i));
 
             resultado.add(emailRepository.save(email));
+        }
+
+        return resultado;
+    }
+
+    @Transactional
+    public List<Endereco> sincronizarEnderecos(Pessoa pessoa, List<EnderecoItemDto> itens) {
+        Map<UUID, Endereco> existentes = indexar(
+                enderecoRepository.findAllByPessoaIdAndTenantId(pessoa.getId(), tenantDe(pessoa)));
+
+        if (vazia(itens)) {
+            enderecoRepository.deleteAll(existentes.values());
+            return List.of();
+        }
+
+        boolean algumPrincipal = exigirNoMaximoUmPrincipal(itens, EnderecoItemDto::principal, "endereço");
+        removerAusentes(enderecoRepository, existentes, idsRecebidos(itens, EnderecoItemDto::id));
+
+        List<Endereco> resultado = new ArrayList<>();
+
+        for (int i = 0; i < itens.size(); i++) {
+            EnderecoItemDto item = itens.get(i);
+            Endereco endereco = resolver(existentes, item.id(), Endereco::new, pessoa, "Endereço");
+
+            endereco.setTipoEndereco(catalogoService.exigirTipoEndereco(item.tipoEnderecoId()));
+            endereco.setCidade(localidadeService.exigirCidade(item.cidadeId()));
+            endereco.setCep(somenteDigitosOuNulo(item.cep()));
+            endereco.setRua(item.rua());
+            endereco.setNumero(item.numero());
+            endereco.setBairro(item.bairro());
+            endereco.setComplemento(item.complemento());
+            endereco.setPrincipal(ehOPrincipal(item.principal(), algumPrincipal, i));
+
+            resultado.add(enderecoRepository.save(endereco));
         }
 
         return resultado;
@@ -205,6 +245,13 @@ public class ContatoService {
      */
     private boolean ehOPrincipal(Boolean marcado, boolean algumPrincipal, int indice) {
         return Boolean.TRUE.equals(marcado) || (!algumPrincipal && indice == 0);
+    }
+
+    /** CEP é gravado só com dígitos, como todo documento do módulo. */
+    private String somenteDigitosOuNulo(String valor) {
+        if (valor == null || valor.isBlank()) return null;
+        String digitos = valor.replaceAll("\\D", "");
+        return digitos.isEmpty() ? null : digitos;
     }
 
     private String codigoPaisOuPadrao(String codigoPais) {

@@ -48,4 +48,10 @@ public class CatalogoController {
     public ResponseEntity<List<CatalogoSelectDto>> tiposRedeSocial() {
         return ResponseEntity.ok(catalogoService.tiposRedeSocial());
     }
+
+    @GetMapping("/tipos-endereco/select")
+    @Operation(summary = "Tipos de endereço")
+    public ResponseEntity<List<CatalogoSelectDto>> tiposEndereco() {
+        return ResponseEntity.ok(catalogoService.tiposEndereco());
+    }
 }

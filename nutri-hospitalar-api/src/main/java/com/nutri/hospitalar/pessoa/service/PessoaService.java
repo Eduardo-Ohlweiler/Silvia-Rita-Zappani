@@ -4,6 +4,10 @@ import com.nutri.hospitalar.catalogo.entity.TipoCadastro;
 import com.nutri.hospitalar.catalogo.service.CatalogoService;
 import com.nutri.hospitalar.config.PageableUtils;
 import com.nutri.hospitalar.config.SecurityUtils;
+import com.nutri.hospitalar.contato.dtos.EmailItemDto;
+import com.nutri.hospitalar.contato.dtos.EnderecoItemDto;
+import com.nutri.hospitalar.contato.dtos.RedeSocialItemDto;
+import com.nutri.hospitalar.contato.dtos.TelefoneItemDto;
 import com.nutri.hospitalar.contato.service.ContatoService;
 import com.nutri.hospitalar.exceptions.BadRequestException;
 import com.nutri.hospitalar.exceptions.ConflictException;
@@ -17,6 +21,9 @@ import com.nutri.hospitalar.pessoa.enums.TipoPessoa;
 import com.nutri.hospitalar.pessoa.mapper.PessoaMapper;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
 import com.nutri.hospitalar.pessoa.util.PessoaValidator;
+import com.nutri.hospitalar.vinculo.dtos.VinculoItemDto;
+import com.nutri.hospitalar.vinculo.entity.PessoaVinculo;
+import com.nutri.hospitalar.vinculo.service.VinculoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -43,6 +50,7 @@ public class PessoaService {
     private final PessoaRepository pessoaRepository;
     private final CatalogoService catalogoService;
     private final ContatoService contatoService;
+    private final VinculoService vinculoService;
     private final SecurityUtils securityUtils;
 
     @Transactional(readOnly = true)
@@ -62,16 +70,18 @@ public class PessoaService {
     }
 
     @Transactional(readOnly = true)
-    public List<PessoaSelectDto> select(String termo, UUID tipoCadastroId) {
+    public List<PessoaSelectDto> select(String termo, UUID tipoCadastroId, UUID ignorarId) {
         UUID tenantId = securityUtils.getTenantIdLogado();
-        return pessoaRepository.findForSelect(tenantId, nomeOuNulo(termo), tipoCadastroId).stream()
+        return pessoaRepository
+                .findForSelect(tenantId, nomeOuNulo(termo), tipoCadastroId, ignorarId).stream()
                 .map(PessoaMapper::toSelect)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public PessoaResponseDto findByIdResponse(UUID id) {
-        return PessoaMapper.toResponse(findById(id));
+        Pessoa pessoa = findById(id);
+        return PessoaMapper.toResponse(pessoa, vinculoService.daPessoa(pessoa));
     }
 
     @Transactional(readOnly = true)
@@ -105,10 +115,12 @@ public class PessoaService {
         pessoa.getTiposCadastro().addAll(tipos);
 
         Pessoa salva = pessoaRepository.save(pessoa);
-        sincronizarContatos(salva, dto.telefones(), dto.emails(), dto.redesSociais());
+        List<PessoaVinculo> vinculos = sincronizarFilhos(salva,
+                dto.telefones(), dto.emails(), dto.redesSociais(),
+                dto.enderecos(), dto.vinculos());
 
         log.info("Pessoa criada id={} tipo={}", salva.getId(), salva.getTipoPessoa());
-        return PessoaMapper.toResponse(salva);
+        return PessoaMapper.toResponse(salva, vinculos);
     }
 
     @Transactional
@@ -137,10 +149,12 @@ public class PessoaService {
         pessoa.getTiposCadastro().addAll(tipos);
 
         Pessoa salva = pessoaRepository.save(pessoa);
-        sincronizarContatos(salva, dto.telefones(), dto.emails(), dto.redesSociais());
+        List<PessoaVinculo> vinculos = sincronizarFilhos(salva,
+                dto.telefones(), dto.emails(), dto.redesSociais(),
+                dto.enderecos(), dto.vinculos());
 
         log.info("Pessoa alterada id={}", id);
-        return PessoaMapper.toResponse(salva);
+        return PessoaMapper.toResponse(salva, vinculos);
     }
 
     @Transactional
@@ -155,15 +169,24 @@ public class PessoaService {
 
     // ─────────────────────────────────────────────────────────────────────
 
-    private void sincronizarContatos(Pessoa pessoa,
-                                     List<com.nutri.hospitalar.contato.dtos.TelefoneItemDto> telefones,
-                                     List<com.nutri.hospitalar.contato.dtos.EmailItemDto> emails,
-                                     List<com.nutri.hospitalar.contato.dtos.RedeSocialItemDto> redes) {
+    /**
+     * @return os vínculos resultantes — não são coleção da pessoa, e o mapper
+     *         precisa deles para montar a resposta.
+     */
+    private List<PessoaVinculo> sincronizarFilhos(Pessoa pessoa,
+                                                  List<TelefoneItemDto> telefones,
+                                                  List<EmailItemDto> emails,
+                                                  List<RedeSocialItemDto> redes,
+                                                  List<EnderecoItemDto> enderecos,
+                                                  List<VinculoItemDto> vinculos) {
         // A lista devolvida substitui a da entidade em memória: sem isso a
         // resposta sairia com os contatos anteriores.
         pessoa.setTelefones(contatoService.sincronizarTelefones(pessoa, telefones));
         pessoa.setEmails(contatoService.sincronizarEmails(pessoa, emails));
         pessoa.setRedesSociais(contatoService.sincronizarRedesSociais(pessoa, redes));
+        pessoa.setEnderecos(contatoService.sincronizarEnderecos(pessoa, enderecos));
+
+        return vinculoService.sincronizar(pessoa, vinculos);
     }
 
     /**

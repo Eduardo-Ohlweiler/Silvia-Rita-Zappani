@@ -12,4 +12,5 @@ export const catalogoService = {
   tiposTelefone: () => buscar('/tipos-telefone/select'),
   tiposEmail: () => buscar('/tipos-email/select'),
   tiposRedeSocial: () => buscar('/tipos-rede-social/select'),
+  tiposEndereco: () => buscar('/tipos-endereco/select'),
 }

@@ -4,10 +4,12 @@ import com.nutri.hospitalar.catalogo.dtos.CatalogoSelectDto;
 import com.nutri.hospitalar.catalogo.entity.CatalogoEntity;
 import com.nutri.hospitalar.catalogo.entity.TipoCadastro;
 import com.nutri.hospitalar.catalogo.entity.TipoEmail;
+import com.nutri.hospitalar.catalogo.entity.TipoEndereco;
 import com.nutri.hospitalar.catalogo.entity.TipoRedeSocial;
 import com.nutri.hospitalar.catalogo.entity.TipoTelefone;
 import com.nutri.hospitalar.catalogo.repository.TipoCadastroRepository;
 import com.nutri.hospitalar.catalogo.repository.TipoEmailRepository;
+import com.nutri.hospitalar.catalogo.repository.TipoEnderecoRepository;
 import com.nutri.hospitalar.catalogo.repository.TipoRedeSocialRepository;
 import com.nutri.hospitalar.catalogo.repository.TipoTelefoneRepository;
 import com.nutri.hospitalar.exceptions.BadRequestException;
@@ -37,6 +39,7 @@ public class CatalogoService {
     private final TipoTelefoneRepository tipoTelefoneRepository;
     private final TipoEmailRepository tipoEmailRepository;
     private final TipoRedeSocialRepository tipoRedeSocialRepository;
+    private final TipoEnderecoRepository tipoEnderecoRepository;
 
     @Transactional(readOnly = true)
     public List<CatalogoSelectDto> tiposCadastro() {
@@ -56,6 +59,11 @@ public class CatalogoService {
     @Transactional(readOnly = true)
     public List<CatalogoSelectDto> tiposRedeSocial() {
         return paraSelect(tipoRedeSocialRepository.findAllByAtivoTrueOrderByNome());
+    }
+
+    @Transactional(readOnly = true)
+    public List<CatalogoSelectDto> tiposEndereco() {
+        return paraSelect(tipoEnderecoRepository.findAllByAtivoTrueOrderByNome());
     }
 
     /**
@@ -94,6 +102,12 @@ public class CatalogoService {
     public TipoRedeSocial exigirTipoRedeSocial(UUID id) {
         return tipoRedeSocialRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Tipo de rede social não encontrado"));
+    }
+
+    @Transactional(readOnly = true)
+    public TipoEndereco exigirTipoEndereco(UUID id) {
+        return tipoEnderecoRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Tipo de endereço não encontrado"));
     }
 
     private List<CatalogoSelectDto> paraSelect(List<? extends CatalogoEntity> itens) {

@@ -31,4 +31,7 @@ public class RedeSocial extends ContatoEntity {
 
     @Column(name = "url", length = 500)
     private String url;
+
+    @Column(name = "observacao", length = 255)
+    private String observacao;
 }

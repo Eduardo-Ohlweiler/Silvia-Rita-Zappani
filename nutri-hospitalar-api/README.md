@@ -58,7 +58,7 @@ O `.env` está no `.gitignore`. Nenhum segredo vai para o repositório.
 
 ```bash
 ./run-dev.sh            # sobe a API em http://localhost:8080
-./run-dev.sh test       # roda os 74 testes
+./run-dev.sh test       # roda os 90 testes
 ./run-dev.sh package    # gera o jar
 ```
 
@@ -80,7 +80,7 @@ schema a cada execução. **Não usamos H2**: sem `unaccent`, com tratamento
 diferente de `NULL` em constraint única e aceitando JPQL que o Postgres rejeita,
 ele daria falsa confiança exatamente onde dói.
 
-Cobertura das fatias 1 e 3 — 74 testes:
+Cobertura das fatias 1 e 3 — 90 testes:
 
 | Classe | O que prova |
 |---|---|
@@ -89,6 +89,7 @@ Cobertura das fatias 1 e 3 — 74 testes:
 | `CriacaoDeClienteTest` | criar usuário sem tenant abre um cliente novo com ele como ADMIN; com `tenantId` ou dentro de um tenant, entra no existente; e-mail duplicado em outro tenant é recusado; a listagem global acha quem a do tenant não acha, filtra por tenant quando pedido e recusa quem não é superadmin |
 | `AuthTest` | a rota de registro não existe (e nenhum tenant nasce por ela); rota inexistente devolve 404 e método errado 405, nunca 500; mensagem de falha uniforme; bloqueio após 5 tentativas; rotação e detecção de reuso de refresh token; troca de tenant |
 | `AutorizacaoTest` | área administrativa restrita ao superadmin; perfil próprio; token adulterado; desativação derruba token em uso |
+| `EnderecoVinculoTest` | o seed do IBGE está completo e a busca de cidade ignora acento; endereço grava a cidade e devolve a UF; **o vínculo é recíproco** — responsável de um lado é dependente do outro, e remover por um cadastro remove do outro; consigo mesma, par repetido e cross-tenant são recusados |
 | `PessoaTest` | PF e PJ com validação de dígito verificador; documento duplicado no tenant é 409 e **o mesmo CPF em outro tenant passa**; campo do tipo errado é 400 e a troca de tipo limpa o anterior; a lista de contatos substitui o estado, com um só principal; pessoa de outro tenant é 404; `USER` opera o cadastro |
 
 ## Modelo de acesso
@@ -188,6 +189,11 @@ Detalhe em [`../docs/08-modulo-pessoas.md`](../docs/08-modulo-pessoas.md).
   promove o primeiro
 - Os catálogos (`/tipos-cadastro/select` e os outros três) são **globais, sem
   `tenant_id`** e somente leitura — ver `../docs/01-multitenant.md` §6.1
+- **Endereço** aponta para a tabela `cidade` do IBGE (27 UFs, 5.571 municípios,
+  semeados na migration 011), e não para texto livre
+- **Vínculo** entre pessoas (responsável · dependente · cônjuge · familiar) é
+  **uma linha só servindo os dois cadastros**: a orientação é canônica (origem
+  = menor id) e o rótulo é invertido do outro lado
 - É **módulo de negócio**: `isAuthenticated()`, ADMIN e USER operam
 
 ## Endpoints
@@ -209,7 +215,8 @@ Duas rotas. Não existe registro público.
 | `GET` `PUT` | `/usuarios/perfil` |
 | `PATCH` | `/usuarios/perfil/senha` |
 | `GET` `POST` `PUT` `PATCH` | `/pessoas`, `/pessoas/{id}`, `/pessoas/{id}/ativo`, `/pessoas/select` |
-| `GET` | `/tipos-cadastro/select`, `/tipos-telefone/select`, `/tipos-email/select`, `/tipos-rede-social/select` |
+| `GET` | `/tipos-cadastro/select`, `/tipos-telefone/select`, `/tipos-email/select`, `/tipos-rede-social/select`, `/tipos-endereco/select` |
+| `GET` | `/estados/select`, `/cidades/select` |
 
 ### Somente SUPERADMIN
 

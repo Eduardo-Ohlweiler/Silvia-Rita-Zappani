@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Endereço da pessoa, com o quinto catálogo global da fatia 3.
+
+        Mesma forma dos outros filhos de pessoa (telefone, e-mail, rede social):
+        `tenant_id` próprio além do `pessoa_id`, e ON DELETE CASCADE — filho sem
+        pessoa não existe, e é o cascade que mantém a limpeza dos testes simples.
+
+        A cidade vem da tabela de referência do IBGE (011), não de texto livre:
+        "Porto Alegre" escrito de cinco jeitos inviabiliza qualquer relatório
+        por região.
+    -->
+    <changeSet id="012-create-endereco" author="eduardo">
+
+        <createTable tableName="tipo_endereco">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_tipo_endereco"/>
+            </column>
+            <column name="nome" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <addUniqueConstraint tableName="tipo_endereco" columnNames="nome"
+                             constraintName="uk_tipo_endereco_nome"/>
+
+        <sql>
+            INSERT INTO tipo_endereco (nome, ativo, created_at) VALUES
+                ('Residencial', true, now()),
+                ('Comercial', true, now()),
+                ('Cobrança', true, now());
+        </sql>
+
+        <createTable tableName="endereco">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_endereco"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_endereco_tenant"
+                             references="tenant(id)"/>
+            </column>
+            <column name="pessoa_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_endereco_pessoa"
+                             references="pessoa(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="tipo_endereco_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_endereco_tipo"
+                             references="tipo_endereco(id)"/>
+            </column>
+            <column name="cidade_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_endereco_cidade"
+                             references="cidade(id)"/>
+            </column>
+
+            <column name="cep" type="VARCHAR(8)"/>
+            <column name="rua" type="VARCHAR(255)"/>
+            <column name="numero" type="VARCHAR(20)"/>
+            <column name="bairro" type="VARCHAR(100)"/>
+            <column name="complemento" type="VARCHAR(100)"/>
+
+            <column name="principal" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <createIndex tableName="endereco" indexName="idx_endereco_pessoa">
+            <column name="pessoa_id"/>
+        </createIndex>
+        <createIndex tableName="endereco" indexName="idx_endereco_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="endereco"/>
+            <dropTable tableName="tipo_endereco"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
