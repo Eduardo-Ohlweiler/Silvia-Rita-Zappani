@@ -58,7 +58,7 @@ O `.env` está no `.gitignore`. Nenhum segredo vai para o repositório.
 
 ```bash
 ./run-dev.sh            # sobe a API em http://localhost:8080
-./run-dev.sh test       # roda os 55 testes
+./run-dev.sh test       # roda os 74 testes
 ./run-dev.sh package    # gera o jar
 ```
 
@@ -80,7 +80,7 @@ schema a cada execução. **Não usamos H2**: sem `unaccent`, com tratamento
 diferente de `NULL` em constraint única e aceitando JPQL que o Postgres rejeita,
 ele daria falsa confiança exatamente onde dói.
 
-Cobertura da fatia 1 — 55 testes:
+Cobertura das fatias 1 e 3 — 74 testes:
 
 | Classe | O que prova |
 |---|---|
@@ -89,6 +89,7 @@ Cobertura da fatia 1 — 55 testes:
 | `CriacaoDeClienteTest` | criar usuário sem tenant abre um cliente novo com ele como ADMIN; com `tenantId` ou dentro de um tenant, entra no existente; e-mail duplicado em outro tenant é recusado; a listagem global acha quem a do tenant não acha, filtra por tenant quando pedido e recusa quem não é superadmin |
 | `AuthTest` | a rota de registro não existe (e nenhum tenant nasce por ela); rota inexistente devolve 404 e método errado 405, nunca 500; mensagem de falha uniforme; bloqueio após 5 tentativas; rotação e detecção de reuso de refresh token; troca de tenant |
 | `AutorizacaoTest` | área administrativa restrita ao superadmin; perfil próprio; token adulterado; desativação derruba token em uso |
+| `PessoaTest` | PF e PJ com validação de dígito verificador; documento duplicado no tenant é 409 e **o mesmo CPF em outro tenant passa**; campo do tipo errado é 400 e a troca de tipo limpa o anterior; a lista de contatos substitui o estado, com um só principal; pessoa de outro tenant é 404; `USER` opera o cadastro |
 
 ## Modelo de acesso
 
@@ -165,8 +166,29 @@ As escritas continuam todas dentro do tenant: `GET`/`PUT /usuarios/{id}` devolve
 404 para quem é de outro cliente. Por isso o front entra no tenant do usuário
 antes de abrir a edição, em vez de a API relaxar o filtro.
 
-Quando a fatia 3 chegar, este é o padrão a repetir **só onde houver a mesma
-necessidade** — visão global é exceção justificada, não conveniência.
+O cadastro de pessoas, que veio depois, **não** ganhou visão global: não havia a
+mesma necessidade. Visão global é exceção justificada, não conveniência.
+
+## Cadastro de pessoas
+
+Porte do módulo `pessoa` do eroERP, com `cliente_id` virando `tenant_id`.
+Detalhe em [`../docs/08-modulo-pessoas.md`](../docs/08-modulo-pessoas.md).
+
+- Uma tabela para **pessoa física e jurídica**, classificada por **tipos de
+  cadastro** (Paciente · Responsável · Profissional de saúde · Fornecedor ·
+  Outros). Paciente não é tabela: é um tipo de cadastro de uma pessoa
+- **CPF e CNPJ com dígito verificador**; documento chega com ou sem máscara e é
+  gravado só com dígitos. Unicidade **por tenant** — duas clínicas podem
+  atender a mesma pessoa
+- Campo do tipo errado (CNPJ numa pessoa física) é **recusado com 400**, não
+  ignorado; trocar de tipo no `PUT` limpa os campos do tipo anterior
+- Telefones, e-mails e redes sociais viajam **dentro** do `POST`/`PUT` da
+  pessoa, e a lista é o **estado completo**: item com `id` atualiza, sem `id`
+  nasce, o que não vier é removido. Só um principal por lista; nenhum marcado
+  promove o primeiro
+- Os catálogos (`/tipos-cadastro/select` e os outros três) são **globais, sem
+  `tenant_id`** e somente leitura — ver `../docs/01-multitenant.md` §6.1
+- É **módulo de negócio**: `isAuthenticated()`, ADMIN e USER operam
 
 ## Endpoints
 
@@ -186,6 +208,8 @@ Duas rotas. Não existe registro público.
 | `POST` | `/auth/logout` |
 | `GET` `PUT` | `/usuarios/perfil` |
 | `PATCH` | `/usuarios/perfil/senha` |
+| `GET` `POST` `PUT` `PATCH` | `/pessoas`, `/pessoas/{id}`, `/pessoas/{id}/ativo`, `/pessoas/select` |
+| `GET` | `/tipos-cadastro/select`, `/tipos-telefone/select`, `/tipos-email/select`, `/tipos-rede-social/select` |
 
 ### Somente SUPERADMIN
 

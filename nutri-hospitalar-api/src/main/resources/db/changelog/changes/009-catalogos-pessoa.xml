@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Catálogos do cadastro de pessoas.
+
+        SEM `tenant_id`, e isso é deliberado: são dados de REFERÊNCIA, não de
+        negócio. "Celular" e "Paciente" significam a mesma coisa em todo
+        cliente, e replicá-los por tenant só criaria divergência de grafia sem
+        nenhum ganho de isolamento — não há dado de paciente aqui dentro.
+
+        É a mesma natureza de exceção já documentada para o e-mail único
+        global (006). Se um cliente um dia quiser um tipo próprio, entra um
+        `tenant_id` NULLABLE numa migration nova: nulo = catálogo do sistema,
+        preenchido = do cliente. Nada do que existe quebra.
+
+        Somente leitura pela API: a aplicação expõe apenas `/select`.
+    -->
+    <changeSet id="009-catalogos-pessoa" author="eduardo">
+
+        <createTable tableName="tipo_cadastro">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_tipo_cadastro"/>
+            </column>
+            <column name="nome" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <createTable tableName="tipo_telefone">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_tipo_telefone"/>
+            </column>
+            <column name="nome" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <createTable tableName="tipo_email">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_tipo_email"/>
+            </column>
+            <column name="nome" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <createTable tableName="tipo_rede_social">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_tipo_rede_social"/>
+            </column>
+            <column name="nome" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <!-- Sem tenant, a unicidade do nome é global mesmo -->
+        <addUniqueConstraint tableName="tipo_cadastro" columnNames="nome"
+                             constraintName="uk_tipo_cadastro_nome"/>
+        <addUniqueConstraint tableName="tipo_telefone" columnNames="nome"
+                             constraintName="uk_tipo_telefone_nome"/>
+        <addUniqueConstraint tableName="tipo_email" columnNames="nome"
+                             constraintName="uk_tipo_email_nome"/>
+        <addUniqueConstraint tableName="tipo_rede_social" columnNames="nome"
+                             constraintName="uk_tipo_rede_social_nome"/>
+
+        <!--
+            Seed. Os tipos de cadastro são os do domínio da nutrição, não os do
+            ERP de origem (Funcionário, Motorista, Filial…): quem usa esta tela
+            cadastra paciente, não frota.
+        -->
+        <sql>
+            INSERT INTO tipo_cadastro (nome, ativo, created_at) VALUES
+                ('Paciente', true, now()),
+                ('Responsável', true, now()),
+                ('Profissional de saúde', true, now()),
+                ('Fornecedor', true, now()),
+                ('Outros', true, now());
+
+            INSERT INTO tipo_telefone (nome, ativo, created_at) VALUES
+                ('Celular', true, now()),
+                ('WhatsApp', true, now()),
+                ('Residencial', true, now()),
+                ('Comercial', true, now());
+
+            INSERT INTO tipo_email (nome, ativo, created_at) VALUES
+                ('Particular', true, now()),
+                ('Comercial', true, now());
+
+            INSERT INTO tipo_rede_social (nome, ativo, created_at) VALUES
+                ('Instagram', true, now()),
+                ('Facebook', true, now()),
+                ('LinkedIn', true, now()),
+                ('TikTok', true, now()),
+                ('X', true, now());
+        </sql>
+
+        <rollback>
+            <dropTable tableName="tipo_rede_social"/>
+            <dropTable tableName="tipo_email"/>
+            <dropTable tableName="tipo_telefone"/>
+            <dropTable tableName="tipo_cadastro"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

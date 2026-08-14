@@ -2,6 +2,7 @@ package com.nutri.hospitalar;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutri.hospitalar.loginlog.repository.LoginLogRepository;
+import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
 import com.nutri.hospitalar.refreshtoken.repository.RefreshTokenRepository;
 import com.nutri.hospitalar.tenant.entity.Tenant;
 import com.nutri.hospitalar.tenant.repository.TenantRepository;
@@ -43,6 +44,7 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected UsuarioRepository usuarioRepository;
     @Autowired protected LoginLogRepository loginLogRepository;
     @Autowired protected RefreshTokenRepository refreshTokenRepository;
+    @Autowired protected PessoaRepository pessoaRepository;
     @Autowired protected PasswordEncoder passwordEncoder;
 
     protected Tenant tenantA;
@@ -54,9 +56,13 @@ public abstract class AbstractIntegrationTest {
 
     @BeforeEach
     void montarCenario() {
-        // Ordem de dependência: refresh_token → login_log → usuario → tenant
+        // Ordem de dependência:
+        //   refresh_token → login_log → pessoa → usuario → tenant
+        // Apagar a pessoa leva junto telefone, e-mail, rede social e os tipos
+        // de cadastro: as FKs são ON DELETE CASCADE (migration 010).
         refreshTokenRepository.deleteAllInBatch();
         loginLogRepository.deleteAllInBatch();
+        pessoaRepository.deleteAllInBatch();
         usuarioRepository.deleteAllInBatch();
         tenantRepository.deleteAllInBatch();
 

@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Cadastro de pessoas — porte do módulo `pessoa` do eroERP, onde
+        `cliente_id` é o `tenant_id` daqui.
+
+        Uma tabela só para pessoa física e jurídica, com os campos de cada tipo
+        anuláveis e a coerência garantida no service: é o desenho do ERP de
+        origem e evita duas tabelas quase iguais com a mesma agenda de
+        contatos pendurada em ambas.
+
+        Telefone, e-mail e rede social carregam `tenant_id` além do
+        `pessoa_id`. A redundância é deliberada: permite recusar um contato de
+        outro tenant sem carregar a pessoa antes.
+    -->
+    <changeSet id="010-create-pessoa" author="eduardo">
+
+        <createTable tableName="pessoa">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_pessoa"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_pessoa_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo_pessoa" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Pessoa física -->
+            <column name="data_nascimento" type="DATE"/>
+            <column name="cpf" type="VARCHAR(11)"/>
+            <column name="rg" type="VARCHAR(20)"/>
+
+            <!-- Pessoa jurídica -->
+            <column name="cnpj" type="VARCHAR(14)"/>
+            <column name="inscricao_estadual" type="VARCHAR(50)"/>
+            <column name="inscricao_municipal" type="VARCHAR(50)"/>
+            <column name="nome_fantasia" type="VARCHAR(255)"/>
+            <column name="razao_social" type="VARCHAR(255)"/>
+
+            <column name="observacao" type="VARCHAR(500)"/>
+
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_by" type="UUID"/>
+            <column name="updated_by" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="pessoa" baseColumnNames="created_by"
+                                 referencedTableName="usuario" referencedColumnNames="id"
+                                 constraintName="fk_pessoa_created_by"/>
+        <addForeignKeyConstraint baseTableName="pessoa" baseColumnNames="updated_by"
+                                 referencedTableName="usuario" referencedColumnNames="id"
+                                 constraintName="fk_pessoa_updated_by"/>
+
+        <sql>
+            ALTER TABLE pessoa ADD CONSTRAINT ck_pessoa_tipo
+            CHECK (tipo_pessoa IN ('PESSOA_FISICA', 'PESSOA_JURIDICA'));
+        </sql>
+
+        <!--
+            Unicidade de documento é POR TENANT: dois clientes podem atender a
+            mesma pessoa. Diferente de `usuario.email`, que é global por ser
+            credencial de login.
+
+            Índice único PARCIAL: sem o `WHERE`, o Postgres até aceitaria vários
+            NULL, mas o índice carregaria à toa todo cadastro sem documento —
+            que é a maioria num pronto-socorro.
+        -->
+        <sql>
+            CREATE UNIQUE INDEX uk_pessoa_tenant_cpf ON pessoa (tenant_id, cpf)
+            WHERE cpf IS NOT NULL;
+
+            CREATE UNIQUE INDEX uk_pessoa_tenant_cnpj ON pessoa (tenant_id, cnpj)
+            WHERE cnpj IS NOT NULL;
+        </sql>
+
+        <createIndex tableName="pessoa" indexName="idx_pessoa_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex tableName="pessoa" indexName="idx_pessoa_tenant_nome">
+            <column name="tenant_id"/>
+            <column name="nome"/>
+        </createIndex>
+
+        <!-- ── Tipos de cadastro da pessoa (N:N) ───────────────────────── -->
+        <createTable tableName="pessoa_tipo_cadastro">
+            <column name="pessoa_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_ptc_pessoa"
+                             references="pessoa(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="tipo_cadastro_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_ptc_tipo_cadastro"
+                             references="tipo_cadastro(id)"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey tableName="pessoa_tipo_cadastro"
+                       columnNames="pessoa_id, tipo_cadastro_id"
+                       constraintName="pk_pessoa_tipo_cadastro"/>
+
+        <createIndex tableName="pessoa_tipo_cadastro" indexName="idx_ptc_tipo_cadastro">
+            <column name="tipo_cadastro_id"/>
+        </createIndex>
+
+        <!-- ── Telefone ────────────────────────────────────────────────── -->
+        <createTable tableName="telefone">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_telefone"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_telefone_tenant"
+                             references="tenant(id)"/>
+            </column>
+            <column name="pessoa_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_telefone_pessoa"
+                             references="pessoa(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="tipo_telefone_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_telefone_tipo"
+                             references="tipo_telefone(id)"/>
+            </column>
+            <column name="codigo_pais" type="VARCHAR(4)" defaultValue="55">
+                <constraints nullable="false"/>
+            </column>
+            <column name="numero" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="observacao" type="VARCHAR(255)"/>
+            <column name="principal" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <createIndex tableName="telefone" indexName="idx_telefone_pessoa">
+            <column name="pessoa_id"/>
+        </createIndex>
+        <createIndex tableName="telefone" indexName="idx_telefone_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- ── E-mail ──────────────────────────────────────────────────── -->
+        <createTable tableName="email">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_email"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_email_tenant"
+                             references="tenant(id)"/>
+            </column>
+            <column name="pessoa_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_email_pessoa"
+                             references="pessoa(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="tipo_email_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_email_tipo"
+                             references="tipo_email(id)"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="observacao" type="VARCHAR(255)"/>
+            <column name="principal" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <createIndex tableName="email" indexName="idx_email_pessoa">
+            <column name="pessoa_id"/>
+        </createIndex>
+        <createIndex tableName="email" indexName="idx_email_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- ── Rede social ─────────────────────────────────────────────── -->
+        <createTable tableName="rede_social">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_rede_social"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_rede_social_tenant"
+                             references="tenant(id)"/>
+            </column>
+            <column name="pessoa_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_rede_social_pessoa"
+                             references="pessoa(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="tipo_rede_social_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_rede_social_tipo"
+                             references="tipo_rede_social(id)"/>
+            </column>
+            <column name="usuario" type="VARCHAR(255)"/>
+            <column name="url" type="VARCHAR(500)"/>
+            <column name="observacao" type="VARCHAR(255)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <createIndex tableName="rede_social" indexName="idx_rede_social_pessoa">
+            <column name="pessoa_id"/>
+        </createIndex>
+        <createIndex tableName="rede_social" indexName="idx_rede_social_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="rede_social"/>
+            <dropTable tableName="email"/>
+            <dropTable tableName="telefone"/>
+            <dropTable tableName="pessoa_tipo_cadastro"/>
+            <dropTable tableName="pessoa"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

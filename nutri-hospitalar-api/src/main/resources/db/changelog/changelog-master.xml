@@ -17,4 +17,8 @@
     <include file="db/changelog/changes/007-tenant-periodo-acesso.xml"/>
     <include file="db/changelog/changes/008-login-log-motivo-acesso-expirado.xml"/>
 
+    <!-- ══ Fatia 3 — cadastro de pessoas ════════════════════════════ -->
+    <include file="db/changelog/changes/009-catalogos-pessoa.xml"/>
+    <include file="db/changelog/changes/010-create-pessoa.xml"/>
+
 </databaseChangeLog>

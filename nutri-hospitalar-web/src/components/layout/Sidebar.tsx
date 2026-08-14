@@ -5,6 +5,7 @@ import {
   IconDashboard,
   IconFechar,
   IconLog,
+  IconPaciente,
   IconPerfil,
   IconTenants,
   IconUsuarios,
@@ -28,6 +29,10 @@ interface Grupo {
 const GRUPOS: Grupo[] = [
   {
     itens: [{ para: '/', rotulo: 'Dashboard', Icone: IconDashboard }],
+  },
+  {
+    titulo: 'Cadastros',
+    itens: [{ para: '/pessoas', rotulo: 'Pessoas', Icone: IconPaciente }],
   },
   {
     titulo: 'Administração',

@@ -5,6 +5,8 @@ import { Dashboard } from '@/pages/Dashboard'
 import { Login } from '@/pages/auth/Login'
 import { LoginLogList } from '@/pages/loginlog/LoginLogList'
 import { Perfil } from '@/pages/perfil/Perfil'
+import { PessoaForm } from '@/pages/pessoa/PessoaForm'
+import { PessoaList } from '@/pages/pessoa/PessoaList'
 import { TenantForm } from '@/pages/tenant/TenantForm'
 import { TenantList } from '@/pages/tenant/TenantList'
 import { UsuarioForm } from '@/pages/usuario/UsuarioForm'
@@ -21,6 +23,11 @@ export function AppRoutes() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/perfil" element={<Perfil />} />
+
+            {/* Módulo de negócio: ADMIN e USER operam, não só o superadmin. */}
+            <Route path="/pessoas" element={<PessoaList />} />
+            <Route path="/pessoas/nova" element={<PessoaForm />} />
+            <Route path="/pessoas/:id" element={<PessoaForm />} />
 
             {/*
               Área administrativa. O guard aqui é conveniência de navegação —

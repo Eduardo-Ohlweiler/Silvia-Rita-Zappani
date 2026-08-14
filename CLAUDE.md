@@ -34,9 +34,9 @@ sistema silvia/
 │       ├── baseentity/            # BaseEntity, TenantEntity
 │       ├── jobs/                  # ManutencaoJob
 │       └── {modulo}/              # tenant, usuario, auth, loginlog, refreshtoken,
-│           ├── controller/        # paciente, atendimento, antropometria,
-│           ├── dtos/              # necessidade, prescricao, pediatria,
-│           ├── entity/            # formula, suplemento, ...
+│           ├── controller/        # pessoa, contato, catalogo, atendimento,
+│           ├── dtos/              # antropometria, necessidade, prescricao,
+│           ├── entity/            # pediatria, formula, suplemento, ...
 │           ├── enums/
 │           ├── mapper/
 │           ├── repository/
@@ -54,7 +54,7 @@ sistema silvia/
         ├── hooks/                 # useAuth · useTheme · useDebounce
         ├── services/              # api.ts (interceptor + refresh) + um por módulo
         ├── pages/                 # auth/Login · Dashboard · usuario · tenant
-        │                          # loginlog · perfil
+        │                          # pessoa · loginlog · perfil
         ├── types/ utils/
         └── routes/AppRoutes.tsx
 ```
@@ -68,10 +68,13 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 
 | Fatia | Situação |
 |---|---|
-| **1 — Base, acesso e auditoria** | ✅ pronta · 55 testes |
+| **1 — Base, acesso e auditoria** | ✅ pronta |
 | **2 — Casca do front e área administrativa** | ✅ pronta |
-| **3 — Paciente** | ⬅️ **próxima** |
+| **3 — Pessoas (etapa A)** | ✅ pronta · porte do eroERP |
+| **3 — Pessoas (etapa B)** | ⬅️ **próxima** — endereços com cidade/estado do IBGE e vínculos |
 | 4 a 9 — Atendimento · Antropometria · Necessidades · Pediatria · Catálogos · Acompanhamento | pendentes |
+
+**74 testes** no total, contra o banco `nutridb_test`.
 
 **Bloqueio conhecido:** as fatias 5 a 7 (cálculo) dependem de um documento que
 **ainda não existe** — a especificação numérica das fórmulas, a extrair de
@@ -207,6 +210,7 @@ desatualizada — reinicie.
 | [docs/05-identidade-visual.md](docs/05-identidade-visual.md) | Paleta, tipografia, tokens, marca |
 | [docs/06-seguranca-owasp.md](docs/06-seguranca-owasp.md) | OWASP Top 10 aplicado a Java/Spring |
 | [docs/07-banco-liquibase.md](docs/07-banco-liquibase.md) | PostgreSQL + Liquibase |
+| [docs/08-modulo-pessoas.md](docs/08-modulo-pessoas.md) | Cadastro de pessoas — PF/PJ, tipos de cadastro, contatos |
 
 ---
 
@@ -220,6 +224,16 @@ A implementação nova deve parecer ter sido escrita junto com o resto do sistem
 O módulo `usuario` é a referência de CRUD multi-tenant completo: migration →
 entidade → DTOs `record` → mapper estático → repository com `AndTenantId` →
 service com `@Transactional` → controller com `@PreAuthorize` → testes.
+
+Para **módulo de negócio** (não administrativo), a referência é `pessoa`:
+`isAuthenticated()` em vez de role, listas filhas sincronizadas num único PUT e
+catálogo de referência sem tenant. Ver [docs/08](docs/08-modulo-pessoas.md).
+
+Boa parte do que vem pela frente já existe no **eroERP**
+(`~/Documentos/EroErp`), de onde o cadastro de pessoas foi portado. Ao começar
+um módulo novo, procure lá primeiro — e lembre que `cliente_id` de lá é
+`tenant_id` aqui, `BIGSERIAL` vira UUID e JPQL com filtro opcional vira native
+query com `CAST`.
 
 ---
 

@@ -395,6 +395,36 @@ Nesse caso `tenant_id` é `NULL`-able na tabela, e a unique é
 `uk_formula_tenant_nome (tenant_id, nome)` — o PostgreSQL trata `NULL` como
 distinto, então o catálogo global e o de cada tenant podem ter nomes iguais.
 
+### 6.1 Catálogos de referência puros — sem coluna de tenant
+
+`tipo_cadastro`, `tipo_telefone`, `tipo_email` e `tipo_rede_social` (fatia 3)
+vão além: **não têm `tenant_id` nenhum**.
+
+A diferença para o caso híbrido é o que a tabela guarda. Fórmula enteral é
+conhecimento clínico que o cliente pode querer estender. "Celular",
+"WhatsApp", "Paciente" são rótulos de referência: significam o mesmo em todo
+lugar, não contêm dado de paciente e replicá-los por tenant só produziria
+grafias divergentes.
+
+```java
+@MappedSuperclass
+public abstract class CatalogoEntity extends BaseEntity {   // e não TenantEntity
+    private String nome;
+    private Boolean ativo;
+}
+```
+
+A API expõe **só `/select`**: não há criação, alteração nem exclusão, e por
+isso não há o que vazar entre clientes. Os valores vêm do seed da migration.
+
+Se um dia um cliente pedir tipo próprio, o caminho já está desenhado: entra um
+`tenant_id` **nullable** e a tabela vira exatamente o catálogo híbrido do §6 —
+nulo é do sistema, preenchido é do cliente. Nada do que existe quebra.
+
+**Não** use esta forma para tabela que guarde dado de negócio. A pergunta que
+decide é: *duas clínicas diferentes teriam linhas diferentes aqui?* Se a
+resposta for sim, é `TenantEntity`.
+
 ---
 
 ## 7. Superadmin
