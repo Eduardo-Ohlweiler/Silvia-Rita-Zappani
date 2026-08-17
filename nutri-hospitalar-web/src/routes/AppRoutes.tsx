@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from '@/components/layout/Layout'
 import { TProtected } from '@/components/layout/TProtected'
@@ -12,10 +13,24 @@ import { TenantList } from '@/pages/tenant/TenantList'
 import { UsuarioForm } from '@/pages/usuario/UsuarioForm'
 import { UsuarioList } from '@/pages/usuario/UsuarioList'
 
+// Lazy: página pública, com fontes e scripts próprios (Panda Video, Meta
+// Pixel) — não faz sentido pesar o bundle inicial do ERP autenticado com isso.
+const Landing = lazy(() => import('@/pages/landing/Landing').then((m) => ({ default: m.Landing })))
+
 export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Pública: landing de captação da mentoria, sem autenticação. */}
+        <Route
+          path="/conheca"
+          element={
+            <Suspense fallback={null}>
+              <Landing />
+            </Suspense>
+          }
+        />
+
         {/* Pública. Não há cadastro: o acesso é provisionado pelo superadmin. */}
         <Route path="/login" element={<Login />} />
 

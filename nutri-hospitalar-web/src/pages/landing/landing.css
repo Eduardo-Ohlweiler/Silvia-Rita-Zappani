@@ -1,0 +1,55 @@
+/*
+ * Marca da Silvia Zappani — independente do design system do ERP.
+ * Não usa @theme (só funciona no arquivo raiz encadeado a partir de
+ * theme.css) — variáveis CSS simples, referenciadas via valor arbitrário do
+ * Tailwind (ex.: bg-[var(--landing-primary)]) nos componentes da seção.
+ */
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/poppins/700.css";
+@import "@fontsource/prata/400.css";
+
+@font-face {
+  font-family: "Clash Display";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/ClashDisplay-Medium.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Clash Display";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/ClashDisplay-Semibold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Clash Display";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/ClashDisplay-Bold.ttf") format("truetype");
+}
+
+.landing {
+  --landing-ink: #0B1B33;
+  --landing-primary: #1E4686;
+  --landing-primary-dark: #10294F;
+  --landing-bg: #FFFFFF;
+  --landing-bg-alt: #F5F8FC;
+  --landing-line: #E4EAF3;
+  --landing-muted: #5F7FB1;
+
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  color: var(--landing-ink);
+  background-color: var(--landing-bg);
+  overflow-x: hidden;
+}
+
+.landing h1,
+.landing h2,
+.landing h3 {
+  font-family: "Clash Display", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+}
