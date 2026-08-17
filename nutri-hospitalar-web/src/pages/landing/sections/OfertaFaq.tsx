@@ -1,4 +1,4 @@
-import imagemOferta from '../assets/img/oferta.webp'
+import retratoSilvia from '../assets/img/silvia-retrato.webp'
 import { WhatsAppButton } from '../components/WhatsAppButton'
 
 const FAQ = [
@@ -67,26 +67,42 @@ export function OfertaFaq() {
 
         <div className="order-1 md:order-2">
           <img
-            src={imagemOferta}
-            alt=""
-            className="mx-auto w-full max-w-sm rounded-2xl object-cover"
+            src={retratoSilvia}
+            alt="Silvia Zappani"
+            className="mx-auto w-full max-w-xs"
           />
         </div>
       </div>
 
       <div className="mx-auto mt-16 max-w-3xl">
-        <h2 className="text-center text-2xl sm:text-3xl">Perguntas Frequentes</h2>
+        <h2 className="text-center text-3xl sm:text-4xl">Perguntas Frequentes</h2>
 
-        <div className="mt-8 divide-y divide-[var(--landing-line)] rounded-2xl border border-[var(--landing-line)] bg-[var(--landing-bg)]">
+        {/* Cada pergunta é um bloco solto, com fundo suave e canto arredondado
+            — sem bordas nem divisórias, como no site atual. */}
+        <div className="mt-8 space-y-3">
           {FAQ.map((item) => (
-            <details key={item.pergunta} className="group p-5">
-              <summary className="cursor-pointer list-none font-medium marker:content-none">
-                <span className="flex items-center justify-between gap-4">
-                  {item.pergunta}
-                  <span className="text-[var(--landing-primary)] transition group-open:rotate-45">+</span>
-                </span>
+            <details
+              key={item.pergunta}
+              className="group rounded-xl bg-[var(--landing-primary)]/[0.06] px-5 py-4 sm:px-6"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm marker:content-none sm:text-base">
+                {item.pergunta}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="h-5 w-5 shrink-0 text-[var(--landing-primary)] transition group-open:rotate-180"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </summary>
-              <p className="mt-3 text-sm text-[var(--landing-ink)]/90">{item.resposta}</p>
+              <p className="mt-3 text-sm text-[var(--landing-ink)]/80">{item.resposta}</p>
             </details>
           ))}
         </div>

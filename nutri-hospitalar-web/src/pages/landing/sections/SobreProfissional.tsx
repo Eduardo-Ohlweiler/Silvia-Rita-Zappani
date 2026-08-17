@@ -1,4 +1,4 @@
-import fotoSilvia from '../assets/img/sobre-profissional.webp'
+import fotoSilvia from '../assets/img/sobre-profissional.jpeg'
 
 export function SobreProfissional() {
   return (
@@ -36,7 +36,7 @@ export function SobreProfissional() {
           <img
             src={fotoSilvia}
             alt="Silvia Zappani"
-            className="mx-auto w-full max-w-sm rounded-2xl object-cover shadow-lg"
+            className="mx-auto aspect-[2/3] w-full max-w-sm rounded-2xl object-cover shadow-lg"
           />
         </div>
       </div>

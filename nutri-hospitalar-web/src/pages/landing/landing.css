@@ -33,12 +33,14 @@
 }
 
 .landing {
-  --landing-ink: #0B1B33;
+  /* Paleta extraída do Figma (landpage-completa.svg) — bate com a marca já
+     usada no ERP (mesmo navy, azul e offwhite de theme.css). */
+  --landing-ink: #000F27;
   --landing-primary: #1E4686;
-  --landing-primary-dark: #10294F;
+  --landing-primary-dark: #08162D;
   --landing-bg: #FFFFFF;
-  --landing-bg-alt: #F5F8FC;
-  --landing-line: #E4EAF3;
+  --landing-bg-alt: #FAF6FE;
+  --landing-line: #E0E3F3;
   --landing-muted: #5F7FB1;
 
   font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
@@ -52,4 +54,30 @@
 .landing h3 {
   font-family: "Clash Display", ui-sans-serif, system-ui, sans-serif;
   font-weight: 600;
+}
+
+/* ── Carrossel de depoimentos ─────────────────────────────────────
+ * Autoplay contínuo, como no site atual. A lista é renderizada duas
+ * vezes e o trilho desliza -50%: ao terminar a primeira cópia a
+ * segunda está exatamente na mesma posição, então o loop é invisível.
+ * A regra global de `prefers-reduced-motion` em theme.css já para a
+ * animação para quem pediu menos movimento.
+ */
+.landing-marquee {
+  display: flex;
+  width: max-content;
+  animation: landing-marquee 60s linear infinite;
+}
+
+.landing-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes landing-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }

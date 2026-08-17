@@ -1,3 +1,5 @@
+import fotoBeneficios from '../assets/img/beneficios-foto.jpeg'
+
 const BENEFICIOS = [
   'Se sentir preparada e segura para assumir e atuar no hospital',
   'Ter clareza e organização para estruturar sua rotina clínica com firmeza',
@@ -31,22 +33,31 @@ function IconeCheck() {
 export function Beneficios() {
   return (
     <section className="bg-[var(--landing-bg-alt)] px-4 py-10 sm:px-6 md:py-16">
-      <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-2xl sm:text-3xl">
-          Esse é o começo da <span className="text-[var(--landing-primary)]">sua virada profissional!</span>
-        </h2>
-        <p className="mt-2 text-center text-[var(--landing-ink)]/90">
-          A Sessão Estratégica com Silvia Zappani <strong>é o primeiro passo para você:</strong>
-        </p>
+      <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-2 md:items-center">
+        <img
+          src={fotoBeneficios}
+          alt="Silvia Zappani"
+          className="order-first mx-auto aspect-[2/3] w-full max-w-md rounded-2xl object-cover md:order-none"
+        />
 
-        <ul className="mt-8 space-y-4">
-          {BENEFICIOS.map((item) => (
-            <li key={item} className="flex items-start gap-3">
-              <IconeCheck />
-              <span className="text-sm sm:text-base">{item}</span>
-            </li>
-          ))}
-        </ul>
+        <div>
+          <h2 className="text-2xl sm:text-3xl">
+            Esse é o começo da{' '}
+            <span className="text-[var(--landing-primary)]">sua virada profissional!</span>
+          </h2>
+          <p className="mt-2 text-[var(--landing-ink)]/90">
+            A Sessão Estratégica com Silvia Zappani <strong>é o primeiro passo para você:</strong>
+          </p>
+
+          <ul className="mt-8 space-y-4">
+            {BENEFICIOS.map((item) => (
+              <li key={item} className="flex items-start gap-3">
+                <IconeCheck />
+                <span className="text-sm sm:text-base">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   )

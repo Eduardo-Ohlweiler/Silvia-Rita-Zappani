@@ -13,31 +13,46 @@ const ITENS = [
 export function Qualificacao() {
   return (
     <section className="bg-[var(--landing-bg)] px-4 py-10 sm:px-6 md:py-16">
-      <div className="mx-auto max-w-3xl">
-        <h2 className="text-center text-2xl sm:text-3xl">
+      <div className="mx-auto max-w-3xl text-center">
+        <h2 className="text-2xl uppercase sm:text-3xl md:text-4xl">
           Essa sessão <span className="text-[var(--landing-primary)]">é para você que</span>
         </h2>
-        <p className="mt-2 text-center text-[var(--landing-muted)]">
+        <span className="mt-4 inline-block rounded-full border border-[var(--landing-line)] px-6 py-2 text-xs uppercase tracking-wide text-[var(--landing-muted)] sm:text-sm">
           Clique nas opções que combinam com o seu momento:
-        </p>
+        </span>
+      </div>
 
-        <ul className="mt-8 space-y-3">
+      <div className="mx-auto mt-8 max-w-3xl overflow-hidden rounded-2xl bg-[var(--landing-bg-alt)]">
+        <ul className="divide-y divide-white">
           {ITENS.map((item) => (
             <li key={item}>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--landing-line)] bg-[var(--landing-bg-alt)] p-4 transition hover:border-[var(--landing-primary)]">
-                <input
-                  type="checkbox"
-                  className="mt-1 h-5 w-5 shrink-0 accent-[var(--landing-primary)]"
-                />
+              <label className="flex cursor-pointer items-center gap-4 px-5 py-4 sm:px-6">
+                <input type="checkbox" className="peer sr-only" />
+                <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--landing-primary)]/40 peer-checked:border-[var(--landing-primary)] peer-checked:bg-[var(--landing-primary)] peer-checked:[&>svg]:opacity-100">
+                  <svg
+                    viewBox="0 0 21 14"
+                    className="h-3 w-4 fill-none stroke-white opacity-0"
+                    aria-hidden="true"
+                  >
+                    <polyline
+                      points="1,5 6,9 14,1"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
                 <span className="text-sm sm:text-base">{item}</span>
               </label>
             </li>
           ))}
         </ul>
 
-        <p className="mt-8 text-center text-lg font-medium">
+        <p className="bg-[var(--landing-primary)]/10 px-6 py-5 text-center text-sm sm:text-base">
           Se você marcou pelo menos 2 opções,{' '}
-          <span className="text-[var(--landing-primary)]">a sessão estratégica foi feita para você.</span>
+          <strong className="text-[var(--landing-primary)]">
+            a sessão estratégica foi feita para você.
+          </strong>
         </p>
       </div>
     </section>

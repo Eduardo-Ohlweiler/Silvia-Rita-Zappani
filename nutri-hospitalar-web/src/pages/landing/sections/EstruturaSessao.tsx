@@ -1,7 +1,7 @@
-import pilar1 from '../assets/img/pilar-1.webp'
-import pilar2 from '../assets/img/pilar-2.webp'
-import pilar3 from '../assets/img/pilar-3.webp'
-import pilar4 from '../assets/img/pilar-4.webp'
+import pilar1 from '../assets/img/pilar-1.jpeg'
+import pilar2 from '../assets/img/pilar-2.jpeg'
+import pilar3 from '../assets/img/pilar-3.jpeg'
+import pilar4 from '../assets/img/pilar-4.jpeg'
 
 const PILARES = [
   {
@@ -48,7 +48,7 @@ export function EstruturaSessao() {
               <img
                 src={pilar.imagem}
                 alt=""
-                className="w-full rounded-xl object-cover"
+                className="aspect-[4/3] w-full rounded-xl object-cover"
                 loading="lazy"
               />
               <h3 className="text-lg">{pilar.titulo}</h3>
