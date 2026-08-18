@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from '@/components/layout/Layout'
 import { TProtected } from '@/components/layout/TProtected'
 import { Dashboard } from '@/pages/Dashboard'
+import { NaoEncontrado } from '@/pages/NaoEncontrado'
+import { NaoEncontradoPublico } from '@/pages/NaoEncontradoPublico'
 import { Login } from '@/pages/auth/Login'
 import { LoginLogList } from '@/pages/loginlog/LoginLogList'
 import { Perfil } from '@/pages/perfil/Perfil'
@@ -21,45 +23,61 @@ export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Pública: landing de captação da mentoria, sem autenticação. */}
+        {/* A raiz é a landing de captação: o domínio é o da marca. */}
         <Route
-          path="/conheca"
+          path="/"
           element={
             <Suspense fallback={null}>
               <Landing />
             </Suspense>
           }
         />
+        {/* A landing morava aqui. Anúncio e link em bio continuam valendo. */}
+        <Route path="/conheca" element={<Navigate to="/" replace />} />
 
         {/* Pública. Não há cadastro: o acesso é provisionado pelo superadmin. */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/app/login" element={<Login />} />
+        <Route path="/login" element={<Navigate to="/app/login" replace />} />
 
-        <Route element={<TProtected />}>
+        {/*
+          Todo o ERP vive sob /app, fora do namespace de marketing. Assim o
+          robots.txt bloqueia o sistema inteiro numa linha e a raiz fica livre
+          para páginas novas de captação sem risco de colidir com rota interna.
+        */}
+        <Route path="/app" element={<TProtected />}>
           <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/perfil" element={<Perfil />} />
+            <Route index element={<Dashboard />} />
+            <Route path="perfil" element={<Perfil />} />
 
             {/* Módulo de negócio: ADMIN e USER operam, não só o superadmin. */}
-            <Route path="/pessoas" element={<PessoaList />} />
-            <Route path="/pessoas/nova" element={<PessoaForm />} />
-            <Route path="/pessoas/:id" element={<PessoaForm />} />
+            <Route path="pessoas" element={<PessoaList />} />
+            <Route path="pessoas/nova" element={<PessoaForm />} />
+            <Route path="pessoas/:id" element={<PessoaForm />} />
 
             {/*
               Área administrativa. O guard aqui é conveniência de navegação —
               a autorização real é o @PreAuthorize do backend.
             */}
             <Route element={<TProtected roles={['SUPERADMIN']} />}>
-              <Route path="/usuarios" element={<UsuarioList />} />
-              <Route path="/usuarios/novo" element={<UsuarioForm />} />
-              <Route path="/usuarios/:id" element={<UsuarioForm />} />
-              <Route path="/tenants" element={<TenantList />} />
-              <Route path="/tenants/:id" element={<TenantForm />} />
-              <Route path="/log-acesso" element={<LoginLogList />} />
+              <Route path="usuarios" element={<UsuarioList />} />
+              <Route path="usuarios/novo" element={<UsuarioForm />} />
+              <Route path="usuarios/:id" element={<UsuarioForm />} />
+              <Route path="tenants" element={<TenantList />} />
+              <Route path="tenants/:id" element={<TenantForm />} />
+              <Route path="log-acesso" element={<LoginLogList />} />
             </Route>
+
+            <Route path="*" element={<NaoEncontrado />} />
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/*
+          404 público — não redirecionar para "/". A landing monta o Meta Pixel,
+          então mandar todo erro de URL para lá transforma link quebrado em
+          PageView de tráfego pago. E como o SPA responde 200 em qualquer
+          caminho, o Google indexaria o lixo como duplicata da home.
+        */}
+        <Route path="*" element={<NaoEncontradoPublico />} />
       </Routes>
     </BrowserRouter>
   )

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import LogoFull from '@/assets/brand/logo-full.svg?react'
 import { TButton, TEntry, TThemeToggle } from '@/components/common'
@@ -17,7 +17,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export function Login() {
-  const { login } = useAuth()
+  const { login, autenticado } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [erroLogin, setErroLogin] = useState<string | null>(null)
@@ -29,7 +29,11 @@ export function Login() {
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   /** Volta para onde o usuário tentou ir antes de ser mandado ao login. */
-  const destino = (location.state as { de?: string } | null)?.de ?? '/'
+  const destino = (location.state as { de?: string } | null)?.de ?? '/app'
+
+  // Com o login fora da raiz, chegar aqui já logado passa a ser comum — pelo
+  // link do rodapé da landing ou por favorito antigo.
+  if (autenticado) return <Navigate to={destino} replace />
 
   async function onSubmit(dados: FormData) {
     setErroLogin(null)

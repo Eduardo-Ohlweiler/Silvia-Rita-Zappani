@@ -179,7 +179,7 @@ export function TenantForm() {
         <TButton
           type="button"
           variant="secondary"
-          onClick={() => navigate('/tenants')}
+          onClick={() => navigate('/app/tenants')}
           className="sm:w-auto"
         >
           Voltar

@@ -114,7 +114,7 @@ export function UsuarioForm() {
             : 'Usuário criado',
         )
       }
-      navigate('/usuarios')
+      navigate('/app/usuarios')
     } catch (erro) {
       handleApiError(erro)
     }
@@ -252,7 +252,7 @@ export function UsuarioForm() {
           <TButton
             type="button"
             variant="secondary"
-            onClick={() => navigate('/usuarios')}
+            onClick={() => navigate('/app/usuarios')}
             className="sm:w-auto"
           >
             Cancelar

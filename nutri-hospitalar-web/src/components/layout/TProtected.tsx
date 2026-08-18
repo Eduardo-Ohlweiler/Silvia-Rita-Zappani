@@ -30,11 +30,15 @@ export function TProtected({ roles }: TProtectedProps) {
   }
 
   if (!autenticado) {
-    return <Navigate to="/login" replace state={{ de: location.pathname }} />
+    // Guarda a query junto: sem ela, quem caiu no login voltava para a lista
+    // perdendo página, busca e filtros.
+    return (
+      <Navigate to="/app/login" replace state={{ de: location.pathname + location.search }} />
+    )
   }
 
   if (roles && !hasRole(...roles)) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/app" replace />
   }
 
   return <Outlet />

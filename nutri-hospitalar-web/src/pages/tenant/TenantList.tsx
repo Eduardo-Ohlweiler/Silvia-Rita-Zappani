@@ -63,7 +63,7 @@ export function TenantList() {
    */
   async function alternarAtivo(tenant: TenantResponse) {
     if (!tenant.ativo && tenant.acessoExpirado) {
-      navigate(`/tenants/${tenant.id}`)
+      navigate(`/app/tenants/${tenant.id}`)
       return
     }
     try {
@@ -84,7 +84,7 @@ export function TenantList() {
     try {
       await switchTenant(tenant.id)
       toast.success(`Você entrou em "${tenant.nome}"`)
-      navigate('/usuarios')
+      navigate('/app/usuarios')
     } catch (erro) {
       handleApiError(erro)
     }
@@ -157,7 +157,7 @@ export function TenantList() {
         linhas={dados?.content ?? []}
         chaveDe={(t) => t.id}
         carregando={carregando}
-        onLinhaClick={(t) => navigate(`/tenants/${t.id}`)}
+        onLinhaClick={(t) => navigate(`/app/tenants/${t.id}`)}
         tituloCartao={(t) => t.nome}
         vazioTitulo="Nenhum tenant encontrado"
         vazioDescricao="Cadastre um usuário sem indicar tenant para abrir um cliente novo."
@@ -171,7 +171,7 @@ export function TenantList() {
             <TButton
               variant="secondary"
               size="sm"
-              onClick={() => navigate(`/tenants/${t.id}`)}
+              onClick={() => navigate(`/app/tenants/${t.id}`)}
               title="Definir ou renovar o período de acesso"
             >
               {t.acessoExpiraEm ? 'Renovar acesso' : 'Definir prazo'}

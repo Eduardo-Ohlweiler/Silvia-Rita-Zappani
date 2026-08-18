@@ -308,7 +308,7 @@ export function PessoaForm() {
         await pessoaService.create(payload)
         toast.success('Pessoa cadastrada')
       }
-      navigate('/pessoas')
+      navigate('/app/pessoas')
     } catch (erro) {
       handleApiError(erro)
     }
@@ -763,7 +763,7 @@ export function PessoaForm() {
           <TButton
             type="button"
             variant="secondary"
-            onClick={() => navigate('/pessoas')}
+            onClick={() => navigate('/app/pessoas')}
             className="sm:w-auto"
           >
             Cancelar

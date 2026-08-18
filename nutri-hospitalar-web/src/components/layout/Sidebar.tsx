@@ -28,23 +28,23 @@ interface Grupo {
 
 const GRUPOS: Grupo[] = [
   {
-    itens: [{ para: '/', rotulo: 'Dashboard', Icone: IconDashboard }],
+    itens: [{ para: '/app', rotulo: 'Dashboard', Icone: IconDashboard }],
   },
   {
     titulo: 'Cadastros',
-    itens: [{ para: '/pessoas', rotulo: 'Pessoas', Icone: IconPaciente }],
+    itens: [{ para: '/app/pessoas', rotulo: 'Pessoas', Icone: IconPaciente }],
   },
   {
     titulo: 'Administração',
     itens: [
-      { para: '/usuarios', rotulo: 'Usuários', Icone: IconUsuarios, roles: ['SUPERADMIN'] },
-      { para: '/tenants', rotulo: 'Tenants', Icone: IconTenants, roles: ['SUPERADMIN'] },
-      { para: '/log-acesso', rotulo: 'Log de acesso', Icone: IconLog, roles: ['SUPERADMIN'] },
+      { para: '/app/usuarios', rotulo: 'Usuários', Icone: IconUsuarios, roles: ['SUPERADMIN'] },
+      { para: '/app/tenants', rotulo: 'Tenants', Icone: IconTenants, roles: ['SUPERADMIN'] },
+      { para: '/app/log-acesso', rotulo: 'Log de acesso', Icone: IconLog, roles: ['SUPERADMIN'] },
     ],
   },
   {
     titulo: 'Conta',
-    itens: [{ para: '/perfil', rotulo: 'Meu perfil', Icone: IconPerfil }],
+    itens: [{ para: '/app/perfil', rotulo: 'Meu perfil', Icone: IconPerfil }],
   },
 ]
 
@@ -108,11 +108,13 @@ export function Sidebar({ aberta, onFechar }: SidebarProps) {
                     {grupo.titulo}
                   </p>
                 )}
+                {/* `end` no Dashboard porque o NavLink casa por prefixo — sem
+                    ele, /app ficaria ativo em todas as telas do ERP. */}
                 {visiveis.map(({ para, rotulo, Icone }) => (
                   <NavLink
                     key={para}
                     to={para}
-                    end={para === '/'}
+                    end={para === '/app'}
                     onClick={onFechar}
                     className={({ isActive }) =>
                       `flex h-10 items-center gap-3 rounded-md px-3 text-body transition-colors

@@ -147,7 +147,7 @@ export function PessoaList() {
       title="Pessoas"
       subtitle="Pacientes, responsáveis, profissionais e fornecedores do seu cliente."
       actions={
-        <TButton onClick={() => navigate('/pessoas/nova')}>
+        <TButton onClick={() => navigate('/app/pessoas/nova')}>
           <IconAdicionar className="size-4" />
           Nova pessoa
         </TButton>
@@ -215,7 +215,7 @@ export function PessoaList() {
         linhas={dados?.content ?? []}
         chaveDe={(p) => p.id}
         carregando={carregando}
-        onLinhaClick={(p) => navigate(`/pessoas/${p.id}`)}
+        onLinhaClick={(p) => navigate(`/app/pessoas/${p.id}`)}
         tituloCartao={(p) => p.nome}
         vazioTitulo="Nenhuma pessoa encontrada"
         vazioDescricao="Ajuste os filtros ou cadastre a primeira pessoa."

@@ -4,18 +4,54 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>Nutri Hospitalar de Sucesso</title>
-    <meta name="description" content="Calculadora nutricional hospitalar — UTI adulto e pediatria." />
+    <!--
+      O meta daqui descreve a LANDING, não o ERP: este é o único documento que
+      o servidor entrega, e o único que o robô do WhatsApp/Facebook/LinkedIn lê
+      — eles não executam JavaScript, então o useDocumentMeta da landing não os
+      alcança. O ERP é autenticado: não precisa de SEO nem de preview.
+
+      %VITE_SITE_URL% é substituído pelo Vite no build. Se a variável não
+      existir, o Vite deixa o texto literal e o og:image quebra em silêncio —
+      ela está definida em .env.production e .env.example.
+    -->
+    <title>Silvia Zappani — Segurança clínica hospitalar para nutricionistas</title>
+    <meta
+      name="description"
+      content="Sessão Estratégica gratuita com Silvia Zappani: descubra o que você precisa para atuar com segurança no ambiente hospitalar."
+    />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <meta property="og:title" content="Nutri Hospitalar de Sucesso" />
-    <meta property="og:description" content="Calculadora nutricional hospitalar — UTI adulto e pediatria." />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:site_name" content="Silvia Zappani" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:title" content="Silvia Zappani — Segurança clínica hospitalar para nutricionistas" />
+    <meta
+      property="og:description"
+      content="Sessão Estratégica gratuita com Silvia Zappani: descubra o que você precisa para atuar com segurança no ambiente hospitalar."
+    />
+    <!--
+      og:image:width/height só depois de trocar a arte: o og-image.png atual é
+      1200x463 (2,59:1) e é do ERP. WhatsApp e Facebook esperam 1,91:1 —
+      1200x630. Declarar dimensão que não bate com o arquivo faz a rede cortar
+      errado, então elas ficam de fora até a imagem nova entrar.
+    -->
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image:secure_url" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image:alt" content="Silvia Zappani — Sessão Estratégica gratuita para nutricionistas" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Silvia Zappani — Segurança clínica hospitalar para nutricionistas" />
+    <meta
+      name="twitter:description"
+      content="Sessão Estratégica gratuita com Silvia Zappani: descubra o que você precisa para atuar com segurança no ambiente hospitalar."
+    />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
 
     <meta name="theme-color" content="#FAF6FE" />
 

@@ -94,13 +94,13 @@ export function UsuarioList() {
    */
   async function abrir(usuario: UsuarioResponse) {
     if (usuario.tenantId === sessao?.tenantId) {
-      navigate(`/usuarios/${usuario.id}`)
+      navigate(`/app/usuarios/${usuario.id}`)
       return
     }
     try {
       await switchTenant(usuario.tenantId)
       toast.info(`Você entrou em "${usuario.tenantNome}" para editar este usuário`)
-      navigate(`/usuarios/${usuario.id}`)
+      navigate(`/app/usuarios/${usuario.id}`)
     } catch (erro) {
       handleApiError(erro)
     }
@@ -148,7 +148,7 @@ export function UsuarioList() {
           : 'Todos os clientes. Use o filtro para restringir a um deles.'
       }
       actions={
-        <TButton onClick={() => navigate('/usuarios/novo')}>
+        <TButton onClick={() => navigate('/app/usuarios/novo')}>
           <IconAdicionar className="size-4" />
           Novo usuário
         </TButton>
