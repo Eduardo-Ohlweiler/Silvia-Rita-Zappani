@@ -6,6 +6,7 @@ import com.nutri.hospitalar.contato.entity.Email;
 import com.nutri.hospitalar.contato.entity.Endereco;
 import com.nutri.hospitalar.contato.entity.RedeSocial;
 import com.nutri.hospitalar.contato.entity.Telefone;
+import com.nutri.hospitalar.pessoa.enums.Sexo;
 import com.nutri.hospitalar.pessoa.enums.TipoPessoa;
 import com.nutri.hospitalar.usuario.entity.Usuario;
 import jakarta.persistence.Column;
@@ -59,6 +60,12 @@ public class Pessoa extends TenantEntity {
 
     @Column(name = "rg", length = 20)
     private String rg;
+
+    /* Opcional: o cadastro antigo não tem, e PJ nunca terá. Quem calcula
+     * completa na hora — ver Sexo. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sexo", length = 20)
+    private Sexo sexo;
 
     // ─── Pessoa jurídica ────────────────────────────────────────────────
     @Column(name = "cnpj", length = 14)

@@ -49,6 +49,7 @@ sistema silvia/
         ├── styles/theme.css       # tokens Tailwind v4 + temas claro/escuro
         ├── components/common/     # TPage TPanel TDataGrid TDataGridFooter
         │                          # TEntry TSelect TCombo TButton TBadge TModal TThemeToggle
+        │                          # TTabs TResult (telas de cálculo — doc 04 §7)
         ├── components/layout/     # Layout · Sidebar · TenantSwitcher · TProtected
         ├── contexts/              # AuthContext · ThemeContext
         ├── hooks/                 # useAuth · useTheme · useDebounce
@@ -72,17 +73,23 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **1 — Base, acesso e auditoria** | ✅ pronta |
 | **2 — Casca do front e área administrativa** | ✅ pronta |
 | **3 — Pessoas** | ✅ pronta · porte do eroERP, com endereços (IBGE) e vínculos |
-| **4 — Atendimento** | ⬅️ **próxima** |
-| 5 a 9 — Antropometria · Necessidades · Pediatria · Catálogos · Acompanhamento | pendentes |
+| **5 — Pediatria** | ⬅️ **em construção** · antecipada à fatia 4, por ter a planilha de origem já extraída |
+| 4 — Atendimento | pendente |
+| 6 a 9 — Antropometria · Necessidades · Catálogos · Acompanhamento | pendentes |
 
-**90 testes** no total, contra o banco `nutridb_test`.
+**130 testes** no total, contra o banco `nutridb_test`.
 
-**Bloqueio conhecido:** as fatias 5 a 7 (cálculo) dependem de um documento que
-**ainda não existe** — a especificação numérica das fórmulas, a extrair de
-`Facilita Nutri na UTI - com SA_atualiza (1).xlsx` e `Pediatria.xlsx` (na raiz),
-com referência bibliográfica, unidade e caso de teste por fórmula. Nenhuma
-fórmula nutricional deve ser implementada por inferência: o sistema prescreve
-dieta para paciente de UTI. As fatias 3 e 4 não dependem disso.
+**Bloqueio conhecido, parcialmente resolvido.** As fatias de cálculo dependem de
+uma especificação numérica das fórmulas — com célula de origem, referência
+bibliográfica, unidade e caso de teste. Nenhuma fórmula nutricional deve ser
+implementada por inferência: o sistema prescreve dieta para paciente de UTI.
+
+- ✅ **Pediatria**: `Pediatria.xlsx` extraída e especificada em
+  [docs/09](docs/09-calculos-pediatria.md). Destravada.
+- ⛔ **UTI adulto** (antropometria, necessidades): continua bloqueada —
+  `Facilita Nutri na UTI - com SA_atualiza (1).xlsx` ainda não foi extraída.
+
+As fatias 3 e 4 não dependem disso.
 
 Também não implementado, de propósito: **recuperação de senha** (depende de
 definir o serviço de e-mail) e **`audit_log`** de operações de negócio — este
@@ -214,6 +221,7 @@ desatualizada — reinicie.
 | [docs/06-seguranca-owasp.md](docs/06-seguranca-owasp.md) | OWASP Top 10 aplicado a Java/Spring |
 | [docs/07-banco-liquibase.md](docs/07-banco-liquibase.md) | PostgreSQL + Liquibase |
 | [docs/08-modulo-pessoas.md](docs/08-modulo-pessoas.md) | Cadastro de pessoas — PF/PJ, contatos, endereços e vínculos |
+| [docs/09-calculos-pediatria.md](docs/09-calculos-pediatria.md) | **Especificação numérica** das fórmulas da pediatria — OMS, DRIs, caso de teste |
 
 ---
 
@@ -246,7 +254,7 @@ query com `CAST`.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 41 testes contra nutridb_test
+./run-dev.sh test         # 130 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

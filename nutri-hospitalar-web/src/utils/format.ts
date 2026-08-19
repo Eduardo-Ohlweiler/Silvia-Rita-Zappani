@@ -88,3 +88,31 @@ export function formatarTelefone(codigoPais?: string | null, telefone?: string |
         : telefone
   return codigoPais && codigoPais !== '55' ? `+${codigoPais} ${nacional}` : nacional
 }
+
+/**
+ * Número em pt-BR, para exibição. Ausente vira travessão.
+ *
+ * `maximo` corta as casas sem inventar zeros: 723 sai "723" e 649,44 sai
+ * "649,44", com a mesma chamada. Resultado de cálculo costuma ter escala 4 no
+ * banco e nenhuma tela quer ver "723,0000".
+ */
+export function formatarNumero(
+  valor?: number | null,
+  maximo = 2,
+  minimo = 0,
+): string {
+  if (valor === null || valor === undefined || Number.isNaN(valor)) return '—'
+  return valor.toLocaleString('pt-BR', {
+    minimumFractionDigits: minimo,
+    maximumFractionDigits: maximo,
+  })
+}
+
+/** Converte o que o usuário digitou — com vírgula ou ponto — em número. */
+export function paraNumero(valor?: string | null): number | undefined {
+  if (valor === null || valor === undefined) return undefined
+  const limpo = valor.trim().replace(/\./g, '').replace(',', '.')
+  if (limpo === '') return undefined
+  const numero = Number(limpo)
+  return Number.isNaN(numero) ? undefined : numero
+}

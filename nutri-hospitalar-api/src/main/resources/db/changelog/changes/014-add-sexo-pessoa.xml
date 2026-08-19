@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Sexo da pessoa. Entra agora porque a pediatria precisa dele: as curvas
+        de crescimento da OMS são tabelas SEPARADAS por sexo, e classificar uma
+        criança pela tabela errada é diagnóstico errado. Ver docs/09 §4.
+
+        NULLABLE, por dois motivos que não vão mudar:
+          - a coluna nasce depois do cadastro; as pessoas já gravadas não têm;
+          - pessoa jurídica nunca terá sexo.
+
+        Por isso a tela de cálculo mantém o seu próprio campo de sexo: escolher
+        o paciente carrega o que estiver aqui, e o que faltar se informa na
+        hora. O cálculo nunca fica refém de um cadastro incompleto.
+    -->
+    <changeSet id="014-add-sexo-pessoa" author="eduardo">
+
+        <addColumn tableName="pessoa">
+            <column name="sexo" type="VARCHAR(20)"/>
+        </addColumn>
+
+        <sql>
+            ALTER TABLE pessoa ADD CONSTRAINT ck_pessoa_sexo
+            CHECK (sexo IN ('MASCULINO', 'FEMININO'));
+        </sql>
+
+        <rollback>
+            <sql>ALTER TABLE pessoa DROP CONSTRAINT ck_pessoa_sexo;</sql>
+            <dropColumn tableName="pessoa" columnName="sexo"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

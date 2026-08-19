@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Fórmulas lácteas: nome e composição por 100 ml. Entram no cálculo da
+        pediatria só do lado da OFERTA — calorias e proteína ofertadas pela
+        dieta — nunca no estado nutricional nem nas necessidades. Ver docs/09 §7.
+
+        `tenant_id` É NULLABLE, e essa é a única exceção à regra máxima do
+        sistema nesta fatia:
+
+            tenant_id IS NULL  →  fórmula global, do sistema
+            tenant_id = X      →  fórmula privada daquele cliente
+
+        As 10 globais abaixo vêm da planilha `Pediatria.xlsx` (tabela M1:O12) e
+        são produtos de mercado — a composição do NAN 2 é a mesma em qualquer
+        hospital. Duplicá-las por tenant seria manter a mesma correção de rótulo
+        em N lugares.
+
+        Toda consulta filtra por `(tenant_id = :tenantId OR tenant_id IS NULL)`,
+        e o service recusa editar ou excluir uma global. Ler é de todos;
+        escrever continua sendo dentro do tenant.
+
+        SÓ DOIS MACROS, de propósito: é o que a planilha tem e o que o cálculo
+        usa. Lipídio, carboidrato e osmolaridade entram quando alguma fórmula
+        precisar deles — campo sem uso em cadastro clínico é ruído.
+    -->
+    <changeSet id="016-create-formula-lactea" author="eduardo">
+
+        <createTable tableName="formula_lactea">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_formula_lactea"/>
+            </column>
+
+            <!-- Nullable: NULL = fórmula global do sistema. Ver comentário acima. -->
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_formula_lactea_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="kcal_por_100ml" type="NUMERIC(8,3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="proteina_por_100ml" type="NUMERIC(8,3)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <!-- Composição não é negativa; zero kcal também não existe em fórmula láctea -->
+        <sql>
+            ALTER TABLE formula_lactea ADD CONSTRAINT ck_formula_lactea_composicao
+            CHECK (kcal_por_100ml &gt; 0 AND proteina_por_100ml &gt;= 0);
+        </sql>
+
+        <createIndex tableName="formula_lactea" indexName="idx_formula_lactea_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!--
+            Nome único por tenant. Índice PARCIAL, em duas metades, porque no
+            Postgres NULL nunca é igual a NULL: uma unique comum sobre
+            (tenant_id, nome) deixaria cadastrar dez "NAN 2" globais.
+        -->
+        <sql>
+            CREATE UNIQUE INDEX uk_formula_lactea_tenant_nome
+            ON formula_lactea (tenant_id, lower(nome))
+            WHERE tenant_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX uk_formula_lactea_global_nome
+            ON formula_lactea (lower(nome))
+            WHERE tenant_id IS NULL;
+        </sql>
+
+        <!-- ─── As 10 fórmulas da planilha, globais ───────────────────────── -->
+        <sql>
+            INSERT INTO formula_lactea (tenant_id, nome, kcal_por_100ml, proteina_por_100ml, ativo, created_at) VALUES
+            (NULL, 'NAN 1',        74.2, 1.38, true, now()),
+            (NULL, 'NAN 2',        73.8, 1.65, true, now()),
+            (NULL, 'NAN SL',       74.4, 1.61, true, now()),
+            (NULL, 'NEOCATE LCD',  74.8, 2.13, true, now()),
+            (NULL, 'NEOCATE ADV', 100.0, 2.80, true, now()),
+            (NULL, 'FORTINI',     150.0, 3.34, true, now()),
+            (NULL, 'INFATRINE',   100.8, 2.60, true, now()),
+            (NULL, 'PREGOMIN',     66.0, 1.80, true, now()),
+            (NULL, 'NESTOGENO 1',  67.0, 1.40, true, now()),
+            (NULL, 'NESTOGENO 2',  67.0, 1.50, true, now());
+        </sql>
+
+        <rollback>
+            <dropTable tableName="formula_lactea"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

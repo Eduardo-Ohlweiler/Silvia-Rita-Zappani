@@ -36,6 +36,7 @@ public final class PessoaMapper {
                 pessoa.getDataNascimento(),
                 pessoa.getCpf(),
                 pessoa.getRg(),
+                pessoa.getSexo(),
                 pessoa.getCnpj(),
                 pessoa.getInscricaoEstadual(),
                 pessoa.getInscricaoMunicipal(),
@@ -57,7 +58,9 @@ public final class PessoaMapper {
         return new PessoaSelectDto(
                 pessoa.getId(),
                 pessoa.getNome(),
-                pessoa.ehPessoaFisica() ? pessoa.getCpf() : pessoa.getCnpj());
+                pessoa.ehPessoaFisica() ? pessoa.getCpf() : pessoa.getCnpj(),
+                pessoa.getDataNascimento(),
+                pessoa.getSexo());
     }
 
     private static Set<CatalogoSelectDto> tiposCadastro(Pessoa pessoa) {

@@ -6,6 +6,7 @@ import {
   IconFechar,
   IconLog,
   IconPaciente,
+  IconPediatria,
   IconPerfil,
   IconTenants,
   IconUsuarios,
@@ -33,6 +34,20 @@ const GRUPOS: Grupo[] = [
   {
     titulo: 'Cadastros',
     itens: [{ para: '/app/pessoas', rotulo: 'Pessoas', Icone: IconPaciente }],
+  },
+  {
+    titulo: 'Pediatria',
+    itens: [
+      { para: '/app/pediatria/painel-paciente', rotulo: 'Painel do paciente', Icone: IconPediatria },
+      { para: '/app/pediatria/dashboard', rotulo: 'Pediatria em números', Icone: IconDashboard },
+      { para: '/app/pediatria/calculadora', rotulo: 'Calculadora', Icone: IconPediatria },
+      { para: '/app/pediatria/avaliacoes', rotulo: 'Avaliações', Icone: IconPediatria },
+      {
+        para: '/app/pediatria/formulas-lacteas',
+        rotulo: 'Fórmulas lácteas',
+        Icone: IconPediatria,
+      },
+    ],
   },
   {
     titulo: 'Administração',

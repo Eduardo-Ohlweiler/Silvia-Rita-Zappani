@@ -24,4 +24,10 @@
     <include file="db/changelog/changes/012-create-endereco.xml"/>
     <include file="db/changelog/changes/013-create-pessoa-vinculo.xml"/>
 
+    <!-- ══ Fatia 5 — pediatria ══════════════════════════════════════ -->
+    <include file="db/changelog/changes/014-add-sexo-pessoa.xml"/>
+    <include file="db/changelog/changes/015-create-percentil-oms.xml"/>
+    <include file="db/changelog/changes/016-create-formula-lactea.xml"/>
+    <include file="db/changelog/changes/017-create-avaliacao-pediatrica.xml"/>
+
 </databaseChangeLog>

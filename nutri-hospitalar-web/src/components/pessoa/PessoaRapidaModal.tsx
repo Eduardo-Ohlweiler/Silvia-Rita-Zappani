@@ -5,8 +5,10 @@ import { handleApiError } from '@/services/api'
 import { catalogoService } from '@/services/catalogoService'
 import { pessoaService } from '@/services/pessoaService'
 import {
+  OPCOES_SEXO,
   OPCOES_TIPO_PESSOA,
   type PessoaResponse,
+  type Sexo,
   type TipoPessoa,
 } from '@/types/pessoa'
 import { mascararCnpj, mascararCpf, mascararTelefone, somenteDigitos } from '@/utils/format'
@@ -15,6 +17,12 @@ interface Props {
   aberto: boolean
   onFechar: () => void
   onCriada: (pessoa: PessoaResponse) => void
+  /**
+   * Tipo de cadastro já marcado ao abrir. Quem chama sabe o que está
+   * cadastrando: o vínculo abre um "Responsável", a avaliação pediátrica abre
+   * um "Paciente".
+   */
+  tipoPadrao?: string
 }
 
 /**
@@ -25,11 +33,18 @@ interface Props {
  * de fora (endereço, redes sociais, mais de um contato) entra depois, abrindo
  * o cadastro dela.
  */
-export function PessoaRapidaModal({ aberto, onFechar, onCriada }: Props) {
+export function PessoaRapidaModal({
+  aberto,
+  onFechar,
+  onCriada,
+  tipoPadrao = 'Responsável',
+}: Props) {
   const [nome, setNome] = useState('')
   const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>('PESSOA_FISICA')
   const [documento, setDocumento] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [dataNascimento, setDataNascimento] = useState('')
+  const [sexo, setSexo] = useState('')
   const [tipoCadastroId, setTipoCadastroId] = useState('')
   const [tiposCadastro, setTiposCadastro] = useState<OpcaoSelect[]>([])
   const [tipoTelefoneId, setTipoTelefoneId] = useState('')
@@ -43,19 +58,20 @@ export function PessoaRapidaModal({ aberto, onFechar, onCriada }: Props) {
     Promise.all([catalogoService.tiposCadastro(), catalogoService.tiposTelefone()])
       .then(([cadastro, telefones]) => {
         setTiposCadastro(cadastro.map((t) => ({ valor: t.id, rotulo: t.nome })))
-        // Responsável é o motivo mais comum de cadastrar alguém daqui
-        const responsavel = cadastro.find((t) => t.nome === 'Responsável') ?? cadastro[0]
-        setTipoCadastroId((atual) => atual || responsavel?.id || '')
+        const padrao = cadastro.find((t) => t.nome === tipoPadrao) ?? cadastro[0]
+        setTipoCadastroId((atual) => atual || padrao?.id || '')
         setTipoTelefoneId((atual) => atual || telefones[0]?.id || '')
       })
       .catch(handleApiError)
-  }, [aberto])
+  }, [aberto, tipoPadrao])
 
   function limpar() {
     setNome('')
     setTipoPessoa('PESSOA_FISICA')
     setDocumento('')
     setTelefone('')
+    setDataNascimento('')
+    setSexo('')
   }
 
   async function salvar() {
@@ -75,6 +91,10 @@ export function PessoaRapidaModal({ aberto, onFechar, onCriada }: Props) {
         tipoPessoa,
         cpf: ehFisica ? somenteDigitos(documento) : undefined,
         cnpj: ehFisica ? undefined : somenteDigitos(documento),
+        // Data de nascimento e sexo poupam digitação na tela de cálculo: é de
+        // onde saem a idade em meses e a curva da OMS.
+        dataNascimento: ehFisica ? dataNascimento || undefined : undefined,
+        sexo: ehFisica ? (sexo as Sexo) || undefined : undefined,
         tiposCadastroIds: [tipoCadastroId],
         telefones: somenteDigitos(telefone)
           ? [{ tipoTelefoneId, numero: somenteDigitos(telefone)!, principal: true }]
@@ -141,6 +161,25 @@ export function PessoaRapidaModal({ aberto, onFechar, onCriada }: Props) {
             }
           />
         </div>
+
+        {ehFisica && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TEntry
+              label="Data de nascimento"
+              type="date"
+              ajuda="Opcional — dá a idade no cálculo"
+              value={dataNascimento}
+              onChange={(e) => setDataNascimento(e.target.value)}
+            />
+            <TSelect
+              label="Sexo"
+              vazio="Não informado"
+              opcoes={OPCOES_SEXO}
+              value={sexo}
+              onChange={(e) => setSexo(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TSelect

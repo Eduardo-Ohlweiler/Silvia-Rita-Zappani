@@ -134,6 +134,30 @@
   --warning: #B45309;  --warning-bg: #FDF3E6;
   --danger:  #B42318;  --danger-bg:  #FCECEA;
   --info:    #0B6E8F;  --info-bg:    #E6F2F7;
+
+  /* ── Gráficos ──────────────────────────────────────────────────
+   * Paleta VALIDADA, não escolhida a olho: banda de luminosidade,
+   * piso de croma, separação sob daltonismo e contraste, medidos
+   * contra ESTA superfície. Ver docs/05 §10.
+   *
+   * Os tokens de estado acima NÃO servem aqui: `info` e `success`
+   * ficam a ΔE 10,7, abaixo do piso 15, e colapsariam como duas
+   * fatias vizinhas. Como texto rotulado eles continuam valendo.
+   */
+  --viz-serie-1: #2a78d6;
+  --viz-serie-2: #eb6834;
+  --viz-serie-3: #1baf7a;
+
+  /* Faixas de percentil: contexto, não protagonista */
+  --viz-faixa-externa: #cde2fb;   /* P3–P97, situa o extremo */
+  --viz-faixa-interna: #9ec5f4;   /* P15–P85, é a que classifica */
+
+  /* Rampa ordinal — 5 degraus; 6 não mantêm o intervalo mínimo */
+  --viz-ordinal-1: #86b6ef;
+  --viz-ordinal-2: #3987e5;
+  --viz-ordinal-3: #256abf;
+  --viz-ordinal-4: #184f95;
+  --viz-ordinal-5: #0d366b;
 }
 
 /* ══ TEMA ESCURO ══════════════════════════════════════════════════
@@ -179,6 +203,27 @@
   --color-peach: #C98D76;
   --color-peach-bg: #30201A;
   --color-peach-text: #E8B79F;
+
+  /* ── Gráficos ──────────────────────────────────────────────────
+   * Degraus próprios do tema escuro, validados contra #0B2145 —
+   * que é navy, não cinza. Uma série azul boa sobre cinza some aqui.
+   */
+  --viz-serie-1: #3987e5;
+  --viz-serie-2: #d95926;
+  --viz-serie-3: #199e70;
+
+  /* Sobre navy, a faixa usa os degraus de navy do próprio tema:
+   * azul claro brigaria com a linha do paciente. */
+  --viz-faixa-externa: #12305C;
+  --viz-faixa-interna: #24487E;
+
+  /* Âncora invertida: aqui MAIS é MAIS CLARO, porque o extremo
+   * escuro encostaria na superfície. */
+  --viz-ordinal-1: #1c5cab;
+  --viz-ordinal-2: #3987e5;
+  --viz-ordinal-3: #6da7ec;
+  --viz-ordinal-4: #9ec5f4;
+  --viz-ordinal-5: #cde2fb;
 }
 
 /* ══ Base ═════════════════════════════════════════════════════════ */

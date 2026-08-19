@@ -120,7 +120,8 @@ Em `components/layout/`: `Layout` (header, faixa de impersonação, conteúdo),
 
 Não adiantar: componente sem uso real nasce errado. `TDate`/`TDateTime` (paciente),
 `TCheckBox`/`TRadio`, `TFieldList` (medidas seriadas), `TWindow` (modal),
-`TDropdown`, e o `TResult` — **específico deste sistema**, para exibir resultado de
+`TDropdown`, e a dupla das telas de cálculo (§7): `TTabs`, que dá o formato em
+abas, e o `TResult` — **específico deste sistema**, para exibir resultado de
 cálculo com valor, unidade, classificação e referência.
 
 `TRow`/`TSpace`/`TForm` foram descartados: `grid gap-4 sm:grid-cols-2` do Tailwind
@@ -337,49 +338,83 @@ Específico deste sistema, e a regra mais importante deste documento.
 entradas, o backend calcula, o front exibe. Duas implementações da mesma fórmula
 divergem — e aqui divergência significa prescrição errada.
 
-Layout em duas colunas:
+### Layout: abas autocontidas
+
+Uma tela de cálculo acumula campos depressa — medidas, dieta, resultados de três
+fórmulas diferentes. Empilhar tudo em painéis, um sob o outro, produz uma tela
+longa em que o profissional digita em cima e procura o resultado lá embaixo.
+
+O formato adotado é **em abas**, cada aba autocontida: poucas entradas, uma
+régua, e os resultados **daquelas** entradas logo abaixo, no mesmo lugar em que
+se digitou. É o formato validado com a cliente na tela *Ferramentas Clínicas*.
 
 ```tsx
-<TPage title="Avaliação antropométrica">
-  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+<TPage title="Avaliação pediátrica">
 
-    {/* ENTRADAS */}
-    <TPanel title="Medidas">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TEntry label="CB"  suffix="cm" type="number" {...register('circunferenciaBraco')} />
-        <TEntry label="CP"  suffix="cm" type="number" {...register('circunferenciaPanturrilha')} />
-        <TEntry label="AJ"  suffix="cm" type="number" {...register('alturaJoelho')} />
-        <TEntry label="CA"  suffix="cm" type="number" {...register('circunferenciaAbdominal')} />
-      </div>
-    </TPanel>
+  {/* Identificação fica FORA das abas — não é entrada de cálculo */}
+  <TPanel>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <TCombo label="Paciente" … />
+      <TCombo label="Profissional" … />
+      <TEntry label="Data" type="date" … />
+    </div>
+  </TPanel>
 
-    {/* RESULTADOS — vindos do backend */}
-    <TPanel title="Resultados" className="lg:sticky lg:top-4 self-start">
-      <TResult label="Peso estimado (Rabito)" value={r?.pesoRabito}  unit="kg" />
-      <TResult label="Altura estimada (Chumlea)" value={r?.alturaChumlea} unit="cm" />
-      <TResult label="IMC" value={r?.imc} classificacao={r?.classificacaoImc}
-               referencia="OMS 1997" />
-      <TResult label="Adequação de CB" value={r?.adequacaoCb} unit="%"
-               classificacao={r?.classificacaoCb} referencia="Frisancho — P50" />
-    </TPanel>
-  </div>
+  <TTabs abas={ABAS} ativa={aba} onChange={setAba} />
+
+  <TPanel>
+    {aba === 'nutricional' && (
+      <>
+        {/* ENTRADAS */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <TSelect label="Sexo" … />
+          <TEntry  label="Idade" suffix="meses" type="number" … />
+          <TEntry  label="Peso"  suffix="kg"    type="number" … />
+          <TEntry  label="Estatura" suffix="cm" type="number" … />
+        </div>
+
+        <hr className="my-5 border-line" />
+
+        {/* RESULTADOS — vindos do backend */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <TResult label="IMC" value={r?.imc} unit="kg/m²" />
+          <TResult label="Peso para a idade" classificacao={r?.classifPesoIdade}
+                   referencia="OMS 0–60 meses" motivoAusencia={r?.motivoEstadoNutricional} />
+          <TResult label="VET" value={r?.vet} unit="kcal/dia"
+                   referencia="DRIs 2002" motivoAusencia={r?.motivoVet} />
+        </div>
+      </>
+    )}
+  </TPanel>
+
+  <p className="text-caption text-txt-muted">
+    Cálculos recalculados automaticamente ao alterar os campos.
+  </p>
 </TPage>
 ```
 
 Regras:
 
-- Recálculo por **debounce de 500 ms** sobre as entradas válidas — não a cada tecla,
-  não só no submit.
-- O painel de resultados é `sticky` no desktop e vai para baixo no mobile.
+- **Uma entrada aparece em uma aba só.** Se duas abas precisam do mesmo campo, a
+  divisão está errada — refaça o agrupamento, não duplique o campo.
+- Se uma aba exibe um resultado que depende de entrada de **outra** aba, ela
+  mostra essa dependência como referência somente-leitura. Um percentual de
+  adequação sem o valor de referência ao lado é um número sem significado.
+- Recálculo por **debounce de 500 ms** sobre as entradas válidas — não a cada
+  tecla, não só no submit. **Sem botão "Calcular".** A nota de rodapé avisa que o
+  recálculo é automático.
 - Cada `TResult` mostra **valor + unidade + classificação + referência**. O
   profissional precisa saber de qual fórmula veio o número; um valor solto na tela
   não é auditável.
 - Enquanto recalcula, o valor anterior fica visível com opacidade reduzida — nunca
   sumir ou piscar.
-- Entrada faltando: o resultado que depende dela mostra "—", e o `TResult`
-  informa quais medidas faltam.
+- Entrada faltando ou paciente fora da faixa de validade da fórmula: o resultado
+  mostra "—" **e o motivo**, vindo do backend ("acima de 35 meses", "estatura não
+  informada"). Traço mudo faz o profissional achar que o sistema falhou.
 - Toda entrada de medida é `type="number"` com `step` e `min`/`max` coerentes, e
   `suffix` com a unidade.
+- No mobile, a faixa de abas rola horizontalmente — **só ela**, nunca a página.
+  Dentro da aba, os campos empilham.
 
 ---
 

@@ -13,6 +13,25 @@ export const OPCOES_TIPO_PESSOA = (Object.keys(TIPO_PESSOA_LABEL) as TipoPessoa[
   rotulo: TIPO_PESSOA_LABEL[t],
 }))
 
+/**
+ * Espelha o enum `Sexo` do backend.
+ *
+ * Opcional na pessoa — cadastro antigo não tem, e pessoa jurídica nunca terá.
+ * As telas de cálculo mantêm o próprio campo de sexo por isso: as curvas da OMS
+ * são separadas por sexo e o cálculo não pode ficar refém do cadastro.
+ */
+export type Sexo = 'MASCULINO' | 'FEMININO'
+
+export const SEXO_LABEL: Record<Sexo, string> = {
+  MASCULINO: 'Masculino',
+  FEMININO: 'Feminino',
+}
+
+export const OPCOES_SEXO = (Object.keys(SEXO_LABEL) as Sexo[]).map((s) => ({
+  valor: s,
+  rotulo: SEXO_LABEL[s],
+}))
+
 // ─── Contatos ─────────────────────────────────────────────────────────
 
 export interface TelefoneResponse {
@@ -145,6 +164,7 @@ export interface PessoaResponse {
   dataNascimento: string | null
   cpf: string | null
   rg: string | null
+  sexo: Sexo | null
   cnpj: string | null
   inscricaoEstadual: string | null
   inscricaoMunicipal: string | null
@@ -168,6 +188,7 @@ export interface PessoaCreate {
   dataNascimento?: string
   cpf?: string
   rg?: string
+  sexo?: Sexo
   cnpj?: string
   inscricaoEstadual?: string
   inscricaoMunicipal?: string
@@ -188,6 +209,9 @@ export interface PessoaSelect {
   id: string
   nome: string
   documento: string | null
+  /** Para a tela de cálculo derivar a idade sem uma segunda ida ao servidor. */
+  dataNascimento: string | null
+  sexo: Sexo | null
 }
 
 export interface PessoaFiltros extends Paginacao {

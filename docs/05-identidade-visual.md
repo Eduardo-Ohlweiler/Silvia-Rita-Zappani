@@ -506,3 +506,100 @@ Ficha do paciente e relatórios saem no papel.
 - [ ] Estado vazio e skeleton de carregamento previstos
 - [ ] Status com ícone ou rótulo, não só cor
 - [ ] Legível em 1280×720 sem rolagem horizontal
+
+---
+
+## 10. Paleta de gráficos
+
+Cor de gráfico **não é escolhida a olho** — é validada. Cada cor faz exatamente um
+trabalho, e o conjunto passa por checagens computáveis (banda de luminosidade,
+piso de croma, separação sob daltonismo, contraste sobre a superfície).
+
+**As duas superfícies deste sistema exigem validação própria.** A escura é
+`#0B2145`, azul-marinho e não cinza — uma série azul que funciona sobre cinza
+pode sumir sobre ela. Toda paleta abaixo foi validada contra `#FFFFFF` e
+`#0B2145`, não contra superfícies genéricas.
+
+### 10.1 Categórica — identidade de série
+
+Para gráficos com séries distintas (cobertura calórica × proteica, oferta ×
+necessidade). Ordem fixa, atribuída em sequência, **nunca ciclada**.
+
+| Slot | Claro | Escuro |
+|---|---|---|
+| 1 | `#2a78d6` | `#3987e5` |
+| 2 | `#eb6834` | `#d95926` |
+| 3 | `#1baf7a` | `#199e70` |
+
+Os três passam todos os pares em ambos os temas. O slot 3 fica em 2,82:1 no tema
+claro — abaixo de 3:1 —, então **exige rótulo visível ou tabela equivalente**, que
+as telas já trazem.
+
+### 10.2 Classificação da OMS — BAIXA · ADEQUADA · ALTA
+
+Usa os três slots categóricos: **azul → verde → laranja**. Frio de um lado,
+quente do outro, adequado no meio — lê-se como escala ordenada sem que "adequado"
+vire cinza de "nada", que é o que ele não é.
+
+> ⚠️ **Os tokens `success`/`warning`/`info` do sistema NÃO servem para gráfico.**
+> `info` (`#0B6E8F`) e `success` (`#0E7C5A`) ficam a ΔE 10,7 — abaixo do piso 15
+> — e `info` tem croma 0,096, abaixo do piso: lê como cinza. Como **texto
+> rotulado** eles funcionam e continuam em uso no `TResult`; como duas fatias
+> vizinhas num gráfico, colapsam. Medido, não suposto.
+
+### 10.3 Sequencial — faixas de percentil da OMS
+
+Uma cor só, claro → escuro. As faixas são **contexto**, não protagonista: a linha
+do paciente é que carrega a informação.
+
+| Faixa | Claro | Escuro |
+|---|---|---|
+| P3–P97 (externa, situa o extremo) | `#cde2fb` | `#12305C` |
+| P15–P85 (interna, é a que classifica) | `#9ec5f4` | `#24487E` |
+
+No tema escuro a faixa usa os degraus de navy do próprio tema (`surface-alt` e
+`line-strong`): sobre `#0B2145`, um azul claro brigaria com a linha do paciente.
+
+**O ponto do paciente não é colorido por classificação.** A posição dele em
+relação à faixa já diz se está adequado — colorir também seria gastar o canal de
+cor com o que o gráfico já mostra. A classificação aparece por escrito, no
+tooltip.
+
+### 10.4 Ordinal — faixas etárias
+
+Ordem que importa (0–6 m, 6–12 m, …) pede rampa de uma cor só, com degraus
+visíveis. **Cinco degraus**, porque seis não mantêm o intervalo mínimo de
+luminosidade entre vizinhos:
+
+| Tema | Degraus |
+|---|---|
+| Claro | `#86b6ef` `#3987e5` `#256abf` `#184f95` `#0d366b` |
+| Escuro | `#1c5cab` `#3987e5` `#6da7ec` `#9ec5f4` `#cde2fb` |
+
+No escuro a âncora inverte — mais é **mais claro** — porque sobre navy o extremo
+escuro encosta na superfície.
+
+A faixa "acima de 60 meses" fica **fora da rampa**, em cinza de texto: ela está
+fora do alcance das curvas da OMS, e a cor deve dizer isso.
+
+### 10.5 Formas que este sistema não usa
+
+- **Dois eixos Y no mesmo gráfico.** O alinhamento entre as duas escalas é
+  arbitrário e inventa correlação. Duas medidas de escala diferente = dois
+  gráficos.
+- **Pizza para comparar valores próximos**, ou de duas fatias. Distribuição de
+  sexo é cartão de indicador; classificação é barra empilhada.
+- **Rampa de valor em categoria sem ordem.** Colorir fórmula láctea por
+  quantidade duplica o que o comprimento da barra já diz. Categoria nominal =
+  uma cor só para todas as barras.
+- **Número em todo ponto.** Rótulo é seletivo — o extremo, a ponta da série.
+- **Grade tracejada.** Tracejado significa limiar (a linha dos 100 % de
+  adequação, a necessidade energética), não grade.
+
+### 10.6 Obrigatório em todo gráfico
+
+- Legenda sempre que houver 2 ou mais séries; uma série só dispensa, o título nomeia.
+- **Tabela equivalente** para os mesmos dados — cor nunca é o único caminho.
+- Ao recalcular, o desenho anterior fica esmaecido; não pisca nem some.
+- Filtros numa linha só, **acima** de tudo o que eles filtram — nunca dentro do card.
+- Altura do container inclui a faixa do eixo X, senão o card ganha rolagem interna.

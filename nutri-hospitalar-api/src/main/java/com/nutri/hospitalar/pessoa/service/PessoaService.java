@@ -17,6 +17,7 @@ import com.nutri.hospitalar.pessoa.dtos.PessoaResponseDto;
 import com.nutri.hospitalar.pessoa.dtos.PessoaSelectDto;
 import com.nutri.hospitalar.pessoa.dtos.PessoaUpdateDto;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
+import com.nutri.hospitalar.pessoa.enums.Sexo;
 import com.nutri.hospitalar.pessoa.enums.TipoPessoa;
 import com.nutri.hospitalar.pessoa.mapper.PessoaMapper;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
@@ -97,7 +98,7 @@ public class PessoaService {
                 dto.inscricaoEstadual(), dto.inscricaoMunicipal());
 
         validarCamposPorTipo(dto.tipoPessoa(), documentos,
-                dto.nomeFantasia(), dto.razaoSocial(), dto.dataNascimento());
+                dto.nomeFantasia(), dto.razaoSocial(), dto.dataNascimento(), dto.sexo());
 
         UUID tenantId = securityUtils.getTenantIdLogado();
         validarDocumentos(documentos, tenantId, null);
@@ -111,7 +112,7 @@ public class PessoaService {
         pessoa.setObservacao(dto.observacao());
         pessoa.setCreatedBy(securityUtils.getUsuarioLogado());
         aplicarDadosDoTipo(pessoa, dto.tipoPessoa(), documentos, dto.dataNascimento(),
-                dto.nomeFantasia(), dto.razaoSocial());
+                dto.sexo(), dto.nomeFantasia(), dto.razaoSocial());
         pessoa.getTiposCadastro().addAll(tipos);
 
         Pessoa salva = pessoaRepository.save(pessoa);
@@ -131,7 +132,7 @@ public class PessoaService {
                 dto.inscricaoEstadual(), dto.inscricaoMunicipal());
 
         validarCamposPorTipo(dto.tipoPessoa(), documentos,
-                dto.nomeFantasia(), dto.razaoSocial(), dto.dataNascimento());
+                dto.nomeFantasia(), dto.razaoSocial(), dto.dataNascimento(), dto.sexo());
 
         UUID tenantId = pessoa.getTenant().getId();
         validarDocumentos(documentos, tenantId, id);
@@ -143,7 +144,7 @@ public class PessoaService {
         pessoa.setObservacao(dto.observacao());
         pessoa.setUpdatedBy(securityUtils.getUsuarioLogado());
         aplicarDadosDoTipo(pessoa, dto.tipoPessoa(), documentos, dto.dataNascimento(),
-                dto.nomeFantasia(), dto.razaoSocial());
+                dto.sexo(), dto.nomeFantasia(), dto.razaoSocial());
 
         pessoa.getTiposCadastro().clear();
         pessoa.getTiposCadastro().addAll(tipos);
@@ -196,7 +197,7 @@ public class PessoaService {
      */
     private void validarCamposPorTipo(TipoPessoa tipoPessoa, Documentos doc,
                                       String nomeFantasia, String razaoSocial,
-                                      java.time.LocalDate dataNascimento) {
+                                      java.time.LocalDate dataNascimento, Sexo sexo) {
 
         if (TipoPessoa.PESSOA_FISICA.equals(tipoPessoa)) {
             if (doc.cnpj() != null)
@@ -218,6 +219,8 @@ public class PessoaService {
             throw new BadRequestException("Pessoa jurídica não tem RG");
         if (dataNascimento != null)
             throw new BadRequestException("Pessoa jurídica não tem data de nascimento");
+        if (sexo != null)
+            throw new BadRequestException("Pessoa jurídica não tem sexo");
     }
 
     private void validarDocumentos(Documentos doc, UUID tenantId, UUID idAtual) {
@@ -263,13 +266,14 @@ public class PessoaService {
      * índice único ainda o consideraria ocupado.
      */
     private void aplicarDadosDoTipo(Pessoa pessoa, TipoPessoa tipoPessoa, Documentos doc,
-                                    java.time.LocalDate dataNascimento,
+                                    java.time.LocalDate dataNascimento, Sexo sexo,
                                     String nomeFantasia, String razaoSocial) {
 
         if (TipoPessoa.PESSOA_FISICA.equals(tipoPessoa)) {
             pessoa.setDataNascimento(dataNascimento);
             pessoa.setCpf(doc.cpf());
             pessoa.setRg(doc.rg());
+            pessoa.setSexo(sexo);
 
             pessoa.setCnpj(null);
             pessoa.setInscricaoEstadual(null);
@@ -288,6 +292,7 @@ public class PessoaService {
         pessoa.setDataNascimento(null);
         pessoa.setCpf(null);
         pessoa.setRg(null);
+        pessoa.setSexo(null);
     }
 
     private boolean preenchido(String valor) {

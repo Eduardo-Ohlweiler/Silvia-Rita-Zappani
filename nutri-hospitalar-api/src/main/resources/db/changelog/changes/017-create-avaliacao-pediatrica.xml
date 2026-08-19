@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Avaliação pediátrica: estado nutricional pela OMS, necessidades pelas
+        DRIs e adequação da dieta láctea prescrita. Ver docs/09.
+
+        PACIENTE E PROFISSIONAL SÃO `pessoa`. Não há tabela de paciente neste
+        sistema — paciente é um TIPO DE CADASTRO de uma pessoa (docs/08 §1). O
+        profissional é opcional e também é pessoa, com o tipo "Profissional de
+        saúde"; no eroERP ele era um `usuario`, o que impedia registrar o
+        nutricionista que não tem login.
+
+        TUDO O QUE É RESULTADO FICA GRAVADO, e isso é deliberado: abrir uma
+        avaliação salva NÃO recalcula. Se as tabelas da OMS ou as DRIs mudarem
+        amanhã, o registro de hoje continua mostrando o que se decidiu hoje.
+        Prontuário não se reescreve sozinho.
+
+        Pelo mesmo motivo há RETRATO DA FÓRMULA (nome, kcal, proteína) ao lado
+        da FK: editar ou desativar a fórmula não altera avaliação já feita, e a
+        FK é ON DELETE SET NULL — some o vínculo, ficam os números usados.
+
+        E por isso `sexo` também é copiado, mesmo existindo em `pessoa`: é a
+        entrada que escolheu a curva da OMS, e precisa sobreviver a uma correção
+        no cadastro.
+    -->
+    <changeSet id="017-create-avaliacao-pediatrica" author="eduardo">
+
+        <createTable tableName="avaliacao_pediatrica">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_avaliacao_pediatrica"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_avaliacao_pediatrica_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <!-- ─── Quem ───────────────────────────────────────────────── -->
+            <column name="paciente_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_avaliacao_pediatrica_paciente"
+                             references="pessoa(id)"/>
+            </column>
+            <column name="profissional_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_avaliacao_pediatrica_profissional"
+                             references="pessoa(id)"/>
+            </column>
+
+            <!-- ─── Entradas ───────────────────────────────────────────── -->
+            <column name="data_avaliacao" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sexo" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="idade_meses" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="peso" type="NUMERIC(8,3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="estatura" type="NUMERIC(8,3)"/>
+
+            <!-- ─── Dieta prescrita, com retrato da fórmula ────────────── -->
+            <column name="formula_lactea_id" type="UUID"/>
+            <column name="formula_nome" type="VARCHAR(255)"/>
+            <column name="formula_kcal_por_100ml" type="NUMERIC(8,3)"/>
+            <column name="formula_proteina_por_100ml" type="NUMERIC(8,3)"/>
+            <column name="volume_ml" type="NUMERIC(8,3)"/>
+            <column name="frequencia_horas" type="NUMERIC(8,3)"/>
+
+            <!-- ─── Resultados — estado nutricional ────────────────────── -->
+            <column name="imc" type="NUMERIC(12,4)"/>
+            <!--
+                Guardam a FAIXA (BAIXA/ADEQUADA/ALTA), não o rótulo. O rótulo
+                depende do índice — "Baixo peso", "Baixa estatura", "Magreza" —
+                e a coluna já diz de qual índice se trata.
+
+                No eroERP gravava-se o texto e o dashboard depois classificava
+                com `texto.contains("adequado")`. Faixa é enum: o front colore
+                por ela, sem adivinhar por substring.
+            -->
+            <column name="classif_peso_idade" type="VARCHAR(20)"/>
+            <column name="classif_estatura_idade" type="VARCHAR(20)"/>
+            <column name="classif_imc_idade" type="VARCHAR(20)"/>
+
+            <!-- ─── Resultados — necessidades ──────────────────────────── -->
+            <column name="vet" type="NUMERIC(12,4)"/>
+            <column name="proteina_necessidade" type="NUMERIC(12,4)"/>
+
+            <!-- ─── Resultados — dieta ─────────────────────────────────── -->
+            <column name="vezes_dia" type="NUMERIC(12,4)"/>
+            <column name="volume_total" type="NUMERIC(12,4)"/>
+            <column name="calorias_totais" type="NUMERIC(12,4)"/>
+            <column name="proteina_total" type="NUMERIC(12,4)"/>
+            <column name="perc_calorico" type="NUMERIC(6,2)"/>
+            <column name="perc_proteico" type="NUMERIC(6,2)"/>
+
+            <column name="observacao" type="TEXT"/>
+
+            <column name="created_by" type="UUID"/>
+            <column name="updated_by" type="UUID"/>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <!--
+            SET NULL, não RESTRICT: a fórmula pode sair do catálogo sem levar
+            junto o histórico clínico. O retrato dos campos `formula_*` garante
+            que a avaliação continua legível.
+        -->
+        <addForeignKeyConstraint baseTableName="avaliacao_pediatrica"
+                                 baseColumnNames="formula_lactea_id"
+                                 referencedTableName="formula_lactea"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_avaliacao_pediatrica_formula_lactea"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="avaliacao_pediatrica"
+                                 baseColumnNames="created_by"
+                                 referencedTableName="usuario"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_avaliacao_pediatrica_created_by"/>
+
+        <addForeignKeyConstraint baseTableName="avaliacao_pediatrica"
+                                 baseColumnNames="updated_by"
+                                 referencedTableName="usuario"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_avaliacao_pediatrica_updated_by"/>
+
+        <sql>
+            ALTER TABLE avaliacao_pediatrica ADD CONSTRAINT ck_avaliacao_pediatrica_sexo
+            CHECK (sexo IN ('MASCULINO', 'FEMININO'));
+        </sql>
+
+        <sql>
+            ALTER TABLE avaliacao_pediatrica ADD CONSTRAINT ck_avaliacao_pediatrica_classif_peso
+            CHECK (classif_peso_idade IN ('BAIXA', 'ADEQUADA', 'ALTA'));
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_pediatrica ADD CONSTRAINT ck_avaliacao_pediatrica_classif_estatura
+            CHECK (classif_estatura_idade IN ('BAIXA', 'ADEQUADA', 'ALTA'));
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_pediatrica ADD CONSTRAINT ck_avaliacao_pediatrica_classif_imc
+            CHECK (classif_imc_idade IN ('BAIXA', 'ADEQUADA', 'ALTA'));
+        </sql>
+
+        <!-- Idade e peso são as entradas de que todo o resto depende -->
+        <sql>
+            ALTER TABLE avaliacao_pediatrica ADD CONSTRAINT ck_avaliacao_pediatrica_idade
+            CHECK (idade_meses &gt;= 0);
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_pediatrica ADD CONSTRAINT ck_avaliacao_pediatrica_peso
+            CHECK (peso &gt; 0);
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_pediatrica ADD CONSTRAINT ck_avaliacao_pediatrica_estatura
+            CHECK (estatura IS NULL OR estatura &gt; 0);
+        </sql>
+
+        <createIndex tableName="avaliacao_pediatrica" indexName="idx_avaliacao_pediatrica_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex tableName="avaliacao_pediatrica" indexName="idx_avaliacao_pediatrica_paciente">
+            <column name="paciente_id"/>
+        </createIndex>
+        <createIndex tableName="avaliacao_pediatrica" indexName="idx_avaliacao_pediatrica_profissional">
+            <column name="profissional_id"/>
+        </createIndex>
+        <createIndex tableName="avaliacao_pediatrica" indexName="idx_avaliacao_pediatrica_formula">
+            <column name="formula_lactea_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="avaliacao_pediatrica"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

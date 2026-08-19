@@ -20,8 +20,10 @@ import { catalogoService } from '@/services/catalogoService'
 import { localidadeService } from '@/services/localidadeService'
 import { pessoaService } from '@/services/pessoaService'
 import {
+  OPCOES_SEXO,
   OPCOES_TIPO_PESSOA,
   OPCOES_TIPO_VINCULO,
+  type Sexo,
   type TipoPessoa,
   type TipoVinculo,
 } from '@/types/pessoa'
@@ -40,6 +42,7 @@ const schema = z.object({
   dataNascimento: z.string().optional(),
   cpf: z.string().optional(),
   rg: z.string().optional(),
+  sexo: z.string().optional(),
   cnpj: z.string().optional(),
   inscricaoEstadual: z.string().optional(),
   inscricaoMunicipal: z.string().optional(),
@@ -180,6 +183,7 @@ export function PessoaForm() {
           dataNascimento: p.dataNascimento ?? '',
           cpf: p.cpf ? mascararCpf(p.cpf) : '',
           rg: p.rg ?? '',
+          sexo: p.sexo ?? '',
           cnpj: p.cnpj ? mascararCnpj(p.cnpj) : '',
           inscricaoEstadual: p.inscricaoEstadual ?? '',
           inscricaoMunicipal: p.inscricaoMunicipal ?? '',
@@ -254,6 +258,7 @@ export function PessoaForm() {
       dataNascimento: fisica ? dados.dataNascimento || undefined : undefined,
       cpf: fisica ? somenteDigitos(dados.cpf) : undefined,
       rg: fisica ? dados.rg || undefined : undefined,
+      sexo: fisica ? (dados.sexo as Sexo) || undefined : undefined,
       cnpj: fisica ? undefined : somenteDigitos(dados.cnpj),
       inscricaoEstadual: fisica ? undefined : dados.inscricaoEstadual || undefined,
       inscricaoMunicipal: fisica ? undefined : dados.inscricaoMunicipal || undefined,
@@ -346,7 +351,7 @@ export function PessoaForm() {
           </div>
 
           {ehFisica ? (
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Controller
                 control={control}
                 name="cpf"
@@ -363,6 +368,15 @@ export function PessoaForm() {
               />
               <TEntry label="RG" error={errors.rg?.message} {...register('rg')} />
               <TEntry label="Data de nascimento" type="date" {...register('dataNascimento')} />
+              {/* Opcional. Preenche sozinho o sexo na tela de cálculo — as
+                  curvas da OMS são separadas por sexo. */}
+              <TSelect
+                label="Sexo"
+                vazio="Não informado"
+                opcoes={OPCOES_SEXO}
+                error={errors.sexo?.message}
+                {...register('sexo')}
+              />
             </div>
           ) : (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">

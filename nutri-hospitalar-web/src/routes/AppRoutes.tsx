@@ -7,6 +7,13 @@ import { NaoEncontrado } from '@/pages/NaoEncontrado'
 import { NaoEncontradoPublico } from '@/pages/NaoEncontradoPublico'
 import { Login } from '@/pages/auth/Login'
 import { LoginLogList } from '@/pages/loginlog/LoginLogList'
+import { AvaliacaoPediatricaForm } from '@/pages/pediatria/AvaliacaoPediatricaForm'
+import { AvaliacaoPediatricaList } from '@/pages/pediatria/AvaliacaoPediatricaList'
+import { FormulaLacteaForm } from '@/pages/pediatria/FormulaLacteaForm'
+import { FormulaLacteaList } from '@/pages/pediatria/FormulaLacteaList'
+import { PediatriaCalculadora } from '@/pages/pediatria/PediatriaCalculadora'
+import { PediatriaDashboard } from '@/pages/pediatria/PediatriaDashboard'
+import { PediatriaPacienteDashboard } from '@/pages/pediatria/PediatriaPacienteDashboard'
 import { Perfil } from '@/pages/perfil/Perfil'
 import { PessoaForm } from '@/pages/pessoa/PessoaForm'
 import { PessoaList } from '@/pages/pessoa/PessoaList'
@@ -53,6 +60,16 @@ export function AppRoutes() {
             <Route path="pessoas" element={<PessoaList />} />
             <Route path="pessoas/nova" element={<PessoaForm />} />
             <Route path="pessoas/:id" element={<PessoaForm />} />
+
+            <Route path="pediatria/painel-paciente" element={<PediatriaPacienteDashboard />} />
+            <Route path="pediatria/dashboard" element={<PediatriaDashboard />} />
+            <Route path="pediatria/calculadora" element={<PediatriaCalculadora />} />
+            <Route path="pediatria/avaliacoes" element={<AvaliacaoPediatricaList />} />
+            <Route path="pediatria/avaliacoes/nova" element={<AvaliacaoPediatricaForm />} />
+            <Route path="pediatria/avaliacoes/:id" element={<AvaliacaoPediatricaForm />} />
+            <Route path="pediatria/formulas-lacteas" element={<FormulaLacteaList />} />
+            <Route path="pediatria/formulas-lacteas/nova" element={<FormulaLacteaForm />} />
+            <Route path="pediatria/formulas-lacteas/:id" element={<FormulaLacteaForm />} />
 
             {/*
               Área administrativa. O guard aqui é conveniência de navegação —

@@ -2,6 +2,8 @@ package com.nutri.hospitalar;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutri.hospitalar.loginlog.repository.LoginLogRepository;
+import com.nutri.hospitalar.pediatria.repository.AvaliacaoPediatricaRepository;
+import com.nutri.hospitalar.pediatria.repository.FormulaLacteaRepository;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
 import com.nutri.hospitalar.refreshtoken.repository.RefreshTokenRepository;
 import com.nutri.hospitalar.tenant.entity.Tenant;
@@ -45,6 +47,8 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected LoginLogRepository loginLogRepository;
     @Autowired protected RefreshTokenRepository refreshTokenRepository;
     @Autowired protected PessoaRepository pessoaRepository;
+    @Autowired protected FormulaLacteaRepository formulaLacteaRepository;
+    @Autowired protected AvaliacaoPediatricaRepository avaliacaoPediatricaRepository;
     @Autowired protected PasswordEncoder passwordEncoder;
 
     protected Tenant tenantA;
@@ -57,11 +61,21 @@ public abstract class AbstractIntegrationTest {
     @BeforeEach
     void montarCenario() {
         // Ordem de dependência:
-        //   refresh_token → login_log → pessoa → usuario → tenant
+        //   refresh_token → login_log → avaliação → fórmula → pessoa → usuario → tenant
         // Apagar a pessoa leva junto telefone, e-mail, rede social e os tipos
         // de cadastro: as FKs são ON DELETE CASCADE (migration 010).
+        //
+        // A avaliação pediátrica aponta para pessoa SEM cascade — de propósito,
+        // é registro clínico e não some junto com um cadastro. Por isso ela
+        // precisa vir ANTES de pessoa aqui, senão toda a suíte quebra por FK.
         refreshTokenRepository.deleteAllInBatch();
         loginLogRepository.deleteAllInBatch();
+        avaliacaoPediatricaRepository.deleteAllInBatch();
+        // Só as do tenant: as globais são semeadas pela migration 016 e ficam.
+        formulaLacteaRepository.deleteAll(
+                formulaLacteaRepository.findAll().stream()
+                        .filter(f -> !f.ehGlobal())
+                        .toList());
         pessoaRepository.deleteAllInBatch();
         usuarioRepository.deleteAllInBatch();
         tenantRepository.deleteAllInBatch();

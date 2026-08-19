@@ -64,6 +64,15 @@ export const IconPaciente = (p: IconProps) => (
   </Icon>
 )
 
+/** Mamadeira — a pediatria é reconhecida por ela em qualquer menu. */
+export const IconPediatria = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 2h4M9.5 5h5M8 9h8v9a4 4 0 0 1-4 4 4 4 0 0 1-4-4V9Z" />
+    <path d="M11.5 2v3" />
+    <path d="M8 13h8" />
+  </Icon>
+)
+
 export const IconPerfil = IconPaciente
 
 export const IconSair = (p: IconProps) => (

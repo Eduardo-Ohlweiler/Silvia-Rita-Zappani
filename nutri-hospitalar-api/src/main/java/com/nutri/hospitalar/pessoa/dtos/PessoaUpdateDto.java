@@ -4,6 +4,7 @@ import com.nutri.hospitalar.contato.dtos.EmailItemDto;
 import com.nutri.hospitalar.contato.dtos.EnderecoItemDto;
 import com.nutri.hospitalar.contato.dtos.RedeSocialItemDto;
 import com.nutri.hospitalar.contato.dtos.TelefoneItemDto;
+import com.nutri.hospitalar.pessoa.enums.Sexo;
 import com.nutri.hospitalar.pessoa.enums.TipoPessoa;
 import com.nutri.hospitalar.vinculo.dtos.VinculoItemDto;
 import jakarta.validation.Valid;
@@ -41,6 +42,8 @@ public record PessoaUpdateDto(
 
         @Size(max = 20, message = "No máximo 20 caracteres")
         String rg,
+
+        Sexo sexo,
 
         @Size(max = 18, message = "CNPJ inválido")
         String cnpj,

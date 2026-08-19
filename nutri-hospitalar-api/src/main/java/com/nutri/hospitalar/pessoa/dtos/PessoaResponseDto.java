@@ -5,6 +5,7 @@ import com.nutri.hospitalar.contato.dtos.EmailResponseDto;
 import com.nutri.hospitalar.contato.dtos.EnderecoResponseDto;
 import com.nutri.hospitalar.contato.dtos.RedeSocialResponseDto;
 import com.nutri.hospitalar.contato.dtos.TelefoneResponseDto;
+import com.nutri.hospitalar.pessoa.enums.Sexo;
 import com.nutri.hospitalar.pessoa.enums.TipoPessoa;
 import com.nutri.hospitalar.vinculo.dtos.VinculoResponseDto;
 
@@ -21,6 +22,7 @@ public record PessoaResponseDto(
         LocalDate dataNascimento,
         String cpf,
         String rg,
+        Sexo sexo,
         String cnpj,
         String inscricaoEstadual,
         String inscricaoMunicipal,
