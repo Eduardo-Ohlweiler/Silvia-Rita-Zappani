@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Dois produtos entraram na 018 com a apresentação no nome:
+        'Fresubin 2kcal HP (500ml)' e 'Fresubin 2kcal HP Fibre(500ml)' — como
+        vêm na aba `Dietas consulta` (células A28 e A29).
+
+        O nome tinha sentido na planilha, onde a composição DELES era por frasco
+        de 500 ml. Aqui não tem: a 018 normalizou tudo para por litro, e o nome
+        passou a contradizer os números ao lado dele. Ler
+        "Fresubin 2kcal HP (500ml) · 100 g PTN/L" e entender 100 g no frasco é a
+        leitura errada exata que a normalização veio impedir — é o defeito 1 de
+        docs/10 §11 voltando pela porta do rótulo.
+
+        Tamanho de embalagem não é dado de composição e não pertence ao nome de
+        um catálogo por litro. Nenhum outro 'Fresubin 2kcal HP' existe no
+        catálogo, então tirar o sufixo não cria ambiguidade.
+
+        (`Fresubin 2kcal HP Fibre(500ml)` ainda vinha sem o espaço antes do
+        parêntese, direto da planilha.)
+    -->
+    <changeSet id="022-nome-formula-sem-apresentacao" author="eduardo">
+
+        <sql>
+            UPDATE formula_enteral
+               SET nome = 'Fresubin 2kcal HP'
+             WHERE nome = 'Fresubin 2kcal HP (500ml)' AND tenant_id IS NULL;
+        </sql>
+
+        <sql>
+            UPDATE formula_enteral
+               SET nome = 'Fresubin 2kcal HP Fibre'
+             WHERE nome = 'Fresubin 2kcal HP Fibre(500ml)' AND tenant_id IS NULL;
+        </sql>
+
+        <rollback>
+            <sql>
+                UPDATE formula_enteral SET nome = 'Fresubin 2kcal HP (500ml)'
+                 WHERE nome = 'Fresubin 2kcal HP' AND tenant_id IS NULL;
+            </sql>
+            <sql>
+                UPDATE formula_enteral SET nome = 'Fresubin 2kcal HP Fibre(500ml)'
+                 WHERE nome = 'Fresubin 2kcal HP Fibre' AND tenant_id IS NULL;
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

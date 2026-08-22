@@ -521,13 +521,14 @@ Obrigatório por módulo:
 ```java
 @Test
 void rabito_masculino_conferidoComPlanilha() {
-    // Planilha "Estimativas Antropométricas", linha 24
+    // Facilita Nutri na UTI, aba "Estimativas Antropométricas", célula B28.
+    // Peso = 0,5759·CB + 0,5263·CA + 1,2452·CP − 4,8689·sexo − 32,9241
     BigDecimal peso = EstimativaPesoCalculator.rabito(
-            new BigDecimal("28.0"),   // CB cm
-            new BigDecimal("95.0"),   // CA cm
-            new BigDecimal("33.0"),   // CP cm
-            Sexo.MASCULINO);
-    assertThat(peso).isEqualByComparingTo("66.05");
+            new BigDecimal("25.0"),   // CB cm
+            new BigDecimal("90.0"),   // CA cm
+            new BigDecimal("34.0"),   // CP cm
+            Sexo.MASCULINO);          // sexo = 1
+    assertThat(peso).isEqualByComparingTo("66.3083");
 }
 ```
 

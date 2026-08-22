@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutri.hospitalar.loginlog.repository.LoginLogRepository;
 import com.nutri.hospitalar.pediatria.repository.AvaliacaoPediatricaRepository;
 import com.nutri.hospitalar.pediatria.repository.FormulaLacteaRepository;
+import com.nutri.hospitalar.uti.repository.FormulaEnteralRepository;
+import com.nutri.hospitalar.uti.repository.ProdutoNutricionalRepository;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
 import com.nutri.hospitalar.refreshtoken.repository.RefreshTokenRepository;
 import com.nutri.hospitalar.tenant.entity.Tenant;
@@ -49,6 +51,8 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected PessoaRepository pessoaRepository;
     @Autowired protected FormulaLacteaRepository formulaLacteaRepository;
     @Autowired protected AvaliacaoPediatricaRepository avaliacaoPediatricaRepository;
+    @Autowired protected FormulaEnteralRepository formulaEnteralRepository;
+    @Autowired protected ProdutoNutricionalRepository produtoNutricionalRepository;
     @Autowired protected PasswordEncoder passwordEncoder;
 
     protected Tenant tenantA;
@@ -75,6 +79,16 @@ public abstract class AbstractIntegrationTest {
         formulaLacteaRepository.deleteAll(
                 formulaLacteaRepository.findAll().stream()
                         .filter(f -> !f.ehGlobal())
+                        .toList());
+        // Idem para os catálogos da UTI: as globais vêm das migrations 018 e
+        // 019 e ficam; só as do tenant saem, senão a FK de tenant trava.
+        formulaEnteralRepository.deleteAll(
+                formulaEnteralRepository.findAll().stream()
+                        .filter(f -> !f.ehGlobal())
+                        .toList());
+        produtoNutricionalRepository.deleteAll(
+                produtoNutricionalRepository.findAll().stream()
+                        .filter(p -> !p.ehGlobal())
                         .toList());
         pessoaRepository.deleteAllInBatch();
         usuarioRepository.deleteAllInBatch();

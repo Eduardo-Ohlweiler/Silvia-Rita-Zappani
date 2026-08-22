@@ -35,12 +35,16 @@ sistema silvia/
 │       ├── jobs/                  # ManutencaoJob
 │       └── {modulo}/              # tenant, usuario, auth, loginlog, refreshtoken,
 │           ├── controller/        # pessoa, contato, catalogo, atendimento,
-│           ├── dtos/              # antropometria, necessidade, prescricao,
-│           ├── entity/            # pediatria, formula, suplemento, ...
+│           ├── dtos/              # pediatria, uti, ...
+│           ├── entity/
 │           ├── enums/
 │           ├── mapper/
 │           ├── repository/
 │           └── service/
+│                                  # uti/ = terapia nutricional adulto:
+│                                  #   FormulaEnteral (composição SEMPRE por litro)
+│                                  #   ProdutoNutricional (suplemento · módulo · insumo)
+│                                  #   PercentilCb (referência, sem tenant)
 └── nutri-hospitalar-web/          # fatia 2 pronta
     ├── public/                    # favicon, ícones, og-image
     └── src/
@@ -55,7 +59,8 @@ sistema silvia/
         ├── hooks/                 # useAuth · useTheme · useDebounce
         ├── services/              # api.ts (interceptor + refresh) + um por módulo
         ├── pages/                 # auth/Login · Dashboard · usuario · tenant
-        │                          # pessoa · loginlog · perfil
+        │                          # pessoa · loginlog · perfil · pediatria
+        │                          # uti/ (catálogos da terapia nutricional)
         ├── components/pessoa/     # PessoaRapidaModal (cadastro rápido)
         ├── types/ utils/
         └── routes/AppRoutes.tsx
@@ -73,23 +78,32 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **1 — Base, acesso e auditoria** | ✅ pronta |
 | **2 — Casca do front e área administrativa** | ✅ pronta |
 | **3 — Pessoas** | ✅ pronta · porte do eroERP, com endereços (IBGE) e vínculos |
-| **5 — Pediatria** | ⬅️ **em construção** · antecipada à fatia 4, por ter a planilha de origem já extraída |
+| **5 — Pediatria** | ✅ pronta · cálculo no servidor, telas em abas, painéis com paleta validada |
+| **6 — Terapia Nutricional (UTI adulto)** | ⬅️ **em construção** · especificação em [docs/10](docs/10-calculos-uti-adulto.md) ✅ · catálogos (fórmula enteral · produto nutricional · percentil de CB) ✅ · faltam cálculo, avaliação, acompanhamento e painéis |
 | 4 — Atendimento | pendente |
-| 6 a 9 — Antropometria · Necessidades · Catálogos · Acompanhamento | pendentes |
+| 7 a 9 — Catálogos · Acompanhamento · audit_log | pendentes |
 
-**130 testes** no total, contra o banco `nutridb_test`.
+**164 testes** no total, contra o banco `nutridb_test`.
 
-**Bloqueio conhecido, parcialmente resolvido.** As fatias de cálculo dependem de
-uma especificação numérica das fórmulas — com célula de origem, referência
-bibliográfica, unidade e caso de teste. Nenhuma fórmula nutricional deve ser
-implementada por inferência: o sistema prescreve dieta para paciente de UTI.
+**Bloqueio resolvido.** As fatias de cálculo dependiam de uma especificação
+numérica das fórmulas — com célula de origem, referência bibliográfica, unidade e
+caso de teste. Nenhuma fórmula nutricional deve ser implementada por inferência: o
+sistema prescreve dieta para paciente de UTI.
 
-- ✅ **Pediatria**: `Pediatria.xlsx` extraída e especificada em
-  [docs/09](docs/09-calculos-pediatria.md). Destravada.
-- ⛔ **UTI adulto** (antropometria, necessidades): continua bloqueada —
-  `Facilita Nutri na UTI - com SA_atualiza (1).xlsx` ainda não foi extraída.
+- ✅ **Pediatria**: `Pediatria.xlsx` → [docs/09](docs/09-calculos-pediatria.md)
+- ✅ **UTI adulto**: `Facilita Nutri na UTI - com SA_atualiza (1).xlsx` (a de
+  1,1 MB é a canônica) → [docs/10](docs/10-calculos-uti-adulto.md)
 
-As fatias 3 e 4 não dependem disso.
+**As duas especificações listam os defeitos da planilha de origem, e cada defeito
+tem um teste que garante que NÃO o replicamos.** São 22 na planilha da UTI, seis
+deles mudando dose ao paciente. Ao implementar, o documento vence a planilha, e a
+planilha vence o eroERP.
+
+Duas coisas clinicamente relevantes só existem nas **imagens** da planilha da UTI,
+fora de qualquer célula, e por isso nunca foram implementadas no eroERP: o
+**ajuste da circunferência do braço e da panturrilha pelo IMC** antes de comparar
+com o ponto de corte. Rastreadas até a literatura primária em
+[docs/10 §2.9](docs/10-calculos-uti-adulto.md).
 
 Também não implementado, de propósito: **recuperação de senha** (depende de
 definir o serviço de e-mail) e **`audit_log`** de operações de negócio — este
@@ -222,6 +236,7 @@ desatualizada — reinicie.
 | [docs/07-banco-liquibase.md](docs/07-banco-liquibase.md) | PostgreSQL + Liquibase |
 | [docs/08-modulo-pessoas.md](docs/08-modulo-pessoas.md) | Cadastro de pessoas — PF/PJ, contatos, endereços e vínculos |
 | [docs/09-calculos-pediatria.md](docs/09-calculos-pediatria.md) | **Especificação numérica** das fórmulas da pediatria — OMS, DRIs, caso de teste |
+| [docs/10-calculos-uti-adulto.md](docs/10-calculos-uti-adulto.md) | **Especificação numérica** da UTI adulto — Chumlea, Jung, Rabito, dieta enteral, hidratação |
 
 ---
 
@@ -254,7 +269,7 @@ query com `CAST`.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 130 testes contra nutridb_test
+./run-dev.sh test         # 164 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

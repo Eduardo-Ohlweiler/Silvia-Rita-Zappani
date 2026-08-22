@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Catálogo de fórmulas enterais. Ver docs/10-calculos-uti-adulto.md §8.1.
+
+        COMPOSIÇÃO SEMPRE POR LITRO. A planilha de origem tem três produtos
+        tabelados por embalagem de 500 ml, e as duas abas de cálculo dela
+        divergem: a Intermitente divide a proteína por 500, a Contínua por 1000
+        — e a Contínua SUBESTIMA A PROTEÍNA EM 50%.
+
+        Normalizar tudo aqui mata a ramificação: `Fresubin 2kcal HP` entra com
+        100 g/L, não 50 g/500 ml. Nenhuma assinatura de cálculo recebe
+        apresentação, então o erro deixa de ser representável.
+
+        `tenant_id` É NULLABLE, mesma exceção deliberada da fórmula láctea da
+        pediatria (migration 016): NULL = fórmula global do sistema. A composição
+        do Fresubin Original é a mesma em qualquer hospital; duplicá-la por
+        cliente seria manter a mesma correção de rótulo em N lugares.
+
+        `agua_livre_perc` é o teor de água livre DO RÓTULO. Fica nulo no seed
+        porque a planilha não o traz por produto — e aí o cálculo cai na tabela
+        por densidade da planilha, DIZENDO que caiu. Ver docs/10 §5.1: água livre
+        é propriedade do produto, não se deriva da densidade.
+    -->
+    <changeSet id="018-create-formula-enteral" author="eduardo">
+
+        <createTable tableName="formula_enteral">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_formula_enteral"/>
+            </column>
+
+            <!-- Nullable: NULL = fórmula global do sistema -->
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_formula_enteral_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="categoria" type="VARCHAR(30)"/>
+
+            <!-- ─── Composição, SEMPRE por litro ──────────────────────── -->
+            <column name="densidade_kcal_ml" type="NUMERIC(8,3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="proteina_g_l" type="NUMERIC(8,3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cho_g_l" type="NUMERIC(8,3)"/>
+            <column name="lip_g_l" type="NUMERIC(8,3)"/>
+            <column name="fibras_g_l" type="NUMERIC(8,3)"/>
+            <column name="potassio_mg_l" type="NUMERIC(10,3)"/>
+            <column name="osmolaridade_mosm_l" type="NUMERIC(8,3)"/>
+
+            <!-- Do rótulo. Nulo = o cálculo estima pela densidade e diz isso. -->
+            <column name="agua_livre_perc" type="NUMERIC(6,2)"/>
+
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <sql>
+            ALTER TABLE formula_enteral ADD CONSTRAINT ck_formula_enteral_categoria
+            CHECK (categoria IS NULL OR categoria IN
+                   ('Padrão', 'Hiperproteica', 'Diabetes', 'Peptídica',
+                    'Imunomoduladora', 'Renal', 'Hepática'));
+        </sql>
+
+        <sql>
+            ALTER TABLE formula_enteral ADD CONSTRAINT ck_formula_enteral_positivos
+            CHECK (densidade_kcal_ml &gt; 0 AND proteina_g_l &gt;= 0
+                   AND (cho_g_l IS NULL OR cho_g_l &gt;= 0)
+                   AND (lip_g_l IS NULL OR lip_g_l &gt;= 0)
+                   AND (fibras_g_l IS NULL OR fibras_g_l &gt;= 0)
+                   AND (agua_livre_perc IS NULL
+                        OR (agua_livre_perc &gt; 0 AND agua_livre_perc &lt;= 100)));
+        </sql>
+
+        <!--
+            FECHAMENTO ENERGÉTICO (Atwater), tolerância de 12%.
+
+                CHO*4 + PTN*4 + LIP*9  ~=  densidade * 1000
+
+            É o CHECK que encontrou os quatro erros de digitação da planilha e o
+            que impede qualquer um deles de voltar. Só vale quando os três macros
+            estão preenchidos — produto com macro faltando passa.
+
+            12% e não 10%: as fibras contribuem energia parcial (~2 kcal/g) e não
+            entram na conta de Atwater, então dieta com 20 g/L de fibra fica
+            naturalmente alguns pontos abaixo. Ver docs/10 §8.1.
+        -->
+        <sql>
+            ALTER TABLE formula_enteral ADD CONSTRAINT ck_formula_enteral_fechamento
+            CHECK (
+                cho_g_l IS NULL OR lip_g_l IS NULL
+                OR abs((cho_g_l * 4 + proteina_g_l * 4 + lip_g_l * 9)
+                       - densidade_kcal_ml * 1000)
+                   &lt;= densidade_kcal_ml * 1000 * 0.12
+            );
+        </sql>
+
+        <createIndex tableName="formula_enteral" indexName="idx_formula_enteral_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!--
+            Nome único por tenant, em duas metades: no Postgres NULL nunca é
+            igual a NULL, então uma unique comum sobre (tenant_id, nome)
+            deixaria cadastrar dez "Diben" globais.
+        -->
+        <sql>
+            CREATE UNIQUE INDEX uk_formula_enteral_tenant_nome
+            ON formula_enteral (tenant_id, lower(nome)) WHERE tenant_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX uk_formula_enteral_global_nome
+            ON formula_enteral (lower(nome)) WHERE tenant_id IS NULL;
+        </sql>
+
+        <!--
+            ─── As 53 fórmulas da aba `Dietas consulta` ─────────────────────
+            54 linhas na planilha, menos `Isosource 1.5` que aparece duplicado
+            com valores idênticos. Nomes com trim. Quatro produtos corrigidos
+            contra a ficha do fabricante — ver docs/10 §8.1:
+              Diben HP                    densidade 1,0 -> 1,5
+              Nutrison Advanced Peptisorb LIP 170 -> 17 g/L (fator 10)
+              Survimed OPD                CHO 90 -> 142 g/L
+              Peptimax pó                 PTN/CHO/LIP pela distribuição declarada,
+                                          potássio 8360 mg/L descartado
+        -->
+        <sql>
+            INSERT INTO formula_enteral (tenant_id, nome, categoria, densidade_kcal_ml,
+                proteina_g_l, cho_g_l, lip_g_l, fibras_g_l, potassio_mg_l,
+                osmolaridade_mosm_l, ativo, created_at) VALUES
+            (NULL, 'Novasource Senior', 'Padrão', 1.24, 65, 140, 47, 0, 1950, 333, true, now()),
+            (NULL, 'Fresubin Original', 'Padrão', 1, 38, 138, 34, 0, 1250, 220, true, now()),
+            (NULL, 'Fresubin Original Fibre', 'Padrão', 1, 38, 130, 34, 13, 1550, 285, true, now()),
+            (NULL, 'Fresubin Soya Fibre', 'Padrão', 1, 38, 121, 36, 20, 1330, 410, true, now()),
+            (NULL, 'Fresubin 1.2 HP Fibre', 'Hiperproteica', 1.2, 60, 140, 41, 20, 2230, 345, true, now()),
+            (NULL, 'Nutrison 1.0', 'Padrão', 1, 40, 120, 39, 0, 1500, 255, true, now()),
+            (NULL, 'Nutri enteral Soya', 'Padrão', 1.2, 48, 170, 37, 0, 1700, 305, true, now()),
+            (NULL, 'Nutrison Multifiber', 'Padrão', 1, 40, 120, 39, 15, 1500, 255, true, now()),
+            (NULL, 'Nutri enteral Soya Fiber', 'Padrão', 1.2, 44, 170, 40, 18, 1330, 305, true, now()),
+            (NULL, 'Isosource Mix', 'Padrão', 1.23, 43, 160, 46, 15, 1700, 305, true, now()),
+            (NULL, 'Isosource Soya', 'Padrão', 1.21, 44, 170, 39, 0, 1900, 276, true, now()),
+            (NULL, 'Isosource Soya Fiber', 'Padrão', 1.24, 44, 170, 43, 17, 1950, 321, true, now()),
+            (NULL, 'Trophic Basic', 'Padrão', 1.2, 46, 160, 41, 0, 2040, 328, true, now()),
+            (NULL, 'Trophic Fiber', 'Padrão', 1.2, 45, 170, 39, 20, 2340, 334, true, now()),
+            (NULL, 'Trophic Soya', 'Padrão', 1.2, 46, 170, 39, 0, 2320, 354, true, now()),
+            (NULL, 'Fresubin Energy Fibre', 'Padrão', 1.5, 56, 180, 58, 15, 2070, 325, true, now()),
+            (NULL, 'Fresubin HP Energy', 'Hiperproteica', 1.5, 75, 170, 58, 0, 2340, 300, true, now()),
+            (NULL, 'Isosource 1.5', 'Padrão', 1.5, 63, 210, 45, 8, 2400, 450, true, now()),
+            (NULL, 'Novasource Hi Protein', 'Hiperproteica', 1.5, 83, 120, 80, 0, 2100, 283, true, now()),
+            (NULL, 'Nutrison Energy', 'Padrão', 1.5, 60, 180, 58, 0, 2010, 360, true, now()),
+            (NULL, 'Nutrison Energy Multifiber', 'Padrão', 1.5, 60, 180, 58, 15, 2010, 390, true, now()),
+            (NULL, 'Nutri Enteral 1.5', 'Padrão', 1.5, 64, 210, 42, 0, 1700, 330, true, now()),
+            (NULL, 'Trophic 1.5', 'Padrão', 1.5, 58, 200, 50, 0, 2250, 476, true, now()),
+            (NULL, 'Trophic EP', 'Hiperproteica', 1.5, 69, 190, 50, 0, 2570, 426, true, now()),
+            (NULL, 'Trophic 1.5 Soya', 'Padrão', 1.5, 57, 210, 49, 0, 3000, 411, true, now()),
+            (NULL, 'Fresubin 2kcal HP (500ml)', 'Hiperproteica', 2, 100, 175, 100, 0, 1700, 395, true, now()),
+            (NULL, 'Fresubin 2kcal HP Fibre(500ml)', 'Hiperproteica', 2, 100, 167, 100, 30, 1700, 395, true, now()),
+            (NULL, 'Diben', 'Diabetes', 1, 46.5, 92.5, 46, 15, 1430, 345, true, now()),
+            (NULL, 'Diben HP', 'Diabetes', 1.5, 75, 131, 70, 23, 1800, 450, true, now()),
+            (NULL, 'Novasource GC', 'Diabetes', 1.12, 49, 95, 60, 15, 2800, 337, true, now()),
+            (NULL, 'Novasource GC HP', 'Diabetes', 1.14, 64, 120, 45, 12, 2250, 271, true, now()),
+            (NULL, 'Novasource GC 1.5', 'Diabetes', 1.5, 75, 130, 74, 15, 2500, 352, true, now()),
+            (NULL, 'Diamax', 'Diabetes', 1, 43, 110, 43, 15, 1590, 275, true, now()),
+            (NULL, 'Novasource Ren', 'Renal', 2, 74, 200, 100, 0, 1500, 739, true, now()),
+            (NULL, 'Novasource GI control', 'Padrão', 1.5, 60, 180, 60, 20, 1630, 436, true, now()),
+            (NULL, 'Novasource Proline', 'Hiperproteica', 1, 58, 130, 30, 15, 1650, 351, true, now()),
+            (NULL, 'Reconvan', 'Imunomoduladora', 1, 55, 120, 33, 0, 2070, 270, true, now()),
+            (NULL, 'Fresubin Hepa', 'Hepática', 1.3, 40, 174, 47, 20, 1200, 330, true, now()),
+            (NULL, 'Fresubin Lipid', 'Hiperproteica', 1.5, 100, 118, 67, 24, 1280, 340, true, now()),
+            (NULL, 'Impact 1.5', 'Imunomoduladora', 1.5, 94, 140, 64, 0, 1900, 393, true, now()),
+            (NULL, 'Impact', 'Imunomoduladora', 1, 65, 140, 28, 0, 2100, 350, true, now()),
+            (NULL, 'Peptamen HN', 'Peptídica', 1.31, 66, 150, 49, 0, 1500, 350, true, now()),
+            (NULL, 'Peptamen pó', 'Peptídica', 1, 41, 130, 40, 0, 1100, 260, true, now()),
+            (NULL, 'Peptamen Intense', 'Peptídica', 1, 92, 72, 38, 5, 1500, 266, true, now()),
+            (NULL, 'Peptamen 1.5', 'Peptídica', 1.5, 68, 180, 56, 0, 2150, 436, true, now()),
+            (NULL, 'Survimed OPD', 'Peptídica', 1, 45, 142, 28, 0, 2000, 300, true, now()),
+            (NULL, 'Survimed OPD HN', 'Peptídica', 1.33, 67, 183, 37, 0, 2600, 370, true, now()),
+            (NULL, 'Peptimax pó', 'Peptídica', 1, 45, 155, 22, 0, NULL, 326, true, now()),
+            (NULL, 'Nutrison Advanced Peptisorb', 'Peptídica', 1, 40, 180, 17, 0, 1500, 455, true, now()),
+            (NULL, 'Nutro Premium PreFibra 1.5', 'Padrão', 1.5, 75, 165, 56, 15, NULL, 325, true, now()),
+            (NULL, 'Nutro Premium 1.5', 'Padrão', 1.5, 75, 165, 56, 0, NULL, 325, true, now()),
+            (NULL, 'Nutrison Advanced Diason', 'Padrão', 1, 40, 120, 41, 17, 950, 340, true, now()),
+            (NULL, 'Nutrison Soya Fiber', 'Padrão', 1.2, 44, 170, 40, 17, 720, NULL, true, now());
+        </sql>
+
+        <rollback>
+            <dropTable tableName="formula_enteral"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

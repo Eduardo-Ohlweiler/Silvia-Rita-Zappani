@@ -30,4 +30,11 @@
     <include file="db/changelog/changes/016-create-formula-lactea.xml"/>
     <include file="db/changelog/changes/017-create-avaliacao-pediatrica.xml"/>
 
+    <!-- ══ Fatia 6 — terapia nutricional (UTI adulto) ═══════════════ -->
+    <include file="db/changelog/changes/018-create-formula-enteral.xml"/>
+    <include file="db/changelog/changes/019-create-produto-nutricional.xml"/>
+    <include file="db/changelog/changes/020-create-percentil-cb.xml"/>
+    <include file="db/changelog/changes/021-normalizar-categoria-formula-enteral.xml"/>
+    <include file="db/changelog/changes/022-nome-formula-sem-apresentacao.xml"/>
+
 </databaseChangeLog>

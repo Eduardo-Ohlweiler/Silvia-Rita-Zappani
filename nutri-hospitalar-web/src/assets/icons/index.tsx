@@ -73,6 +73,18 @@ export const IconPediatria = (p: IconProps) => (
   </Icon>
 )
 
+/**
+ * Terapia nutricional: frasco de dieta com o equipo. É o objeto da beira do
+ * leito, e distingue a UTI adulto da mamadeira da pediatria.
+ */
+export const IconTerapiaNutricional = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 2h6v4l-1 1v6a2 2 0 0 1-2 2h0a2 2 0 0 1-2-2V7L9 6V2Z" />
+    <path d="M12 15v3a3 3 0 0 0 3 3h2" />
+    <path d="M10 9h4" />
+  </Icon>
+)
+
 export const IconPerfil = IconPaciente
 
 export const IconSair = (p: IconProps) => (

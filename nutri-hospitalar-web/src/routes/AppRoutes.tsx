@@ -14,6 +14,10 @@ import { FormulaLacteaList } from '@/pages/pediatria/FormulaLacteaList'
 import { PediatriaCalculadora } from '@/pages/pediatria/PediatriaCalculadora'
 import { PediatriaDashboard } from '@/pages/pediatria/PediatriaDashboard'
 import { PediatriaPacienteDashboard } from '@/pages/pediatria/PediatriaPacienteDashboard'
+import { FormulaEnteralForm } from '@/pages/uti/FormulaEnteralForm'
+import { FormulaEnteralList } from '@/pages/uti/FormulaEnteralList'
+import { ProdutoNutricionalForm } from '@/pages/uti/ProdutoNutricionalForm'
+import { ProdutoNutricionalList } from '@/pages/uti/ProdutoNutricionalList'
 import { Perfil } from '@/pages/perfil/Perfil'
 import { PessoaForm } from '@/pages/pessoa/PessoaForm'
 import { PessoaList } from '@/pages/pessoa/PessoaList'
@@ -70,6 +74,14 @@ export function AppRoutes() {
             <Route path="pediatria/formulas-lacteas" element={<FormulaLacteaList />} />
             <Route path="pediatria/formulas-lacteas/nova" element={<FormulaLacteaForm />} />
             <Route path="pediatria/formulas-lacteas/:id" element={<FormulaLacteaForm />} />
+
+            {/* Rota literal antes de /:id — o Spring e o router preferem o literal */}
+            <Route path="uti/formulas-enterais" element={<FormulaEnteralList />} />
+            <Route path="uti/formulas-enterais/nova" element={<FormulaEnteralForm />} />
+            <Route path="uti/formulas-enterais/:id" element={<FormulaEnteralForm />} />
+            <Route path="uti/produtos" element={<ProdutoNutricionalList />} />
+            <Route path="uti/produtos/novo" element={<ProdutoNutricionalForm />} />
+            <Route path="uti/produtos/:id" element={<ProdutoNutricionalForm />} />
 
             {/*
               Área administrativa. O guard aqui é conveniência de navegação —

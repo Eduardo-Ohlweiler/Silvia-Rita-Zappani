@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        `formula_enteral.categoria` nasceu na 018 guardando o RÓTULO acentuado da
+        planilha ('Padrão', 'Peptídica', 'Hepática'). Está errado pelo padrão do
+        projeto, e o preço aparece na borda:
+
+          - o front teria de repetir `'Padrão'` — com o â certo — em cada filtro,
+            e um acento trocado vira filtro que não acha nada e não acusa erro;
+          - `@Enumerated(EnumType.STRING)` não mapeia valor acentuado sem
+            converter à mão;
+          - todo vocabulário fechado do sistema já é enum em UPPER_SNAKE
+            (`role`, `sexo`, `classif_*`, `tipo`, `papel_artesanal`).
+
+        Aqui o valor passa a ser a constante e o rótulo passa a viver no enum
+        Java, onde a acentuação é problema de exibição — não de igualdade em SQL.
+
+        Migration nova em vez de editar a 018: changeSet executado não se mexe
+        (CLAUDE.md, regra 4).
+    -->
+    <changeSet id="021-normalizar-categoria-formula-enteral" author="eduardo">
+
+        <sql>
+            ALTER TABLE formula_enteral DROP CONSTRAINT ck_formula_enteral_categoria;
+        </sql>
+
+        <sql>
+            UPDATE formula_enteral SET categoria = CASE categoria
+                WHEN 'Padrão'          THEN 'PADRAO'
+                WHEN 'Hiperproteica'   THEN 'HIPERPROTEICA'
+                WHEN 'Diabetes'        THEN 'DIABETES'
+                WHEN 'Peptídica'       THEN 'PEPTIDICA'
+                WHEN 'Imunomoduladora' THEN 'IMUNOMODULADORA'
+                WHEN 'Renal'           THEN 'RENAL'
+                WHEN 'Hepática'        THEN 'HEPATICA'
+                ELSE categoria
+            END
+            WHERE categoria IS NOT NULL;
+        </sql>
+
+        <sql>
+            ALTER TABLE formula_enteral ADD CONSTRAINT ck_formula_enteral_categoria
+            CHECK (categoria IS NULL OR categoria IN
+                   ('PADRAO', 'HIPERPROTEICA', 'DIABETES', 'PEPTIDICA',
+                    'IMUNOMODULADORA', 'RENAL', 'HEPATICA'));
+        </sql>
+
+        <rollback>
+            <sql>ALTER TABLE formula_enteral DROP CONSTRAINT ck_formula_enteral_categoria;</sql>
+            <sql>
+                UPDATE formula_enteral SET categoria = CASE categoria
+                    WHEN 'PADRAO'          THEN 'Padrão'
+                    WHEN 'HIPERPROTEICA'   THEN 'Hiperproteica'
+                    WHEN 'DIABETES'        THEN 'Diabetes'
+                    WHEN 'PEPTIDICA'       THEN 'Peptídica'
+                    WHEN 'IMUNOMODULADORA' THEN 'Imunomoduladora'
+                    WHEN 'RENAL'           THEN 'Renal'
+                    WHEN 'HEPATICA'        THEN 'Hepática'
+                    ELSE categoria
+                END
+                WHERE categoria IS NOT NULL;
+            </sql>
+            <sql>
+                ALTER TABLE formula_enteral ADD CONSTRAINT ck_formula_enteral_categoria
+                CHECK (categoria IS NULL OR categoria IN
+                       ('Padrão', 'Hiperproteica', 'Diabetes', 'Peptídica',
+                        'Imunomoduladora', 'Renal', 'Hepática'));
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

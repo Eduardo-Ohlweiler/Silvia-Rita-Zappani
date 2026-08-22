@@ -9,6 +9,7 @@ import {
   IconPediatria,
   IconPerfil,
   IconTenants,
+  IconTerapiaNutricional,
   IconUsuarios,
 } from '@/assets/icons'
 import { useAuth } from '@/hooks/useAuth'
@@ -46,6 +47,23 @@ const GRUPOS: Grupo[] = [
         para: '/app/pediatria/formulas-lacteas',
         rotulo: 'Fórmulas lácteas',
         Icone: IconPediatria,
+      },
+    ],
+  },
+  {
+    // Fatia 6 em construção: por ora só os catálogos. O cálculo, a avaliação e
+    // os painéis entram aqui conforme as fatias fecham.
+    titulo: 'Terapia nutricional',
+    itens: [
+      {
+        para: '/app/uti/formulas-enterais',
+        rotulo: 'Fórmulas enterais',
+        Icone: IconTerapiaNutricional,
+      },
+      {
+        para: '/app/uti/produtos',
+        rotulo: 'Suplementos e módulos',
+        Icone: IconTerapiaNutricional,
       },
     ],
   },

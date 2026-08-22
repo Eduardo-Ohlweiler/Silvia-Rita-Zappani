@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Catálogo de produtos nutricionais: suplemento oral, módulo proteico e
+        insumo de dieta artesanal. Ver docs/10-calculos-uti-adulto.md §8.2.
+
+        UMA TABELA, TRÊS TIPOS. Os três são "produto com composição por porção" e
+        se distinguem pelo PAPEL no cálculo, não pela estrutura:
+
+          SUPLEMENTO_ORAL   consulta e prescrição de complemento
+          MODULO_PROTEICO   alimenta a sugestão de módulo da dieta enteral
+          INSUMO_ARTESANAL  compõe a receita do sistema aberto
+
+        POR QUE ISSO IMPORTA. No eroERP o cadastro de suplementos é um CRUD ÓRFÃO:
+        26 produtos cadastrados que não alimentam cálculo nenhum, enquanto os 3
+        módulos proteicos estão cravados em `calculoDietaEnteral.ts:16-20` e os 4
+        insumos artesanais em `calculoSistemaAberto.ts:6-11`. Cadastrar um módulo
+        novo lá não faz efeito nenhum.
+
+        Aqui os módulos e os insumos são LINHAS deste catálogo, e o cálculo itera
+        o catálogo. A nutricionista cadastra um produto e ele aparece na sugestão.
+
+        `papel_artesanal` fixa os quatro papéis da receita (base · carboidrato ·
+        proteína · lipídio) e deixa o catálogo dizer QUAL produto ocupa cada um.
+        Mata o hardcode sem inventar comportamento clínico: a lógica por papel é
+        específica (a base se auto-sugere, o carboidrato entra fora do kcal base),
+        e generalizar para "quatro produtos quaisquer" seria invenção.
+
+        `embalagem_qtd` existe porque o cálculo de latas/mês depende dela
+        (Trophic 800 g · Carbodex 500 g · Albumix 500 g · óleo 900 ml).
+
+        `tenant_id` nullable = global, mesma exceção da fórmula enteral.
+    -->
+    <changeSet id="019-create-produto-nutricional" author="eduardo">
+
+        <createTable tableName="produto_nutricional">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_produto_nutricional"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_produto_nutricional_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- ─── A medida de referência da composição ───────────────── -->
+            <column name="medida_nome" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="medida_qtd" type="NUMERIC(8,3)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Gramas ou ml da embalagem fechada — o cálculo de latas/mês. -->
+            <column name="embalagem_qtd" type="NUMERIC(10,3)"/>
+
+            <!-- ─── Composição, por medida ─────────────────────────────── -->
+            <column name="kcal" type="NUMERIC(10,3)"/>
+            <column name="proteina_g" type="NUMERIC(8,3)"/>
+            <column name="cho_g" type="NUMERIC(8,3)"/>
+            <column name="acucar_g" type="NUMERIC(8,3)"/>
+            <column name="lip_g" type="NUMERIC(8,3)"/>
+            <column name="sodio_mg" type="NUMERIC(10,3)"/>
+            <column name="potassio_mg" type="NUMERIC(10,3)"/>
+            <column name="fosforo_mg" type="NUMERIC(10,3)"/>
+            <column name="ferro_mg" type="NUMERIC(8,3)"/>
+            <column name="fibras_g" type="NUMERIC(8,3)"/>
+            <column name="osmolaridade_mosm_l" type="NUMERIC(8,3)"/>
+
+            <!-- ─── Papel no cálculo ───────────────────────────────────── -->
+            <column name="modulo_proteico" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="papel_artesanal" type="VARCHAR(20)"/>
+
+            <column name="observacao" type="VARCHAR(255)"/>
+
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <sql>
+            ALTER TABLE produto_nutricional ADD CONSTRAINT ck_produto_nutricional_tipo
+            CHECK (tipo IN ('SUPLEMENTO_ORAL', 'MODULO_PROTEICO', 'INSUMO_ARTESANAL'));
+        </sql>
+
+        <sql>
+            ALTER TABLE produto_nutricional ADD CONSTRAINT ck_produto_nutricional_papel
+            CHECK (papel_artesanal IS NULL
+                   OR papel_artesanal IN ('BASE', 'CARBOIDRATO', 'PROTEINA', 'LIPIDIO'));
+        </sql>
+
+        <!-- Papel artesanal só faz sentido em insumo artesanal, e todo insumo tem um -->
+        <sql>
+            ALTER TABLE produto_nutricional ADD CONSTRAINT ck_produto_nutricional_papel_coerente
+            CHECK ((tipo = 'INSUMO_ARTESANAL' AND papel_artesanal IS NOT NULL)
+                   OR (tipo &lt;&gt; 'INSUMO_ARTESANAL' AND papel_artesanal IS NULL));
+        </sql>
+
+        <!-- A flag e o tipo não podem discordar -->
+        <sql>
+            ALTER TABLE produto_nutricional ADD CONSTRAINT ck_produto_nutricional_modulo_coerente
+            CHECK ((tipo = 'MODULO_PROTEICO') = modulo_proteico);
+        </sql>
+
+        <!--
+            Módulo proteico e insumo artesanal ENTRAM EM CÁLCULO, então precisam
+            de kcal e de proteína. Suplemento oral é consulta e pode ter "NI"
+            (não informado) na planilha de origem.
+        -->
+        <sql>
+            ALTER TABLE produto_nutricional ADD CONSTRAINT ck_produto_nutricional_calculavel
+            CHECK (tipo = 'SUPLEMENTO_ORAL'
+                   OR (kcal IS NOT NULL AND proteina_g IS NOT NULL AND medida_qtd &gt; 0));
+        </sql>
+
+        <sql>
+            ALTER TABLE produto_nutricional ADD CONSTRAINT ck_produto_nutricional_positivos
+            CHECK (medida_qtd &gt; 0
+                   AND (embalagem_qtd IS NULL OR embalagem_qtd &gt; 0)
+                   AND (kcal IS NULL OR kcal &gt;= 0)
+                   AND (proteina_g IS NULL OR proteina_g &gt;= 0));
+        </sql>
+
+        <createIndex tableName="produto_nutricional" indexName="idx_produto_nutricional_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex tableName="produto_nutricional" indexName="idx_produto_nutricional_tipo">
+            <column name="tipo"/>
+        </createIndex>
+
+        <sql>
+            CREATE UNIQUE INDEX uk_produto_nutricional_tenant_nome
+            ON produto_nutricional (tenant_id, lower(nome)) WHERE tenant_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX uk_produto_nutricional_global_nome
+            ON produto_nutricional (lower(nome)) WHERE tenant_id IS NULL;
+        </sql>
+
+        <sql>
+            INSERT INTO produto_nutricional (tenant_id, nome, tipo, medida_nome, medida_qtd,
+                embalagem_qtd, kcal, proteina_g, cho_g, acucar_g, lip_g, sodio_mg,
+                potassio_mg, fosforo_mg, ferro_mg, fibras_g, osmolaridade_mosm_l,
+                modulo_proteico, papel_artesanal, observacao, ativo, created_at) VALUES
+        -- ─── 23 suplementos orais (aba Suplementos, A2:M24) ───
+            (NULL, 'Diamax', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 200, 8.8, 20, 0.4, 9.4, 134, 272, 142, 2.2, 3, NULL, false, NULL, '*auxiliar no controle glicêmico', true, now()),
+            (NULL, 'Energyzip', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 300, 12, 40, 13, 10.4, 298, 454, NULL, 2.6, 0, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Fresubin 2kcal Neutro', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 400, 20, 44, 7, 15.6, 120, 320, 240, 5, 0, 495, false, NULL, '*presença de w3,w6', true, now()),
+            (NULL, 'Fresubin 3.2kcal', 'SUPLEMENTO_ORAL', 'porção', 125, NULL, 400, 20, 35, NULL, 20, 140, 390, 140, 6, 0.62, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Fresubin Energy', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 300, 11.2, 38, 11, 11.6, 160, 270, 160, 4, 0, 390, false, NULL, NULL, true, now()),
+            (NULL, 'Fresubin Jucy', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 300, 8, 67, NULL, 0, 12, 14, NULL, NULL, NULL, 680, false, NULL, NULL, true, now()),
+            (NULL, 'Fresubin Protein Energy', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 300, 20, 24, 14.6, 13.4, 116, 292, 240, 5, 0, 440, false, NULL, NULL, true, now()),
+            (NULL, 'Glucerna 1.5', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 306, 15, 26, 12.2, 15, 240, 330, 200, 1.7, 3.4, 614, false, NULL, NULL, true, now()),
+            (NULL, 'Impact', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 214, 13, 14, 0, 5.6, 120, 420, 170, 2.6, 0, 297, false, NULL, '*presença de arginina, w3,w6, nucleotídeos', true, now()),
+            (NULL, 'Just Protein', 'SUPLEMENTO_ORAL', 'porção', 20, NULL, 69.3, 17.33, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Novasource Proline', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 274, 20, 32, 3, 7.4, 200, 310, 190, 3.2, 1, NULL, false, NULL, '*presença de arginina, w3,w6, prolina, colina', true, now()),
+            (NULL, 'Novasource Ren', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 400, 14.8, 40, 11.8, 20, 280, 300, 190, 4, 0, 740, false, NULL, '*presença de carnitina, arginina, w3,w6, taurina', true, now()),
+            (NULL, 'Novasource Senior pó s/sabor', 'SUPLEMENTO_ORAL', 'porção', 27.5, NULL, 116.05, 9.9, 9.9, NULL, 4.12, 50, 137.5, 110, 1.95, 1.1, NULL, false, NULL, '3 Colheres sopa = 27,5g', true, now()),
+            (NULL, 'Novasourse Senior', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 198, 16, 19, 1.2, 6.4, 154, NULL, NULL, NULL, 0, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Nutren 1.5', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 308, 11.2, 44, 16, 9.6, 140, 160, 170, 4.4, 0, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Nutren 1.5 Protein', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 296, 20, 22, 17.8, 14.4, 224, 394, 288, 3.6, 0, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Nutren 2.0', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 400, 17.2, 12, 12, 19.2, NULL, 460, 160, 6, 0, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Nutren Control', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 212, 15, 14.4, 4.6, 10, 144, NULL, 170, 2.8, 0, NULL, false, NULL, '*auxiliar no controle glicêmico', true, now()),
+            (NULL, 'Nutren Forfity Pó', 'SUPLEMENTO_ORAL', 'porção', 30, NULL, 132, 9, 11, 0.8, 5.6, 35, NULL, 111, 2.9, 0, NULL, false, NULL, '(30g + 90ml água = 100ml preparação)', true, now()),
+            (NULL, 'Nutren Fresh Chá de limão', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 272, 10, 58, 16.4, 0, 90, NULL, NULL, NULL, 0, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Nutren Ultra', 'SUPLEMENTO_ORAL', 'porção', 125, NULL, 278.7, 20, 18.7, 11.87, 13.75, 212.5, 277.5, 191.25, 1.87, 0, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Nutri enteral 1.5', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 300, 12.8, 42, NULL, 8.4, 180, 340, 140, 2.8, 0, NULL, false, NULL, NULL, true, now()),
+            (NULL, 'Nutridrink', 'SUPLEMENTO_ORAL', 'porção', 200, NULL, 300, 18.4, 17, NULL, 10.4, 120, 416, 330, 3.2, 0, NULL, false, NULL, NULL, true, now()),
+        -- ─── 3 módulos proteicos (A31:E33) — alimentam a sugestão ───
+            (NULL, 'Nutren Just Protein', 'MODULO_PROTEICO', 'medida', 15, NULL, 52, 13, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, true, now()),
+            (NULL, 'Fresubin Protein Powder', 'MODULO_PROTEICO', 'medida', 12, NULL, 41.6, 10.4, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, true, now()),
+            (NULL, 'Nutridrink Protein', 'MODULO_PROTEICO', 'medida', 20, NULL, 62.64, 6, 9.66, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, true, now()),
+        -- ─── 4 insumos da dieta artesanal (aba TNE Sistema aberto, A2:E5) ───
+            (NULL, 'Trophic basic pó', 'INSUMO_ARTESANAL', 'medida', 7.8, 800, 33.93, 1.24, 4.68, NULL, 1.09, NULL, NULL, NULL, NULL, NULL, NULL, false, 'BASE', 'Trophic basic pó (1 medida - 7,8g)', true, now()),
+            (NULL, 'Carbodex', 'INSUMO_ARTESANAL', 'medida', 10, 500, 40, 0, 10, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, false, 'CARBOIDRATO', 'Carbodex (1 medida - 10g)', true, now()),
+            (NULL, 'Albumix power', 'INSUMO_ARTESANAL', 'medidor', 20, 500, 70, 16, 1.5, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, false, 'PROTEINA', 'Albumix power (1 medidor - 20g)', true, now()),
+            (NULL, 'Óleo de soja', 'INSUMO_ARTESANAL', 'colher', 13, 900, 108, 0, 0, NULL, 12, NULL, NULL, NULL, NULL, NULL, NULL, false, 'LIPIDIO', 'Oleo de soja (1 colher sopa 13ml)', true, now());
+        </sql>
+
+        <rollback>
+            <dropTable tableName="produto_nutricional"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

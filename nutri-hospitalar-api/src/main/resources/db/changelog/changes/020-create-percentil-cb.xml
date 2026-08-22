@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Percentil 50 da circunferência do braço, por sexo e faixa de idade.
+        Ver docs/10-calculos-uti-adulto.md §2.8.
+
+        SEM `tenant_id`, como percentil_oms da pediatria (migration 015) e como
+        estado/cidade: é dado de referência populacional, e nenhuma clínica tem a
+        sua própria tabela de percentis.
+
+        POR QUE ELA EXISTE. Na planilha o P50 é DIGITADO À MÃO (`Estimativas!J24`)
+        com a tabela de referência ao lado, sem ser consultada — e o exemplo em
+        cache usa a linha de 30-39,9 anos para um paciente de 59 (o correto seria
+        32,6). É o defeito 19 do docs/10, e some quando o P50 vem de uma busca.
+
+        A faixa é fechada nos dois extremos (18,0 a 90,9 anos). Fora dela, o
+        cálculo devolve ausência COM O MOTIVO — o eroERP extrapola em silêncio
+        usando a linha do extremo (`tabelas.ts:30-33`), o que dá adequação de CB
+        para um paciente de 95 anos como se ele tivesse 90.
+    -->
+    <changeSet id="020-create-percentil-cb" author="eduardo">
+
+        <createTable tableName="percentil_cb">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_percentil_cb"/>
+            </column>
+
+            <column name="sexo" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Faixa fechada: [idade_min, idade_max] em anos, com uma decimal -->
+            <column name="idade_min" type="NUMERIC(5,1)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="idade_max" type="NUMERIC(5,1)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="p50_cm" type="NUMERIC(8,3)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <sql>
+            ALTER TABLE percentil_cb ADD CONSTRAINT ck_percentil_cb_sexo
+            CHECK (sexo IN ('MASCULINO', 'FEMININO'));
+        </sql>
+        <sql>
+            ALTER TABLE percentil_cb ADD CONSTRAINT ck_percentil_cb_faixa
+            CHECK (idade_min &gt;= 0 AND idade_max &gt;= idade_min AND p50_cm &gt; 0);
+        </sql>
+
+        <addUniqueConstraint tableName="percentil_cb"
+                             columnNames="sexo, idade_min"
+                             constraintName="uk_percentil_cb_sexo_idade"/>
+
+        <!-- ─── 9 faixas × 2 sexos (Estimativas Antropométricas!I12:K21) ─── -->
+        <sql>
+            INSERT INTO percentil_cb (sexo, idade_min, idade_max, p50_cm, created_at) VALUES
+            ('MASCULINO', 18.0, 18.9, 30.0, now()),
+            ('MASCULINO', 19.0, 19.9, 30.5, now()),
+            ('MASCULINO', 20.0, 29.9, 31.8, now()),
+            ('MASCULINO', 30.0, 39.9, 32.3, now()),
+            ('MASCULINO', 40.0, 49.9, 33.0, now()),
+            ('MASCULINO', 50.0, 59.9, 32.6, now()),
+            ('MASCULINO', 60.0, 69.9, 32.0, now()),
+            ('MASCULINO', 70.0, 79.9, 30.6, now()),
+            ('MASCULINO', 80.0, 90.9, 28.9, now()),
+            ('FEMININO',  18.0, 18.9, 26.7, now()),
+            ('FEMININO',  19.0, 19.9, 26.8, now()),
+            ('FEMININO',  20.0, 29.9, 28.1, now()),
+            ('FEMININO',  30.0, 39.9, 30.3, now()),
+            ('FEMININO',  40.0, 49.9, 31.4, now()),
+            ('FEMININO',  50.0, 59.9, 31.9, now()),
+            ('FEMININO',  60.0, 69.9, 31.4, now()),
+            ('FEMININO',  70.0, 79.9, 29.9, now()),
+            ('FEMININO',  80.0, 90.9, 27.8, now());
+        </sql>
+
+        <rollback>
+            <dropTable tableName="percentil_cb"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
