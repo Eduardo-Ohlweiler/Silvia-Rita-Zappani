@@ -18,6 +18,10 @@ import { FormulaEnteralForm } from '@/pages/uti/FormulaEnteralForm'
 import { FormulaEnteralList } from '@/pages/uti/FormulaEnteralList'
 import { ProdutoNutricionalForm } from '@/pages/uti/ProdutoNutricionalForm'
 import { ProdutoNutricionalList } from '@/pages/uti/ProdutoNutricionalList'
+import { AvaliacaoUtiForm } from '@/pages/uti/AvaliacaoUtiForm'
+import { AvaliacaoUtiList } from '@/pages/uti/AvaliacaoUtiList'
+import { FerramentasClinicas } from '@/pages/uti/FerramentasClinicas'
+import { UtiCalculadora } from '@/pages/uti/UtiCalculadora'
 import { Perfil } from '@/pages/perfil/Perfil'
 import { PessoaForm } from '@/pages/pessoa/PessoaForm'
 import { PessoaList } from '@/pages/pessoa/PessoaList'
@@ -76,6 +80,11 @@ export function AppRoutes() {
             <Route path="pediatria/formulas-lacteas/:id" element={<FormulaLacteaForm />} />
 
             {/* Rota literal antes de /:id — o Spring e o router preferem o literal */}
+            <Route path="uti/calculadora" element={<UtiCalculadora />} />
+            <Route path="uti/ferramentas" element={<FerramentasClinicas />} />
+            <Route path="uti/avaliacoes" element={<AvaliacaoUtiList />} />
+            <Route path="uti/avaliacoes/nova" element={<AvaliacaoUtiForm />} />
+            <Route path="uti/avaliacoes/:id" element={<AvaliacaoUtiForm />} />
             <Route path="uti/formulas-enterais" element={<FormulaEnteralList />} />
             <Route path="uti/formulas-enterais/nova" element={<FormulaEnteralForm />} />
             <Route path="uti/formulas-enterais/:id" element={<FormulaEnteralForm />} />

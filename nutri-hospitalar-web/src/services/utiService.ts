@@ -1,6 +1,15 @@
 import { api } from './api'
 import type { Page } from '@/types/comum'
 import type {
+  AvaliacaoUtiCreate,
+  AvaliacaoUtiFiltros,
+  AvaliacaoUtiLista,
+  AvaliacaoUtiResponse,
+  AvaliacaoUtiUpdate,
+  CalculoUtiRequest,
+  FerramentasClinicasRequest,
+  ResultadoFerramentas,
+  ResultadoUti,
   FormulaEnteralCreate,
   FormulaEnteralFiltros,
   FormulaEnteralResponse,
@@ -24,6 +33,52 @@ import type {
  * isso o `global` vem em toda resposta: a tela desabilita a ação antes do
  * clique, em vez de deixar o usuário descobrir no erro.
  */
+/**
+ * **Nenhuma fórmula nutricional é calculada aqui.** As entradas vão para o
+ * `/uti/calculo` e o resultado volta pronto — é a mesma conta que a avaliação
+ * vai gravar, então a tela nunca mostra um número diferente do que o banco
+ * guarda. Ver `docs/04` §7.
+ */
+export const calculoUtiService = {
+  /** Calcula sem gravar. É o que a tela chama a cada alteração de campo. */
+  calcular: (dto: CalculoUtiRequest) =>
+    api.post<ResultadoUti>('/uti/calculo', dto).then((r) => r.data),
+}
+
+/**
+ * As quatro ferramentas clínicas, sem persistência.
+ *
+ * Vão num corpo só porque a tela recalcula tudo com um debounce só — as quatro
+ * são independentes entre si, ao contrário das abas do cálculo.
+ */
+export const ferramentasClinicasService = {
+  calcular: (dto: FerramentasClinicasRequest) =>
+    api.post<ResultadoFerramentas>('/uti/ferramentas-clinicas', dto).then((r) => r.data),
+}
+
+/**
+ * As avaliações gravadas.
+ *
+ * **Abrir não recalcula.** O `findById` devolve os resultados como foram
+ * gravados; a tela os passa ao componente de cálculo como `resultadoInicial`, e
+ * o recálculo só assume ao primeiro toque num campo.
+ */
+export const avaliacaoUtiService = {
+  getAll: (params: AvaliacaoUtiFiltros) =>
+    api.get<Page<AvaliacaoUtiLista>>('/uti/avaliacoes', { params }).then((r) => r.data),
+
+  findById: (id: string) =>
+    api.get<AvaliacaoUtiResponse>(`/uti/avaliacoes/${id}`).then((r) => r.data),
+
+  create: (dto: AvaliacaoUtiCreate) =>
+    api.post<AvaliacaoUtiResponse>('/uti/avaliacoes', dto).then((r) => r.data),
+
+  update: (id: string, dto: AvaliacaoUtiUpdate) =>
+    api.put<AvaliacaoUtiResponse>(`/uti/avaliacoes/${id}`, dto).then((r) => r.data),
+
+  remover: (id: string) => api.delete(`/uti/avaliacoes/${id}`).then(() => undefined),
+}
+
 export const formulaEnteralService = {
   getAll: (params: FormulaEnteralFiltros) =>
     api.get<Page<FormulaEnteralResponse>>('/formulas-enterais', { params }).then((r) => r.data),

@@ -8,18 +8,44 @@ export interface Classificacao {
   rotulo: string
 }
 
+/**
+ * Gravidade de um resultado — espelha o enum `TomResultado` do backend.
+ *
+ * A pediatria usa `FaixaOms`, que tem três valores ordenados (baixa, adequada,
+ * alta) e nasceu das curvas da OMS. A UTI adulto precisa de escalas de tamanhos
+ * diferentes — 6 níveis na adequação de CB, 4 no IMC da OMS, 3 na perda de peso,
+ * 2 na depleção — e nenhuma delas cabe em "baixa/adequada/alta": não há onde pôr
+ * *grave*.
+ *
+ * Por isso o segundo formato. Os dois convivem: `TResult` aceita qualquer um, e
+ * a pediatria continua como está.
+ */
+export type TomResultado = 'NEUTRO' | 'ADEQUADO' | 'ATENCAO' | 'CRITICO'
+
+export interface ClassificacaoTom {
+  tom: TomResultado
+  rotulo: string
+}
+
 interface TResultProps {
   label: string
   /** Já formatado para exibição. Ausente vira "—" com o motivo. */
   valor?: ReactNode
   unidade?: string
-  classificacao?: Classificacao | null
+  classificacao?: Classificacao | ClassificacaoTom | null
   /** De qual fórmula veio o número. "DRIs 2002", "OMS 0–60 meses". */
   referencia?: string
   /** Por que o valor está ausente. Vem do backend. */
   motivoAusencia?: string | null
   /** Enquanto recalcula, o valor anterior fica visível e esmaecido. */
   recalculando?: boolean
+  /**
+   * Versão de uma linha, para a faixa de dependência no topo de uma aba —
+   * "peso 68 kg · peso estimado · Rabito 2008". Não é resultado da aba: é o que
+   * ela recebeu de outra, e por isso não compete visualmente com os números
+   * dali.
+   */
+  compacto?: boolean
   className?: string
 }
 
@@ -44,23 +70,52 @@ export function TResult({
   referencia,
   motivoAusencia,
   recalculando = false,
+  compacto = false,
   className = '',
 }: TResultProps) {
   const vazio = valor === undefined || valor === null || valor === ''
-  const temClassificacao = !!classificacao
+  const cor = classificacao ? corDe(classificacao) : ''
+
+  if (compacto) {
+    return (
+      <div
+        className={`flex flex-wrap items-baseline gap-x-1.5 transition-opacity duration-150
+          ${recalculando ? 'opacity-50' : 'opacity-100'} ${className}`}
+      >
+        <span className="text-caption text-txt-secondary">{label}</span>
+        {vazio ? (
+          <span className="text-caption text-txt-muted">{motivoAusencia ?? '—'}</span>
+        ) : (
+          <>
+            <span className="numeric text-body font-semibold text-txt">{valor}</span>
+            {unidade && <span className="text-caption text-txt-secondary">{unidade}</span>}
+            {referencia && <span className="text-caption text-txt-muted">· {referencia}</span>}
+          </>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       <span className="text-caption text-txt-secondary">{label}</span>
 
       <div
-        className={`flex min-h-[38px] items-baseline gap-1.5 transition-opacity duration-150
+        className={`flex min-h-[38px] flex-wrap items-baseline gap-x-1.5 transition-opacity duration-150
           ${recalculando ? 'opacity-50' : 'opacity-100'}`}
       >
-        {temClassificacao ? (
-          <span className={`text-body font-semibold ${COR_FAIXA[classificacao.faixa]}`}>
-            {classificacao.rotulo}
-          </span>
+        {classificacao ? (
+          <>
+            <span className={`text-body font-semibold ${cor}`}>{classificacao.rotulo}</span>
+            {/* Na UTI o número e a classificação convivem: 92,88 % de adequação
+                E "Eutrofia". Um sem o outro obriga a consultar a tabela. */}
+            {!vazio && (
+              <span className="numeric text-caption text-txt-secondary">
+                {valor}
+                {unidade ? ` ${unidade}` : ''}
+              </span>
+            )}
+          </>
         ) : vazio ? (
           <span className="text-body text-txt-muted">—</span>
         ) : (
@@ -82,6 +137,11 @@ export function TResult({
   )
 }
 
+/** Aceita os dois formatos sem que nenhum deles precise conhecer o outro. */
+function corDe(classificacao: Classificacao | ClassificacaoTom): string {
+  return 'tom' in classificacao ? COR_TOM[classificacao.tom] : COR_FAIXA[classificacao.faixa]
+}
+
 /**
  * Cor por faixa, não por texto.
  *
@@ -94,4 +154,18 @@ const COR_FAIXA: Record<FaixaOms, string> = {
   BAIXA: 'text-info',
   ADEQUADA: 'text-success',
   ALTA: 'text-warning',
+}
+
+/**
+ * Quatro tons, atribuídos pelo backend.
+ *
+ * `NEUTRO` não é ausência de classificação: é classificação sem juízo clínico,
+ * como o preparo escolhido da noradrenalina. Por isso usa a cor do texto comum
+ * em vez de cinza de "vazio".
+ */
+const COR_TOM: Record<TomResultado, string> = {
+  NEUTRO: 'text-txt',
+  ADEQUADO: 'text-success',
+  ATENCAO: 'text-warning',
+  CRITICO: 'text-danger',
 }

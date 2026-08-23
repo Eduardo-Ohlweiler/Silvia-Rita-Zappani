@@ -8,6 +8,15 @@ export { TModal } from './TModal'
 export { TPage } from './TPage'
 export { TPanel } from './TPanel'
 export { TSelect, type OpcaoSelect } from './TSelect'
-export { TResult, type Classificacao, type FaixaOms } from './TResult'
+export { TResultGroup } from './TResultGroup'
+export { TResultTable, type ColunaResultado } from './TResultTable'
+export {
+  TResult,
+  type Classificacao,
+  type ClassificacaoTom,
+  type FaixaOms,
+  type TomResultado,
+} from './TResult'
+export { TTextArea } from './TTextArea'
 export { TTabs, TTabPanel, type Aba } from './TTabs'
 export { TThemeToggle } from './TThemeToggle'

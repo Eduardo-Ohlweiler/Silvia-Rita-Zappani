@@ -36,5 +36,6 @@
     <include file="db/changelog/changes/020-create-percentil-cb.xml"/>
     <include file="db/changelog/changes/021-normalizar-categoria-formula-enteral.xml"/>
     <include file="db/changelog/changes/022-nome-formula-sem-apresentacao.xml"/>
+    <include file="db/changelog/changes/023-create-avaliacao-uti.xml"/>
 
 </databaseChangeLog>

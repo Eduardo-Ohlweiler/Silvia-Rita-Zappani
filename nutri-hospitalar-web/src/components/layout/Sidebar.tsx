@@ -55,6 +55,9 @@ const GRUPOS: Grupo[] = [
     // os painéis entram aqui conforme as fatias fecham.
     titulo: 'Terapia nutricional',
     itens: [
+      { para: '/app/uti/calculadora', rotulo: 'Calculadora', Icone: IconTerapiaNutricional },
+      { para: '/app/uti/avaliacoes', rotulo: 'Avaliações', Icone: IconTerapiaNutricional },
+      { para: '/app/uti/ferramentas', rotulo: 'Ferramentas clínicas', Icone: IconTerapiaNutricional },
       {
         para: '/app/uti/formulas-enterais',
         rotulo: 'Fórmulas enterais',

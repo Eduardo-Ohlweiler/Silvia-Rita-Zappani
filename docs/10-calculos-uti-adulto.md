@@ -815,7 +815,7 @@ regressão.
 | # | Célula | Defeito | Efeito |
 |---|---|---|---|
 | 1 | `Contínuo!G50:G52` | divide a PTN das apresentações de 500 ml por 1000 (a aba Intermitente divide por 500) | **proteína −50 %** |
-| 2 | `Dietas consulta` | composição de 3 produtos por embalagem, não por litro | idem |
+| 2 | `Dietas consulta` `A28`, `A29` | composição de 2 produtos por embalagem de 500 ml, não por litro | idem |
 | 3 | `Contínuo!J` linhas 2,3,5-11,13,22 | %VCT dividido pela PTN total em vez do VCT | percentual absurdo |
 | 4 | `Contínuo!H52`, `I52` | kcal/kg e PTN/kg divididos pela **altura** | |
 | 5 | `Intermitente!H5`, `H6` | kcal/kg dividido pelo VCT e pela PTN | |
@@ -916,6 +916,14 @@ intermediárias, e arredondamento uma vez na saída com a escala declarada.
    PCR, glicemia) — não estão na planilha e só são necessárias para as bandas dos
    gráficos do painel diário. Pesquisar com citação quando a fatia dos painéis
    chegar.
-4. **As abas fora do escopo desta fatia:** `Controle Ingestão` (média de aceitação
+4. **`agua_livre_perc` está vazio nas 53 fórmulas do catálogo.** A coluna existe
+   e o cálculo a prefere quando preenchida (§5.1), mas o seed não trouxe o dado:
+   ele vem do **rótulo de cada produto**, e inventá-lo por aproximação seria
+   exatamente a inferência que este documento recusa. Consequência hoje: as 41
+   fórmulas de densidade exata caem na escada da planilha — dizendo que
+   estimaram — e as **12 de densidade intermediária ficam sem cálculo de água**,
+   com o motivo na tela. É preenchimento de cadastro, não de código: a tela de
+   fórmula enteral tem o campo, e a nutricionista o preenche com o rótulo na mão.
+5. **As abas fora do escopo desta fatia:** `Controle Ingestão` (média de aceitação
    por refeição), `Prescr x Inf` (prescrito × infundido), `Acomp` e `Paciente`
    (formulários em branco, 1.087 células sem fórmula) e `Siglário` (35 siglas).

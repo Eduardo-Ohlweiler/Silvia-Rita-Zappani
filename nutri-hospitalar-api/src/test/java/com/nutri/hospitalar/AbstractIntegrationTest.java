@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutri.hospitalar.loginlog.repository.LoginLogRepository;
 import com.nutri.hospitalar.pediatria.repository.AvaliacaoPediatricaRepository;
 import com.nutri.hospitalar.pediatria.repository.FormulaLacteaRepository;
+import com.nutri.hospitalar.uti.repository.AvaliacaoUtiRepository;
 import com.nutri.hospitalar.uti.repository.FormulaEnteralRepository;
 import com.nutri.hospitalar.uti.repository.ProdutoNutricionalRepository;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
@@ -51,6 +52,7 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected PessoaRepository pessoaRepository;
     @Autowired protected FormulaLacteaRepository formulaLacteaRepository;
     @Autowired protected AvaliacaoPediatricaRepository avaliacaoPediatricaRepository;
+    @Autowired protected AvaliacaoUtiRepository avaliacaoUtiRepository;
     @Autowired protected FormulaEnteralRepository formulaEnteralRepository;
     @Autowired protected ProdutoNutricionalRepository produtoNutricionalRepository;
     @Autowired protected PasswordEncoder passwordEncoder;
@@ -75,6 +77,10 @@ public abstract class AbstractIntegrationTest {
         refreshTokenRepository.deleteAllInBatch();
         loginLogRepository.deleteAllInBatch();
         avaliacaoPediatricaRepository.deleteAllInBatch();
+        // Aponta para pessoa E para formula_enteral, sem cascade nos dois casos:
+        // precisa sair antes das duas. deleteAll (e não InBatch) porque a
+        // @ElementCollection dos segmentos amputados tem de ir junto.
+        avaliacaoUtiRepository.deleteAll();
         // Só as do tenant: as globais são semeadas pela migration 016 e ficam.
         formulaLacteaRepository.deleteAll(
                 formulaLacteaRepository.findAll().stream()

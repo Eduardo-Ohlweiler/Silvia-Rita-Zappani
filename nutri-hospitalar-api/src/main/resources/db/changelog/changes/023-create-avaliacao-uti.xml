@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Avaliação nutricional de UTI adulto. Ver docs/10.
+
+        PACIENTE E PROFISSIONAL SÃO `pessoa`, como na pediatria: não há tabela de
+        paciente neste sistema. O profissional é opcional e também é pessoa — no
+        eroERP ele é um `usuario`, o que impede registrar o nutricionista que não
+        tem login.
+
+        TUDO O QUE É RESULTADO FICA GRAVADO, e isso é deliberado: abrir uma
+        avaliação salva NÃO recalcula. Se as equações mudarem amanhã, o registro
+        de hoje continua mostrando o que se decidiu hoje. Prontuário não se
+        reescreve sozinho.
+
+        Por isso também as CLASSIFICAÇÕES gravam rótulo E tom. O rótulo é o texto
+        que o profissional leu; o tom é a cor que ele viu. Recalcular a partir do
+        número perderia os dois se a régua mudasse.
+
+        E por isso o RETRATO DA FÓRMULA vai completo — inclusive os macros, que o
+        eroERP não guarda (lá são só nome, densidade e proteína). Sem CHO e LIP
+        gravados, reabrir a avaliação de um paciente cuja fórmula saiu do
+        catálogo mostraria a composição pela metade.
+
+        A ORIGEM DE CADA VALOR DA CASCATA é coluna, não derivação. "Peso estimado
+        · Rabito 2008" é parte do registro clínico: sem ela, ninguém sabe sobre
+        que número a prescrição foi feita. É o conserto dos defeitos 14 e 15 de
+        docs/10 §11, levado até o banco.
+    -->
+    <changeSet id="023-create-avaliacao-uti" author="eduardo">
+
+        <createTable tableName="avaliacao_uti">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_avaliacao_uti"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_avaliacao_uti_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <!-- ─── Quem ───────────────────────────────────────────────── -->
+            <column name="paciente_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_avaliacao_uti_paciente"
+                             references="pessoa(id)"/>
+            </column>
+            <column name="profissional_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_avaliacao_uti_profissional"
+                             references="pessoa(id)"/>
+            </column>
+            <column name="data_avaliacao" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- ─── Entradas · antropometria ───────────────────────────── -->
+            <column name="sexo" type="VARCHAR(20)"/>
+            <column name="etnia" type="VARCHAR(20)"/>
+            <column name="idade_anos" type="INTEGER"/>
+            <column name="altura_cm" type="NUMERIC(8,2)"/>
+            <column name="altura_joelho_cm" type="NUMERIC(8,2)"/>
+            <column name="circ_braco_cm" type="NUMERIC(8,2)"/>
+            <column name="circ_panturrilha_cm" type="NUMERIC(8,2)"/>
+            <column name="circ_abdominal_cm" type="NUMERIC(8,2)"/>
+            <column name="peso_atual_kg" type="NUMERIC(8,3)"/>
+            <column name="peso_usual_kg" type="NUMERIC(8,3)"/>
+            <column name="janela_perda" type="VARCHAR(20)"/>
+            <column name="populacao_referencia" type="VARCHAR(30)"/>
+            <column name="origem_peso_preferida" type="VARCHAR(30)"/>
+
+            <!-- ─── Entradas · necessidades ────────────────────────────── -->
+            <column name="fase" type="VARCHAR(20)"/>
+            <column name="terapia_renal" type="VARCHAR(30)"/>
+            <column name="kcal_por_kg_alvo" type="NUMERIC(6,2)"/>
+            <column name="proteina_por_kg_alvo" type="NUMERIC(6,2)"/>
+
+            <!-- ─── Entradas · dieta, com o retrato da fórmula ─────────── -->
+            <column name="formula_enteral_id" type="UUID"/>
+            <column name="formula_nome" type="VARCHAR(255)"/>
+            <column name="formula_densidade_kcal_ml" type="NUMERIC(8,3)"/>
+            <column name="formula_proteina_g_l" type="NUMERIC(8,3)"/>
+            <column name="formula_cho_g_l" type="NUMERIC(8,3)"/>
+            <column name="formula_lip_g_l" type="NUMERIC(8,3)"/>
+            <column name="formula_fibras_g_l" type="NUMERIC(8,3)"/>
+            <column name="formula_potassio_mg_l" type="NUMERIC(10,3)"/>
+            <column name="formula_agua_livre_perc" type="NUMERIC(6,2)"/>
+            <column name="modo_infusao" type="VARCHAR(20)"/>
+            <column name="volume_por_tempo" type="NUMERIC(10,3)"/>
+            <column name="tempo" type="NUMERIC(6,2)"/>
+
+            <!-- ─── Entrada · hidratação ───────────────────────────────── -->
+            <column name="volume_dieta_manual_ml" type="NUMERIC(10,3)"/>
+
+            <!-- ─── Resultados · estimativas e cascata ─────────────────── -->
+            <column name="altura_estimada_cm" type="NUMERIC(12,4)"/>
+            <column name="peso_chumlea_kg" type="NUMERIC(12,4)"/>
+            <column name="peso_jung_kg" type="NUMERIC(12,4)"/>
+            <column name="peso_rabito_kg" type="NUMERIC(12,4)"/>
+            <column name="peso_trabalho_kg" type="NUMERIC(12,4)"/>
+            <column name="peso_trabalho_origem" type="VARCHAR(60)"/>
+            <column name="altura_usada_cm" type="NUMERIC(12,4)"/>
+            <column name="altura_usada_origem" type="VARCHAR(60)"/>
+
+            <!-- ─── Resultados · diagnóstico ───────────────────────────── -->
+            <column name="imc" type="NUMERIC(12,4)"/>
+            <column name="classif_imc_oms" type="VARCHAR(60)"/>
+            <column name="classif_imc_oms_tom" type="VARCHAR(20)"/>
+            <column name="classif_imc_opas" type="VARCHAR(60)"/>
+            <column name="classif_imc_opas_tom" type="VARCHAR(20)"/>
+
+            <column name="peso_ideal_kg" type="NUMERIC(12,4)"/>
+            <column name="peso_ideal_imc25_kg" type="NUMERIC(12,4)"/>
+            <column name="peso_ajustado_kg" type="NUMERIC(12,4)"/>
+            <column name="peso_amputacao_kg" type="NUMERIC(12,4)"/>
+
+            <column name="perc_perda_peso" type="NUMERIC(8,2)"/>
+            <column name="classif_perda_peso" type="VARCHAR(60)"/>
+            <column name="classif_perda_peso_tom" type="VARCHAR(20)"/>
+
+            <column name="p50_circ_braco_cm" type="NUMERIC(12,4)"/>
+            <column name="adequacao_circ_braco_perc" type="NUMERIC(8,2)"/>
+            <column name="classif_adequacao_cb" type="VARCHAR(60)"/>
+            <column name="classif_adequacao_cb_tom" type="VARCHAR(20)"/>
+
+            <column name="circ_braco_ajustada_cm" type="NUMERIC(12,4)"/>
+            <column name="classif_massa_braco" type="VARCHAR(60)"/>
+            <column name="classif_massa_braco_tom" type="VARCHAR(20)"/>
+            <column name="circ_panturrilha_ajustada_cm" type="NUMERIC(12,4)"/>
+            <column name="classif_deplecao_cp" type="VARCHAR(60)"/>
+            <column name="classif_deplecao_cp_tom" type="VARCHAR(20)"/>
+
+            <!-- ─── Resultados · necessidades ──────────────────────────── -->
+            <column name="energia_minima" type="NUMERIC(12,4)"/>
+            <column name="energia_maxima" type="NUMERIC(12,4)"/>
+            <column name="proteina_minima" type="NUMERIC(12,4)"/>
+            <column name="proteina_maxima" type="NUMERIC(12,4)"/>
+            <column name="meta_energetica" type="NUMERIC(12,4)"/>
+            <column name="meta_energetica_origem" type="VARCHAR(60)"/>
+            <column name="meta_proteica" type="NUMERIC(12,4)"/>
+            <column name="meta_proteica_origem" type="VARCHAR(60)"/>
+            <column name="proteina_terapia_renal" type="NUMERIC(12,4)"/>
+            <column name="obeso" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="base_do_peso" type="VARCHAR(120)"/>
+
+            <!-- ─── Resultados · dieta ─────────────────────────────────── -->
+            <column name="volume_total_ml" type="NUMERIC(12,4)"/>
+            <column name="calorias_ofertadas" type="NUMERIC(12,4)"/>
+            <column name="proteina_ofertada" type="NUMERIC(12,4)"/>
+            <column name="calorias_por_quilo" type="NUMERIC(12,4)"/>
+            <column name="proteina_por_quilo" type="NUMERIC(12,4)"/>
+            <column name="percentual_do_vct" type="NUMERIC(8,2)"/>
+            <column name="percentual_da_proteina" type="NUMERIC(8,2)"/>
+            <column name="cho_ofertado" type="NUMERIC(12,4)"/>
+            <column name="lip_ofertado" type="NUMERIC(12,4)"/>
+            <column name="fibras_ofertadas" type="NUMERIC(12,4)"/>
+            <column name="potassio_ofertado" type="NUMERIC(12,4)"/>
+            <column name="volume_pleno" type="NUMERIC(12,4)"/>
+            <column name="proteina_no_volume_pleno" type="NUMERIC(12,4)"/>
+            <column name="proteina_suplementar" type="NUMERIC(12,4)"/>
+
+            <!-- ─── Resultados · hidratação ────────────────────────────── -->
+            <column name="hidratacao_necessidade_minima" type="NUMERIC(12,4)"/>
+            <column name="hidratacao_necessidade_ideal" type="NUMERIC(12,4)"/>
+            <column name="hidratacao_percentual_agua" type="NUMERIC(6,2)"/>
+            <column name="hidratacao_percentual_agua_origem" type="VARCHAR(60)"/>
+            <column name="hidratacao_agua_na_dieta" type="NUMERIC(12,4)"/>
+            <column name="hidratacao_agua_extra_minima" type="NUMERIC(12,4)"/>
+            <column name="hidratacao_agua_extra_ideal" type="NUMERIC(12,4)"/>
+
+            <column name="observacao" type="TEXT"/>
+
+            <column name="created_by" type="UUID"/>
+            <column name="updated_by" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <!--
+            SET NULL, não RESTRICT: a fórmula pode sair do catálogo sem levar
+            junto o histórico clínico. O retrato acima garante que a avaliação
+            continua legível — inclusive os macros.
+        -->
+        <addForeignKeyConstraint baseTableName="avaliacao_uti"
+                                 baseColumnNames="formula_enteral_id"
+                                 referencedTableName="formula_enteral"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_avaliacao_uti_formula_enteral"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="avaliacao_uti"
+                                 baseColumnNames="created_by"
+                                 referencedTableName="usuario"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_avaliacao_uti_created_by"/>
+        <addForeignKeyConstraint baseTableName="avaliacao_uti"
+                                 baseColumnNames="updated_by"
+                                 referencedTableName="usuario"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_avaliacao_uti_updated_by"/>
+
+        <!--
+            Os segmentos amputados são LISTA, e vão em tabela filha em vez de
+            texto separado por vírgula: valor de enum concatenado num VARCHAR não
+            aceita CHECK, e um dia alguém tenta consultá-lo com LIKE.
+
+            CASCADE porque é parte da avaliação, não entidade própria — some com
+            ela, como telefone some com pessoa (migration 010).
+        -->
+        <createTable tableName="avaliacao_uti_segmento">
+            <column name="avaliacao_uti_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="segmento" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="avaliacao_uti_segmento"
+                                 baseColumnNames="avaliacao_uti_id"
+                                 referencedTableName="avaliacao_uti"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_avaliacao_uti_segmento_avaliacao"
+                                 onDelete="CASCADE"/>
+
+        <addPrimaryKey tableName="avaliacao_uti_segmento"
+                       columnNames="avaliacao_uti_id, segmento"
+                       constraintName="pk_avaliacao_uti_segmento"/>
+
+        <sql>
+            ALTER TABLE avaliacao_uti_segmento ADD CONSTRAINT ck_avaliacao_uti_segmento
+            CHECK (segmento IN ('MAO', 'ANTEBRACO', 'ANTEBRACO_MAO', 'BRACO',
+                                'MEMBRO_SUPERIOR', 'PE', 'PERNA', 'MEMBRO_INFERIOR'));
+        </sql>
+
+        <!-- ─── Coerência dos enums gravados ───────────────────────────── -->
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_sexo
+            CHECK (sexo IS NULL OR sexo IN ('MASCULINO', 'FEMININO'));
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_etnia
+            CHECK (etnia IS NULL OR etnia IN ('BRANCA', 'NEGRA'));
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_fase
+            CHECK (fase IS NULL OR fase IN ('AGUDA', 'REABILITACAO'));
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_modo
+            CHECK (modo_infusao IS NULL OR modo_infusao IN ('CONTINUA', 'INTERMITENTE'));
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_populacao
+            CHECK (populacao_referencia IS NULL
+                   OR populacao_referencia IN ('POPULACAO_CLINICA', 'ADULTO_SAUDAVEL'));
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_janela
+            CHECK (janela_perda IS NULL
+                   OR janela_perda IN ('UMA_SEMANA', 'UM_MES', 'TRES_MESES', 'SEIS_MESES'));
+        </sql>
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_terapia_renal
+            CHECK (terapia_renal IS NULL
+                   OR terapia_renal IN ('NENHUMA', 'HEMODIALISE_INTERMITENTE', 'HEMODIALISE_CONTINUA'));
+        </sql>
+
+        <!-- Medidas não são negativas -->
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_medidas
+            CHECK ((peso_atual_kg IS NULL OR peso_atual_kg &gt; 0)
+               AND (peso_usual_kg IS NULL OR peso_usual_kg &gt; 0)
+               AND (altura_cm IS NULL OR altura_cm &gt; 0)
+               AND (idade_anos IS NULL OR idade_anos &gt;= 0));
+        </sql>
+
+        <createIndex tableName="avaliacao_uti" indexName="idx_avaliacao_uti_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex tableName="avaliacao_uti" indexName="idx_avaliacao_uti_paciente">
+            <column name="paciente_id"/>
+        </createIndex>
+        <createIndex tableName="avaliacao_uti" indexName="idx_avaliacao_uti_profissional">
+            <column name="profissional_id"/>
+        </createIndex>
+        <createIndex tableName="avaliacao_uti" indexName="idx_avaliacao_uti_formula">
+            <column name="formula_enteral_id"/>
+        </createIndex>
+        <createIndex tableName="avaliacao_uti" indexName="idx_avaliacao_uti_data">
+            <column name="data_avaliacao"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="avaliacao_uti_segmento"/>
+            <dropTable tableName="avaliacao_uti"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

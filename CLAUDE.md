@@ -45,6 +45,9 @@ sistema silvia/
 │                                  #   FormulaEnteral (composição SEMPRE por litro)
 │                                  #   ProdutoNutricional (suplemento · módulo · insumo)
 │                                  #   PercentilCb (referência, sem tenant)
+│                                  # uti/calculo/ = 7 classes puras + UtiMatematica
+│                                  #   cascata/ PesoDeTrabalho · Altura · MetaEnergetica
+│                                  #            MetaProteica · VolumeDieta
 └── nutri-hospitalar-web/          # fatia 2 pronta
     ├── public/                    # favicon, ícones, og-image
     └── src/
@@ -79,11 +82,11 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **2 — Casca do front e área administrativa** | ✅ pronta |
 | **3 — Pessoas** | ✅ pronta · porte do eroERP, com endereços (IBGE) e vínculos |
 | **5 — Pediatria** | ✅ pronta · cálculo no servidor, telas em abas, painéis com paleta validada |
-| **6 — Terapia Nutricional (UTI adulto)** | ⬅️ **em construção** · especificação em [docs/10](docs/10-calculos-uti-adulto.md) ✅ · catálogos (fórmula enteral · produto nutricional · percentil de CB) ✅ · faltam cálculo, avaliação, acompanhamento e painéis |
+| **6 — Terapia Nutricional (UTI adulto)** | ⬅️ **em construção** · especificação [docs/10](docs/10-calculos-uti-adulto.md) ✅ · catálogos ✅ · **cálculo e calculadora ✅** · **ferramentas clínicas ✅** · **avaliação ✅** · faltam acompanhamento diário, painéis e impressão |
 | 4 — Atendimento | pendente |
 | 7 a 9 — Catálogos · Acompanhamento · audit_log | pendentes |
 
-**164 testes** no total, contra o banco `nutridb_test`.
+**242 testes** no total, contra o banco `nutridb_test`.
 
 **Bloqueio resolvido.** As fatias de cálculo dependiam de uma especificação
 numérica das fórmulas — com célula de origem, referência bibliográfica, unidade e
@@ -269,7 +272,7 @@ query com `CAST`.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 164 testes contra nutridb_test
+./run-dev.sh test         # 242 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da
