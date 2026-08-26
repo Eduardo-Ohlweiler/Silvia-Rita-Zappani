@@ -419,27 +419,81 @@ Confere, peso 68: **122,4** e **136** g.
 
 ### 3.3 Obesidade *(`A13:C17`)*
 
-| | IMC > 30 | IMC > 40 |
+**Cada linha tem o seu próprio corte, e eles não coincidem:**
+
+| | Faixa baixa | Faixa alta |
 |---|---|---|
-| Energia | **11 – 14** kcal/kg de **peso atual** | **22 – 25** kcal/kg de **peso ideal** |
-| Proteína | **2,0** g/kg de peso ideal | **2,5** g/kg de peso ideal (rótulo diz IMC > 50) |
+| Energia | IMC 30 – 50 → **11 – 14** kcal/kg de **peso atual** | IMC **> 50** → **22 – 25** kcal/kg de **peso ideal** |
+| Proteína | IMC 30 – 40 → **2,0** g/kg de peso ideal | IMC **≥ 40** → **2,5** g/kg de peso ideal |
 
 *Origem: `B15`/`B16` (peso atual, `F2`), `C15`/`C16` (peso ideal, `F3`),
 `B17`/`C17` (peso ideal).*
 Confere, peso 68 e ideal 82: **748 · 952 · 1804 · 2050** kcal · **164 · 205** g.
 
 > ⚠️ **A base do peso muda entre as linhas, e é o erro mais fácil de cometer.**
-> Energia em IMC > 30 usa **peso atual**; energia em IMC > 40 e toda a proteína
+> Energia até IMC 50 usa **peso atual**; energia acima de 50 e toda a proteína
 > usam **peso ideal**. Na planilha isso são duas células (`F2` e `F3`) que o
 > usuário confunde. O cálculo deve receber os dois pesos separados e **escolher
 > internamente** — o chamador não pode ter essa liberdade.
 
-> ⚠️ **Contradição de rótulo:** o cabeçalho da coluna C diz `IMC>40` (`C13`) e o
-> rodapé diz `IMC >50` (`C18`). A leitura que usa os dois: energia de 22–25 kcal/kg
-> a partir de IMC > 40; proteína de 2,5 g/kg a partir de IMC > 50 (2,0 antes
-> disso). Registrada como interpretação, com teste nas fronteiras 30, 40 e 50.
+> ✅ **O "conflito de rótulo" não era conflito — e a leitura errada estava no
+> código.** O cabeçalho da coluna C diz `IMC>40` (`C13`) e o rodapé diz `IMC >50`
+> (`C18`). Isso foi lido, na primeira implementação, como uma contradição a
+> resolver, e resolvido ao contrário: energia trocando de peso em 40 e proteína
+> subindo em 50. **Os dois rótulos pertencem a linhas diferentes da mesma
+> coluna** — `IMC>40` é o corte da *proteína*, `IMC >50` é o da *energia*, e é
+> exatamente o que a **ASPEN/SCCM 2016** recomenda:
+>
+> - **C3 — energia:** 11–14 kcal/kg de peso **atual** para IMC 30–50;
+>   22–25 kcal/kg de peso **ideal** para IMC > 50.
+> - **C4 — proteína:** 2,0 g/kg de peso ideal para IMC 30–40;
+>   **2,5 g/kg** de peso ideal para IMC ≥ 40.
+>
+> A leitura invertida **superestimava a energia e subestimava a proteína** na
+> faixa em que a diretriz mais insiste no oposto — hipocalórico e hiperproteico.
+> Num paciente de IMC 45 com peso atual 68 kg e ideal 82 kg: dava 1804–2050 kcal
+> e 164 g, quando o correto é **748–952 kcal e 205 g**.
+>
+> Fontes: [Guideline ASPEN/SCCM — resumo](https://www.guidelinecentral.com/guideline/39804/)
+> · [ASPEN — *Feeding the Patient with Obesity in the Critical Care Setting*](https://nutritioncare.org/text-based-resource/feeding-the-patient-with-obesity-in-the-critical-care-setting-discussion-and-key-recommendations/).
+> Teste nas fronteiras 30, 40 e 50, mais uma trava explícita no IMC 45
+> (`NaoReplicamosOsBugsDaPlanilhaTest.defeito18_fronteirasDaObesidade`).
 
-### 3.4 Personalizado *(`F5:G9`)*
+### 3.4 A meta: qual ponto da faixa
+
+A recomendação é sempre um **intervalo**; a meta que desce para a dieta é **um
+número**. A planilha não escolhe — tabula a faixa em `Necessidades` e deixa a
+meta ser **redigitada à mão** na aba da dieta (defeito 14). O eroERP escolhe o
+**ponto médio** (`useCalculoNutricional.ts:132-135`), calado.
+
+Aqui a escolha é entrada, com três posições, e **o padrão é o máximo**:
+
+| Posição | Fase aguda, peso 68 | Proteína |
+|---|---|---|
+| Mínimo | 15 × 68 = **1020** kcal | 1,2 × 68 = **81,6** g |
+| Médio | 17,5 × 68 = **1190** kcal | 1,35 × 68 = **91,8** g |
+| **Máximo** *(padrão)* | 20 × 68 = **1360** kcal | 1,5 × 68 = **102** g |
+
+*O padrão é documental:* o exemplo em cache da própria planilha, na aba da
+dieta, usa **VCT 1360** para um paciente de 68 kg em fase aguda — e 1360 é
+exatamente 20 × 68, o topo. A planilha é a referência, e é o que ela mostra.
+
+> **Isto não é a progressão dos primeiros dias.** A ESPEN recomenda oferta
+> hipocalórica — abaixo de 70 % da meta — nos três primeiros dias, e isso já
+> está resolvido na tabela de **25 · 50 · 75 · 100 %** dos dias 1 a 4
+> (`Contínuo!P15:P18`), que o sistema implementa. Baixar a meta *e* progredir
+> sobre ela descontaria duas vezes.
+> ([ESPEN](https://www.espen.org/files/ESPEN-Guidelines/ICU-Guideline-Portuguese.pdf))
+
+A posição **acompanha o valor** até a tela: a origem sai escrita como
+`da faixa da fase · máximo` ou `protocolo de obesidade · médio`. E é **gravada
+na avaliação** (migration 025), não derivada na leitura — sem ela, a meta de
+1360 kcal de hoje não se distingue da de 1190 no dia em que o padrão mudar.
+
+O campo **`kcal/kg alvo` continua vencendo os três**: alvo digitado é
+`META_PERSONALIZADA`, não é ponto de faixa nenhuma e não declara posição.
+
+### 3.5 Personalizado *(`F5:G9`)*
 
 ```
 kcal total = kcal/kg desejado × peso
@@ -793,7 +847,7 @@ com a célula no comentário do teste.
 | | peso 62 · altura 1,75 | IMC `20,2449` |
 | | usual 68 · atual 60 | perda `11,7647 %` → grave em 1 mês |
 | | CB 30 · P50 32,3 | adequação `92,8793 %` → Eutrofia |
-| **Necessidades** | peso 68 · ideal 82 | `1020` `1360` `1700` `2040` kcal · `81,6` `102` `102` `136` g · HD `122,4` / `136` · obeso `748` `952` `1804` `2050` · `164` / `205` · personalizado 35 e 1,3 → `2380` / `88,4` |
+| **Necessidades** | peso 68 · ideal 82 | `1020` `1360` `1700` `2040` kcal · `81,6` `102` `102` `136` g · HD `122,4` / `136` · obeso `748` `952` (IMC 30–50) `1804` `2050` (IMC > 50) · PTN `164` (IMC 30–40) / `205` (IMC ≥ 40) · personalizado 35 e 1,3 → `2380` / `88,4` · meta na faixa aguda: mín `1020` / méd `1190` / **máx `1360`** (padrão) |
 | **Dieta contínua** | peso 68 · VCT 1360 · PTN 102 · 22 h · Peptamen Intense (1,0 · 92 g/L) · 62 ml/h | VT `1364` · kcal `1364` · PTN `125,488` · kcal/kg `20,0588` · PTN/kg `1,8454` · %VCT `100,2941` · %PTN `123,0275` · pleno `61,8182` · PTN no pleno `125,12` |
 | **Dieta intermitente** | peso 65 · VCT 1800 · PTN 80 · 6 horários · Novasource Senior (1,24 · 65) · 133 ml | VT `798` · PTN `51,87` · pleno `241,9355` · PTN no pleno `94,3548` |
 | **Progressão** | meta 1360 · 22 h · 1,5 kcal/ml | `10,3030` `20,6061` `30,9091` `41,2121` ml/h |
@@ -831,7 +885,7 @@ regressão.
 | 15 | — | o peso do paciente está em **8 células independentes** (85 · 60 · 62 · 68 · 68 · 72 · 65 · 75 · 70) e a altura em **4** (1,68 · 1,75 · 1,72 · 1,60) | |
 | 16 | `Estimativas!A13:A20` | Chumlea 88 rotula "19-59" e ">60": os 60 exatos não caem em faixa | |
 | 17 | `Estimativas!B43:B49` | "Sobrepeso >25 <30" e "Obesidade I >30 a 34,9" excluem 25,0 e 30,0 exatos | |
-| 18 | `Necessidades!C13` vs `C18` | cabeçalho diz `IMC>40`, rodapé diz `IMC >50` | |
+| 18 | `Necessidades!C13` vs `C18` | cabeçalho diz `IMC>40`, rodapé diz `IMC >50` — **não é contradição**: são os cortes de *linhas* diferentes | ver §3.3 — a primeira implementação trocou os dois, e a correção mudou dose |
 | 19 | `Estimativas!J24` | o P50 de CB é **digitado**, com a tabela `I12:K21` ao lado sem ser consultada | |
 | 20 | — | o peso estimado de `Estimativas` **não alimenta aba nenhuma** | |
 | 21 | `Hidratação!G5:H8` | a tabela de % de água só tem 4 densidades exatas; 12 das 54 fórmulas não têm linha | ver §5.1 |

@@ -22,8 +22,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Catálogo de produtos nutricionais — suplemento oral, módulo proteico e insumo
@@ -86,12 +89,39 @@ public class ProdutoNutricionalService {
                 .toList();
     }
 
-    /** Os insumos de um papel da receita artesanal — o do tenant vem primeiro. */
+    /**
+     * Os insumos de um papel da receita artesanal — o do tenant vem primeiro.
+     *
+     * <p><b>O papel proteico enxerga também os módulos proteicos.</b> Um módulo
+     * proteico <i>é</i> pó de proteína para enriquecer dieta: separá-lo do papel
+     * proteico da receita artesanal é distinção da nossa modelagem, não da
+     * clínica — quem monta a receita à beira do leito usa o que o hospital tem,
+     * e a composição por medida é a mesma coisa nos dois cadastros.
+     *
+     * <p>Sem isto o combo de proteína mostrava <b>uma</b> opção enquanto três
+     * módulos já conferidos estavam no catálogo, invisíveis. Combo de uma opção
+     * não escolhe nada.
+     */
     @Transactional(readOnly = true)
     public List<ProdutoNutricionalSelectDto> insumosPorPapel(PapelArtesanal papel) {
         UUID tenantId = securityUtils.getTenantIdLogado();
-        return produtoNutricionalRepository.findInsumoPorPapel(tenantId, papel)
-                .stream()
+
+        List<ProdutoNutricional> insumos =
+                new ArrayList<>(produtoNutricionalRepository.findInsumoPorPapel(tenantId, papel));
+
+        if (papel == PapelArtesanal.PROTEINA) {
+            // Por id, e não por nome: o tenant pode ter cadastrado o mesmo
+            // produto marcado das duas formas, e aí ele apareceria em dobro.
+            Set<UUID> jaListados = insumos.stream()
+                    .map(ProdutoNutricional::getId)
+                    .collect(Collectors.toSet());
+
+            produtoNutricionalRepository.findModulosProteicos(tenantId).stream()
+                    .filter(m -> !jaListados.contains(m.getId()))
+                    .forEach(insumos::add);
+        }
+
+        return insumos.stream()
                 .map(ProdutoNutricionalMapper::toSelect)
                 .toList();
     }

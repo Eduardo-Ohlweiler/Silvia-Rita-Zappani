@@ -7,6 +7,7 @@ import com.nutri.hospitalar.uti.enums.JanelaPerdaPeso;
 import com.nutri.hospitalar.uti.enums.ModoInfusao;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
+import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 import com.nutri.hospitalar.uti.enums.SegmentoAmputado;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 import jakarta.validation.constraints.DecimalMax;
@@ -36,6 +37,9 @@ import java.util.UUID;
  * @param origemPesoPreferida força a fonte do peso de trabalho. Ausente deixa o
  *                            servidor escolher, e o resultado diz o que ele
  *                            escolheu.
+ * @param posicaoNaFaixa      onde na faixa recomendada fixar a meta — mínimo,
+ *                            médio ou máximo. Ausente assume o máximo. O campo
+ *                            {@code kcalPorKgAlvo} continua vencendo os três.
  */
 public record CalculoUtiRequestDto(
 
@@ -100,6 +104,8 @@ public record CalculoUtiRequestDto(
         @DecimalMax(value = "10.0", message = "Alvo acima de 10 g/kg não é plausível")
         @Digits(integer = 2, fraction = 2, message = "No máximo 2 casas decimais")
         BigDecimal proteinaPorKgAlvo,
+
+        PosicaoNaFaixa posicaoNaFaixa,
 
         // ─── Dieta enteral ──────────────────────────────────────────────
         UUID formulaEnteralId,

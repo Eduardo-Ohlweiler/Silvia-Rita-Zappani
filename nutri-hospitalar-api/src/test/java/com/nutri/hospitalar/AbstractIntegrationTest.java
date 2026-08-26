@@ -6,6 +6,7 @@ import com.nutri.hospitalar.pediatria.repository.AvaliacaoPediatricaRepository;
 import com.nutri.hospitalar.pediatria.repository.FormulaLacteaRepository;
 import com.nutri.hospitalar.uti.repository.AvaliacaoUtiRepository;
 import com.nutri.hospitalar.uti.repository.FormulaEnteralRepository;
+import com.nutri.hospitalar.uti.repository.RegistroDiarioUtiRepository;
 import com.nutri.hospitalar.uti.repository.ProdutoNutricionalRepository;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
 import com.nutri.hospitalar.refreshtoken.repository.RefreshTokenRepository;
@@ -54,6 +55,7 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected AvaliacaoPediatricaRepository avaliacaoPediatricaRepository;
     @Autowired protected AvaliacaoUtiRepository avaliacaoUtiRepository;
     @Autowired protected FormulaEnteralRepository formulaEnteralRepository;
+    @Autowired protected RegistroDiarioUtiRepository registroDiarioUtiRepository;
     @Autowired protected ProdutoNutricionalRepository produtoNutricionalRepository;
     @Autowired protected PasswordEncoder passwordEncoder;
 
@@ -77,6 +79,8 @@ public abstract class AbstractIntegrationTest {
         refreshTokenRepository.deleteAllInBatch();
         loginLogRepository.deleteAllInBatch();
         avaliacaoPediatricaRepository.deleteAllInBatch();
+        // O dia aponta para a avaliação com ON DELETE RESTRICT: sai antes dela.
+        registroDiarioUtiRepository.deleteAllInBatch();
         // Aponta para pessoa E para formula_enteral, sem cascade nos dois casos:
         // precisa sair antes das duas. deleteAll (e não InBatch) porque a
         // @ElementCollection dos segmentos amputados tem de ir junto.

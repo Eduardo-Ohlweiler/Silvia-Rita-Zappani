@@ -2,6 +2,7 @@ package com.nutri.hospitalar.uti.service;
 
 import com.nutri.hospitalar.config.PageableUtils;
 import com.nutri.hospitalar.config.SecurityUtils;
+import com.nutri.hospitalar.exceptions.ConflictException;
 import com.nutri.hospitalar.exceptions.NotFoundException;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
@@ -15,9 +16,11 @@ import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiUpdateDto;
 import com.nutri.hospitalar.uti.dtos.CalculoUtiRequestDto;
 import com.nutri.hospitalar.uti.entity.AvaliacaoUti;
 import com.nutri.hospitalar.uti.entity.FormulaEnteral;
+import com.nutri.hospitalar.uti.calculo.NecessidadeCalculator;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
 import com.nutri.hospitalar.uti.mapper.AvaliacaoUtiMapper;
 import com.nutri.hospitalar.uti.repository.AvaliacaoUtiRepository;
+import com.nutri.hospitalar.uti.repository.RegistroDiarioUtiRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -53,6 +56,7 @@ import java.util.UUID;
 public class AvaliacaoUtiService {
 
     private final AvaliacaoUtiRepository avaliacaoUtiRepository;
+    private final RegistroDiarioUtiRepository registroDiarioUtiRepository;
     private final PessoaRepository pessoaRepository;
     private final CalculoUtiService calculoUtiService;
     private final FormulaEnteralService formulaEnteralService;
@@ -104,9 +108,28 @@ public class AvaliacaoUtiService {
         return AvaliacaoUtiMapper.toResponse(avaliacaoUtiRepository.save(avaliacao));
     }
 
+    /**
+     * Apagar avaliação com dias de acompanhamento vinculados é <b>recusado</b>.
+     *
+     * <p>A FK é {@code ON DELETE RESTRICT}, então o banco já barraria — mas
+     * barraria com uma violação de constraint crua. Aqui o usuário recebe
+     * quantos dias estão presos, que é o que ele precisa saber para decidir.
+     */
     @Transactional
     public void remover(UUID id) {
-        avaliacaoUtiRepository.delete(buscar(id));
+        AvaliacaoUti avaliacao = buscar(id);
+
+        long dias = registroDiarioUtiRepository.countByTenantIdAndAvaliacaoId(
+                securityUtils.getTenantIdLogado(), id);
+
+        if (dias > 0)
+            throw new ConflictException(
+                    ("Esta avaliação tem %d %s de acompanhamento vinculado%s. "
+                            + "Desvincule ou remova %s antes de apagar a avaliação.")
+                            .formatted(dias, dias == 1 ? "dia" : "dias", dias == 1 ? "" : "s",
+                                    dias == 1 ? "o dia" : "os dias"));
+
+        avaliacaoUtiRepository.delete(avaliacao);
         log.info("Avaliação de UTI removida id={}", id);
     }
 
@@ -165,6 +188,11 @@ public class AvaliacaoUtiService {
                 ? PopulacaoReferencia.POPULACAO_CLINICA : c.populacaoReferencia());
 
         a.setOrigemPesoPreferida(c.origemPesoPreferida());
+
+        // Mesma razão da população acima: o padrão é gravado explicitamente. A
+        // meta de 1360 kcal não se distingue da de 1190 sem saber que ponto da
+        // faixa foi escolhido, e o padrão do sistema pode mudar amanhã.
+        a.setPosicaoNaFaixa(NecessidadeCalculator.posicaoOuPadrao(c.posicaoNaFaixa()));
 
         // Substitui o conteúdo em vez de trocar a coleção: o Hibernate rastreia
         // a instância, e atribuir uma nova quebra o dirty checking da

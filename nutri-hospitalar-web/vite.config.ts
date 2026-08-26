@@ -11,7 +11,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), svgr()],
 
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    // `import.meta.dirname`, não `__dirname`: o configLoader nativo do Vite 8
+    // não define __dirname, e é o que vai virar padrão.
+    alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
 
   server: {

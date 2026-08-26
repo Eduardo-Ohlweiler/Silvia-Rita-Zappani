@@ -37,6 +37,7 @@ export interface EntradasUti {
   terapiaRenal: string
   kcalPorKgAlvo: string
   proteinaPorKgAlvo: string
+  posicaoNaFaixa: string
 
   // ─── Aba 3 · Dieta enteral ────────────────────────────────────────
   formulaEnteralId: string
@@ -67,6 +68,9 @@ export const ENTRADAS_UTI_VAZIAS: EntradasUti = {
   terapiaRenal: '',
   kcalPorKgAlvo: '',
   proteinaPorKgAlvo: '',
+  // O topo da faixa é o que a planilha mostra no seu próprio exemplo. Deixar em
+  // branco esconderia a escolha, que é justamente o que este campo desfaz.
+  posicaoNaFaixa: 'MAXIMO',
   formulaEnteralId: '',
   // A infusão contínua a 22 h/dia é o padrão de UTI (docs/10 §9). Deixar em
   // branco faria a aba da dieta parecer quebrada antes do primeiro toque.
@@ -79,7 +83,8 @@ export const ENTRADAS_UTI_VAZIAS: EntradasUti = {
 /** Nada preenchido além dos padrões: não há o que perguntar ao servidor. */
 export function entradasVazias(e: EntradasUti): boolean {
   return Object.entries(e).every(([chave, valor]) => {
-    if (chave === 'modoInfusao' || chave === 'tempo') return true
+    if (chave === 'modoInfusao' || chave === 'tempo' || chave === 'posicaoNaFaixa')
+      return true
     return Array.isArray(valor) ? valor.length === 0 : valor === ''
   })
 }
@@ -110,6 +115,7 @@ export function paraEntradas(c: CalculoUtiRequest): EntradasUti {
     terapiaRenal: c.terapiaRenal ?? '',
     kcalPorKgAlvo: texto(c.kcalPorKgAlvo),
     proteinaPorKgAlvo: texto(c.proteinaPorKgAlvo),
+    posicaoNaFaixa: c.posicaoNaFaixa ?? 'MAXIMO',
     formulaEnteralId: c.formulaEnteralId ?? '',
     modoInfusao: c.modoInfusao ?? 'CONTINUA',
     volumePorTempo: texto(c.volumePorTempo),
@@ -141,6 +147,7 @@ export function paraRequisicao(e: EntradasUti): CalculoUtiRequest {
     terapiaRenal: (e.terapiaRenal as CalculoUtiRequest['terapiaRenal']) || null,
     kcalPorKgAlvo: paraNumero(e.kcalPorKgAlvo) ?? null,
     proteinaPorKgAlvo: paraNumero(e.proteinaPorKgAlvo) ?? null,
+    posicaoNaFaixa: (e.posicaoNaFaixa as CalculoUtiRequest['posicaoNaFaixa']) || null,
     formulaEnteralId: e.formulaEnteralId || null,
     modoInfusao: (e.modoInfusao as CalculoUtiRequest['modoInfusao']) || null,
     volumePorTempo: paraNumero(e.volumePorTempo) ?? null,

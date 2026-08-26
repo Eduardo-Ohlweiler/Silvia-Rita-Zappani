@@ -57,6 +57,7 @@ const GRUPOS: Grupo[] = [
     itens: [
       { para: '/app/uti/calculadora', rotulo: 'Calculadora', Icone: IconTerapiaNutricional },
       { para: '/app/uti/avaliacoes', rotulo: 'Avaliações', Icone: IconTerapiaNutricional },
+      { para: '/app/uti/acompanhamento', rotulo: 'Acompanhamento diário', Icone: IconTerapiaNutricional },
       { para: '/app/uti/ferramentas', rotulo: 'Ferramentas clínicas', Icone: IconTerapiaNutricional },
       {
         para: '/app/uti/formulas-enterais',

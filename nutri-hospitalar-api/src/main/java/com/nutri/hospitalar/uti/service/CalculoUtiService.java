@@ -110,6 +110,7 @@ public class CalculoUtiService {
                 d.janelaPerda(), d.segmentosAmputados(),
                 d.populacaoReferencia(), d.origemPesoPreferida(),
                 d.fase(), d.terapiaRenal(), d.kcalPorKgAlvo(), d.proteinaPorKgAlvo(),
+                d.posicaoNaFaixa(),
                 d.modoInfusao(), d.volumePorTempo(), d.tempo(),
                 d.volumeDietaManualMl());
     }

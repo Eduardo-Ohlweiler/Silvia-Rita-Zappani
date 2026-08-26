@@ -108,11 +108,40 @@ export function formatarNumero(
   })
 }
 
-/** Converte o que o usuário digitou — com vírgula ou ponto — em número. */
+/**
+ * `1.234.567` e `1.500` são milhar. `0.750` e `72.5` não são — ver `paraNumero`.
+ */
+const PONTO_DE_MILHAR = /^-?(?:\d{1,3}(?:\.\d{3}){2,}|[1-9]\d{0,2}\.\d{3})$/
+
+/**
+ * Converte o que o usuário digitou em número, aceitando **vírgula ou ponto**
+ * como separador decimal.
+ *
+ * O ponto é ambíguo em pt-BR: em `1.500` separa milhar, em `72,5` o teclado
+ * numérico do celular manda `72.5` e ele é decimal. Tratar todo ponto como
+ * milhar — que é o que esta função fazia — faz **`72.5` virar 725** e
+ * **`0.75` virar 75**, em silêncio, em campo de peso que prescreve dieta.
+ *
+ * A ambiguidade se desfaz pelo formato, e a preferência é do decimal:
+ *
+ * | Digitado | Vira | Por quê |
+ * |---|---|---|
+ * | `1.234,56` | 1234,56 | tem vírgula: ela é o decimal, o ponto é milhar |
+ * | `1.234.567` | 1234567 | mais de um ponto: todos são milhar |
+ * | `1.500` | 1500 | 1 a 3 dígitos, ponto, exatamente 3 — e não começa em zero |
+ * | `72.5` · `0.750` · `1.25` | 72,5 · 0,750 · 1,25 | qualquer outro ponto é decimal |
+ */
 export function paraNumero(valor?: string | null): number | undefined {
   if (valor === null || valor === undefined) return undefined
-  const limpo = valor.trim().replace(/\./g, '').replace(',', '.')
-  if (limpo === '') return undefined
+  const cru = valor.trim()
+  if (cru === '') return undefined
+
+  const limpo = cru.includes(',')
+    ? cru.replace(/\./g, '').replace(',', '.')
+    : PONTO_DE_MILHAR.test(cru)
+      ? cru.replace(/\./g, '')
+      : cru
+
   const numero = Number(limpo)
   return Number.isNaN(numero) ? undefined : numero
 }

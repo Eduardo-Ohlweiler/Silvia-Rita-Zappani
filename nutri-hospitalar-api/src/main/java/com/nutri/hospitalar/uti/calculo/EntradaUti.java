@@ -7,6 +7,7 @@ import com.nutri.hospitalar.uti.enums.JanelaPerdaPeso;
 import com.nutri.hospitalar.uti.enums.ModoInfusao;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
+import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 import com.nutri.hospitalar.uti.enums.SegmentoAmputado;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 
@@ -30,6 +31,8 @@ import java.util.Set;
  * @param origemPesoPreferida força uma fonte de peso específica. Nulo deixa a
  *                            escolha para {@link AvaliacaoUtiCalculator}, que
  *                            declara a ordem que usa.
+ * @param posicaoNaFaixa      onde na faixa recomendada fixar a meta. Nulo
+ *                            assume o topo — ver {@link PosicaoNaFaixa}.
  * @param volumeDietaManualMl volume de dieta informado à mão na aba de
  *                            hidratação, para quem calcula a água sem ter
  *                            preenchido a dieta enteral
@@ -57,6 +60,7 @@ public record EntradaUti(
         TerapiaRenal terapiaRenal,
         BigDecimal kcalPorKgAlvo,
         BigDecimal proteinaPorKgAlvo,
+        PosicaoNaFaixa posicaoNaFaixa,
 
         // ─── Dieta enteral ──────────────────────────────────────────────
         ModoInfusao modoInfusao,
@@ -70,6 +74,11 @@ public record EntradaUti(
     /** A população clínica é o padrão: o módulo é de UTI. */
     public PopulacaoReferencia populacaoOuPadrao() {
         return populacaoReferencia == null ? PopulacaoReferencia.POPULACAO_CLINICA : populacaoReferencia;
+    }
+
+    /** O topo da faixa é o padrão: é o que o exemplo da planilha mostra. */
+    public PosicaoNaFaixa posicaoOuPadrao() {
+        return posicaoNaFaixa == null ? PosicaoNaFaixa.MAXIMO : posicaoNaFaixa;
     }
 
     public TerapiaRenal terapiaRenalOuNenhuma() {

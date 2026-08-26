@@ -10,6 +10,7 @@ import com.nutri.hospitalar.uti.enums.JanelaPerdaPeso;
 import com.nutri.hospitalar.uti.enums.ModoInfusao;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
+import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 import com.nutri.hospitalar.uti.enums.SegmentoAmputado;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 import jakarta.persistence.CollectionTable;
@@ -96,6 +97,14 @@ public class AvaliacaoUti extends TenantEntity {
 
     @Enumerated(EnumType.STRING) @Column(name = "origem_peso_preferida", length = 30)
     private OrigemValor origemPesoPreferida;
+
+    /**
+     * Onde na faixa a meta foi fixada. Gravado como entrada, não como resultado:
+     * é escolha de quem prescreveu, e sem ela a meta de 1360 kcal não se
+     * distingue da de 1190 no dia em que o padrão do sistema mudar.
+     */
+    @Enumerated(EnumType.STRING) @Column(name = "posicao_na_faixa", length = 20)
+    private PosicaoNaFaixa posicaoNaFaixa;
 
     /**
      * Tabela filha, e não texto separado por vírgula: valor de enum concatenado

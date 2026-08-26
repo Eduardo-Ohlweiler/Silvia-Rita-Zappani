@@ -60,8 +60,10 @@ class CalculoUtiEndpointTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.antropometria.pesoDeTrabalhoOrigem")
                         .value("peso estimado · Rabito 2008"))
+                // A posição na faixa viaja junto: o padrão é o topo, e ele
+                // aparece escrito em vez de ficar implícito no código.
                 .andExpect(jsonPath("$.necessidades.metaEnergeticaOrigem")
-                        .value("da faixa da fase"));
+                        .value("da faixa da fase · máximo"));
     }
 
     @Test
@@ -79,7 +81,7 @@ class CalculoUtiEndpointTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.necessidades.obeso").value(true))
                 .andExpect(jsonPath("$.necessidades.metaEnergeticaOrigem")
-                        .value("protocolo de obesidade"))
+                        .value("protocolo de obesidade · máximo"))
                 // E diz sobre qual peso cada meta foi calculada
                 .andExpect(jsonPath("$.necessidades.baseDoPeso").value(containsString("peso atual")));
     }

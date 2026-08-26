@@ -102,6 +102,20 @@ function vazio(e: Entradas): boolean {
  * continuam fixos — base, carboidrato, proteína e lipídio, porque a lógica de
  * cada um é específica —, mas quem os ocupa é o cadastro.
  */
+/**
+ * O combo de um papel só faz sentido quando há o que escolher.
+ *
+ * Enquanto o catálogo tem um produto para o papel, o combo fica parecendo
+ * quebrado — foi o que aconteceu com a base. Em vez de esconder o campo (o que
+ * tiraria a possibilidade de trocar depois de cadastrar), o campo diz por que
+ * está assim e onde se cadastra mais.
+ */
+function ajudaDoPapel(produtos: ProdutoNutricionalSelect[]): string | undefined {
+  if (produtos.length === 0) return 'Nenhum produto cadastrado para este papel.'
+  if (produtos.length === 1) return 'Único cadastrado — cadastre outros em Suplementos e módulos.'
+  return undefined
+}
+
 export function FerramentasClinicas() {
   const [aba, setAba] = useState(ABA_NORA)
   const [entradas, setEntradas] = useState<Entradas>(VAZIO)
@@ -394,6 +408,7 @@ export function FerramentasClinicas() {
               <TSelect
                 label="Base"
                 vazio="Escolha o produto"
+                ajuda={ajudaDoPapel(insumos.BASE)}
                 opcoes={insumos.BASE.map((p) => ({ valor: p.id, rotulo: rotuloProduto(p) }))}
                 value={entradas.insumoBaseId}
                 onChange={(e) => alterar('insumoBaseId', e.target.value)}
@@ -408,6 +423,7 @@ export function FerramentasClinicas() {
               <TSelect
                 label="Carboidrato"
                 vazio="Nenhum"
+                ajuda={ajudaDoPapel(insumos.CARBOIDRATO)}
                 opcoes={insumos.CARBOIDRATO.map((p) => ({ valor: p.id, rotulo: rotuloProduto(p) }))}
                 value={entradas.insumoCarboidratoId}
                 onChange={(e) => alterar('insumoCarboidratoId', e.target.value)}
@@ -421,6 +437,7 @@ export function FerramentasClinicas() {
               <TSelect
                 label="Proteína"
                 vazio="Nenhuma"
+                ajuda={ajudaDoPapel(insumos.PROTEINA)}
                 opcoes={insumos.PROTEINA.map((p) => ({ valor: p.id, rotulo: rotuloProduto(p) }))}
                 value={entradas.insumoProteinaId}
                 onChange={(e) => alterar('insumoProteinaId', e.target.value)}
@@ -434,6 +451,7 @@ export function FerramentasClinicas() {
               <TSelect
                 label="Lipídio"
                 vazio="Nenhum"
+                ajuda={ajudaDoPapel(insumos.LIPIDIO)}
                 opcoes={insumos.LIPIDIO.map((p) => ({ valor: p.id, rotulo: rotuloProduto(p) }))}
                 value={entradas.insumoLipidioId}
                 onChange={(e) => alterar('insumoLipidioId', e.target.value)}

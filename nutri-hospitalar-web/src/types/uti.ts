@@ -222,6 +222,7 @@ export type FaseTerapia = 'AGUDA' | 'REABILITACAO'
 export type TerapiaRenal = 'NENHUMA' | 'HEMODIALISE_INTERMITENTE' | 'HEMODIALISE_CONTINUA'
 export type ModoInfusao = 'CONTINUA' | 'INTERMITENTE'
 export type PopulacaoReferencia = 'POPULACAO_CLINICA' | 'ADULTO_SAUDAVEL'
+export type PosicaoNaFaixa = 'MINIMO' | 'MEDIO' | 'MAXIMO'
 export type JanelaPerdaPeso = 'UMA_SEMANA' | 'UM_MES' | 'TRES_MESES' | 'SEIS_MESES'
 
 export type SegmentoAmputado =
@@ -273,6 +274,20 @@ export const OPCOES_POPULACAO: { valor: PopulacaoReferencia; rotulo: string }[] 
   { valor: 'ADULTO_SAUDAVEL', rotulo: 'Adulto saudável' },
 ]
 
+/**
+ * Onde na faixa recomendada fixar a meta. O **máximo** é o padrão: é o que o
+ * exemplo em cache da própria planilha mostra — VCT 1360 para 68 kg em fase
+ * aguda é 20 × 68, o topo. O eroERP usa o ponto médio sem dizer a ninguém.
+ *
+ * Não confundir com a progressão dos primeiros dias (25/50/75/100 %), que é
+ * outra coisa e já está na aba da dieta.
+ */
+export const OPCOES_POSICAO_FAIXA: { valor: PosicaoNaFaixa; rotulo: string }[] = [
+  { valor: 'MINIMO', rotulo: 'Mínimo da faixa' },
+  { valor: 'MEDIO', rotulo: 'Ponto médio' },
+  { valor: 'MAXIMO', rotulo: 'Máximo da faixa' },
+]
+
 export const OPCOES_SEGMENTO: { valor: SegmentoAmputado; rotulo: string }[] = [
   { valor: 'MAO', rotulo: 'Mão (0,7 %)' },
   { valor: 'ANTEBRACO', rotulo: 'Antebraço (1,6 %)' },
@@ -316,6 +331,7 @@ export interface CalculoUtiRequest {
   terapiaRenal?: TerapiaRenal | null
   kcalPorKgAlvo?: number | null
   proteinaPorKgAlvo?: number | null
+  posicaoNaFaixa?: PosicaoNaFaixa | null
   formulaEnteralId?: string | null
   modoInfusao?: ModoInfusao | null
   volumePorTempo?: number | null
@@ -615,4 +631,126 @@ export interface AvaliacaoUtiFiltros extends Paginacao {
   pacienteNome?: string
   de?: string
   ate?: string
+}
+
+// ─── Acompanhamento diário ────────────────────────────────────────────
+
+/**
+ * Como o paciente está respirando.
+ *
+ * **Vocabulário nosso, declarado.** A planilha não tem o campo, e o eroERP
+ * guarda um texto livre rotulado "VM / O₂ (%)" que mistura modo e percentual.
+ */
+export type SuporteVentilatorio =
+  | 'AR_AMBIENTE' | 'CATETER_NASAL' | 'MASCARA' | 'ALTO_FLUXO'
+  | 'VNI' | 'VENTILACAO_MECANICA' | 'TRAQUEOSTOMIA'
+
+export const OPCOES_SUPORTE: { valor: SuporteVentilatorio; rotulo: string }[] = [
+  { valor: 'AR_AMBIENTE', rotulo: 'Ar ambiente' },
+  { valor: 'CATETER_NASAL', rotulo: 'Cateter nasal' },
+  { valor: 'MASCARA', rotulo: 'Máscara de oxigênio' },
+  { valor: 'ALTO_FLUXO', rotulo: 'Cateter nasal de alto fluxo' },
+  { valor: 'VNI', rotulo: 'Ventilação não invasiva' },
+  { valor: 'VENTILACAO_MECANICA', rotulo: 'Ventilação mecânica invasiva' },
+  { valor: 'TRAQUEOSTOMIA', rotulo: 'Traqueostomia' },
+]
+
+/**
+ * As medidas do dia.
+ *
+ * **Não existe percentual recebido aqui.** Ele é derivado do volume — no eroERP
+ * é campo digitável ao lado de um calculado, e os dois vão para o banco.
+ */
+export interface RegistroDiarioUtiCreate {
+  pessoaId: string
+  avaliacaoId?: string | null
+  data: string
+
+  dieta?: string | null
+  volPrescrito24h?: number | null
+  volRecebido24h?: number | null
+
+  mg?: number | null
+  k?: number | null
+  na?: number | null
+  lactato?: number | null
+  pcr?: number | null
+  ph?: number | null
+  pco2?: number | null
+  hco3?: number | null
+  hgt?: number | null
+
+  suporteVentilatorio?: SuporteVentilatorio | null
+  fio2Perc?: number | null
+  paSistolica?: number | null
+  paDiastolica?: number | null
+  balancoHidricoMl?: number | null
+  diureseMl?: number | null
+  evacuacao?: string | null
+
+  cafeManha?: number | null
+  lancheManha?: number | null
+  almoco?: number | null
+  lancheTarde?: number | null
+  jantar?: number | null
+  ceia?: number | null
+
+  observacao?: string | null
+}
+
+export type RegistroDiarioUtiUpdate = RegistroDiarioUtiCreate
+
+export interface RegistroDiarioUtiResponse extends RegistroDiarioUtiCreate {
+  id: string
+  pessoaNome: string
+  avaliacaoData?: string
+  avaliacaoVolumePrescrito?: number
+  avaliacaoMetaEnergetica?: number
+  suporteVentilatorioDescricao?: string
+
+  /** Derivados — não são colunas. */
+  percentualRecebido?: number
+  /** "prescrito na avaliação" ou "prescrito informado no dia". */
+  referenciaDoPercentual?: string
+  caloriasRecebidas?: number
+  proteinaRecebida?: number
+  caloriasPorQuilo?: number
+  proteinaPorQuilo?: number
+  diuresePorQuiloHora?: number
+  mediaIngestaoOral?: number
+  motivoDerivados?: string
+
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface RegistroDiarioUtiLista {
+  id: string
+  pessoaNome: string
+  data: string
+  volPrescrito24h?: number
+  volRecebido24h?: number
+  percentualRecebido?: number
+  caloriasPorQuilo?: number
+  balancoHidricoMl?: number
+  diureseMl?: number
+  temAvaliacao: boolean
+}
+
+export interface RegistroDiarioUtiFiltros extends Paginacao {
+  pessoaId?: string
+  pessoaNome?: string
+  de?: string
+  ate?: string
+}
+
+/** A avaliação que o servidor sugere vincular — sugestão, não vínculo. */
+export interface AvaliacaoSugerida {
+  id?: string
+  dataAvaliacao?: string
+  pesoTrabalhoKg?: number
+  metaEnergetica?: number
+  volumePrescrito?: number
+  formulaNome?: string
+  motivo?: string
 }

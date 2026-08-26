@@ -9,6 +9,7 @@ import com.nutri.hospitalar.uti.calculo.cascata.VolumeDieta;
 import com.nutri.hospitalar.uti.enums.ModoInfusao;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
+import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 
 import java.math.BigDecimal;
@@ -280,10 +281,13 @@ public final class AvaliacaoUtiCalculator {
         // A terapia renal substitui a proteína, venha ela da fase ou da obesidade
         BigDecimal proteinaRenal = NecessidadeCalculator.proteinaTerapiaRenal(renal, peso);
 
-        // O alvo digitado vence tudo
+        // Onde na faixa fixar a meta — o topo é o padrão, e a escolha é visível
+        PosicaoNaFaixa posicao = e.posicaoOuPadrao();
+
+        // O alvo digitado vence tudo, e não passa pela posição: é valor único
         MetaEnergetica metaEnergetica = positivo(e.kcalPorKgAlvo())
                 ? NecessidadeCalculator.energiaPersonalizada(e.kcalPorKgAlvo(), peso)
-                : NecessidadeCalculator.metaDaFaixa(energia, origemEnergia);
+                : NecessidadeCalculator.metaDaFaixa(energia, origemEnergia, posicao);
 
         MetaProteica metaProteica;
         if (positivo(e.proteinaPorKgAlvo()))
@@ -293,7 +297,7 @@ public final class AvaliacaoUtiCalculator {
         else if (proteinaObeso != null)
             metaProteica = new MetaProteica(proteinaObeso, origemProteina);
         else
-            metaProteica = NecessidadeCalculator.metaProteicaDaFaixa(proteina, origemProteina);
+            metaProteica = NecessidadeCalculator.metaProteicaDaFaixa(proteina, origemProteina, posicao);
 
         String motivo = null;
         if (metaEnergetica == null) motivo = SEM_FASE;

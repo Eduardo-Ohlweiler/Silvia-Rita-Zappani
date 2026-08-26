@@ -1,6 +1,7 @@
 import { api } from './api'
 import type { Page } from '@/types/comum'
 import type {
+  AvaliacaoSugerida,
   AvaliacaoUtiCreate,
   AvaliacaoUtiFiltros,
   AvaliacaoUtiLista,
@@ -21,6 +22,11 @@ import type {
   ProdutoNutricionalResponse,
   ProdutoNutricionalSelect,
   ProdutoNutricionalUpdate,
+  RegistroDiarioUtiCreate,
+  RegistroDiarioUtiFiltros,
+  RegistroDiarioUtiLista,
+  RegistroDiarioUtiResponse,
+  RegistroDiarioUtiUpdate,
   TipoProdutoNutricional,
 } from '@/types/uti'
 
@@ -77,6 +83,39 @@ export const avaliacaoUtiService = {
     api.put<AvaliacaoUtiResponse>(`/uti/avaliacoes/${id}`, dto).then((r) => r.data),
 
   remover: (id: string) => api.delete(`/uti/avaliacoes/${id}`).then(() => undefined),
+}
+
+/**
+ * O acompanhamento diário.
+ *
+ * **Um registro por paciente por dia** — repetir devolve 409. E o vínculo com a
+ * avaliação nunca acontece em silêncio: a tela pede a sugestão e manda o que o
+ * usuário confirmar.
+ */
+export const registroDiarioUtiService = {
+  getAll: (params: RegistroDiarioUtiFiltros) =>
+    api
+      .get<Page<RegistroDiarioUtiLista>>('/uti/registros-diarios', { params })
+      .then((r) => r.data),
+
+  findById: (id: string) =>
+    api.get<RegistroDiarioUtiResponse>(`/uti/registros-diarios/${id}`).then((r) => r.data),
+
+  /** A mais recente daquele paciente até aquela data. Pode não haver. */
+  avaliacaoSugerida: (pessoaId: string, data: string) =>
+    api
+      .get<AvaliacaoSugerida>('/uti/registros-diarios/avaliacao-sugerida', {
+        params: { pessoaId, data },
+      })
+      .then((r) => r.data),
+
+  create: (dto: RegistroDiarioUtiCreate) =>
+    api.post<RegistroDiarioUtiResponse>('/uti/registros-diarios', dto).then((r) => r.data),
+
+  update: (id: string, dto: RegistroDiarioUtiUpdate) =>
+    api.put<RegistroDiarioUtiResponse>(`/uti/registros-diarios/${id}`, dto).then((r) => r.data),
+
+  remover: (id: string) => api.delete(`/uti/registros-diarios/${id}`).then(() => undefined),
 }
 
 export const formulaEnteralService = {

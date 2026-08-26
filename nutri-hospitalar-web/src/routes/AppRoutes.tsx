@@ -21,6 +21,8 @@ import { ProdutoNutricionalList } from '@/pages/uti/ProdutoNutricionalList'
 import { AvaliacaoUtiForm } from '@/pages/uti/AvaliacaoUtiForm'
 import { AvaliacaoUtiList } from '@/pages/uti/AvaliacaoUtiList'
 import { FerramentasClinicas } from '@/pages/uti/FerramentasClinicas'
+import { RegistroDiarioUtiForm } from '@/pages/uti/RegistroDiarioUtiForm'
+import { RegistroDiarioUtiList } from '@/pages/uti/RegistroDiarioUtiList'
 import { UtiCalculadora } from '@/pages/uti/UtiCalculadora'
 import { Perfil } from '@/pages/perfil/Perfil'
 import { PessoaForm } from '@/pages/pessoa/PessoaForm'
@@ -85,6 +87,9 @@ export function AppRoutes() {
             <Route path="uti/avaliacoes" element={<AvaliacaoUtiList />} />
             <Route path="uti/avaliacoes/nova" element={<AvaliacaoUtiForm />} />
             <Route path="uti/avaliacoes/:id" element={<AvaliacaoUtiForm />} />
+            <Route path="uti/acompanhamento" element={<RegistroDiarioUtiList />} />
+            <Route path="uti/acompanhamento/novo" element={<RegistroDiarioUtiForm />} />
+            <Route path="uti/acompanhamento/:id" element={<RegistroDiarioUtiForm />} />
             <Route path="uti/formulas-enterais" element={<FormulaEnteralList />} />
             <Route path="uti/formulas-enterais/nova" element={<FormulaEnteralForm />} />
             <Route path="uti/formulas-enterais/:id" element={<FormulaEnteralForm />} />

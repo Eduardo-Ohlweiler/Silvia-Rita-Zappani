@@ -159,17 +159,20 @@ class FerramentasClinicasTest extends AbstractIntegrationTest {
     void catalogoAlimentaAReceita() throws Exception {
         // No eroERP os quatro insumos estão cravados em código; cadastrar não
         // produz efeito nenhum. Aqui produz.
+        //
+        // Cinco lipídios globais: o óleo de soja da planilha mais os quatro
+        // óleos da migration 026.
         mockMvc.perform(get("/produtos-nutricionais/insumos-artesanais")
                         .header(AUTHORIZATION, autenticar(adminA.getEmail()))
                         .param("papel", "LIPIDIO"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
+                .andExpect(jsonPath("$.length()").value(5));
 
         mockMvc.perform(post("/produtos-nutricionais")
                         .header(AUTHORIZATION, autenticar(adminA.getEmail()))
                         .contentType("application/json")
                         .content("""
-                                {"nome":"Óleo de canola","tipo":"INSUMO_ARTESANAL",
+                                {"nome":"Óleo de coco do hospital","tipo":"INSUMO_ARTESANAL",
                                  "medidaNome":"colher","medidaQtd":13,"embalagemQtd":900,
                                  "kcal":108,"proteinaG":0,"choG":0,"lipG":12,
                                  "papelArtesanal":"LIPIDIO"}
@@ -180,9 +183,9 @@ class FerramentasClinicasTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, autenticar(adminA.getEmail()))
                         .param("papel", "LIPIDIO"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                // O do cliente vem antes do global
-                .andExpect(jsonPath("$[0].nome").value("Óleo de canola"));
+                .andExpect(jsonPath("$.length()").value(6))
+                // O do cliente vem antes dos globais
+                .andExpect(jsonPath("$[0].nome").value("Óleo de coco do hospital"));
     }
 
     @Test

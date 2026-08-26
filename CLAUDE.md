@@ -82,11 +82,12 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **2 — Casca do front e área administrativa** | ✅ pronta |
 | **3 — Pessoas** | ✅ pronta · porte do eroERP, com endereços (IBGE) e vínculos |
 | **5 — Pediatria** | ✅ pronta · cálculo no servidor, telas em abas, painéis com paleta validada |
-| **6 — Terapia Nutricional (UTI adulto)** | ⬅️ **em construção** · especificação [docs/10](docs/10-calculos-uti-adulto.md) ✅ · catálogos ✅ · **cálculo e calculadora ✅** · **ferramentas clínicas ✅** · **avaliação ✅** · faltam acompanhamento diário, painéis e impressão |
+| **6 — Terapia Nutricional (UTI adulto)** | ⬅️ **em construção** · especificação [docs/10](docs/10-calculos-uti-adulto.md) ✅ · catálogos ✅ · **cálculo e calculadora ✅** · **ferramentas clínicas ✅** · **avaliação ✅** · **acompanhamento diário ✅** · **passe de verificação ✅** ·
+faltam painéis e impressão |
 | 4 — Atendimento | pendente |
 | 7 a 9 — Catálogos · Acompanhamento · audit_log | pendentes |
 
-**242 testes** no total, contra o banco `nutridb_test`.
+**256 testes** no total, contra o banco `nutridb_test`.
 
 **Bloqueio resolvido.** As fatias de cálculo dependiam de uma especificação
 numérica das fórmulas — com célula de origem, referência bibliográfica, unidade e
@@ -218,6 +219,14 @@ não passa pelo proxy e a anotação é ignorada em silêncio.
 token de tema. Botão cheio usa `text-txt-inverse`, nunca `text-white` — no
 escuro a primária é clara e o branco reprova o contraste (3,28:1).
 
+**Ponto digitado é decimal, não milhar.** `paraNumero` (`utils/format.ts`) é a
+única porta por onde texto vira número no front. Ela removia *todo* ponto para
+tratar `1.234,56`, e com isso `72.5` virava **725** e `0.75` virava **75** — em
+silêncio, no campo de peso que prescreve dieta, com o teclado do celular
+mandando ponto. Hoje a regra é pelo formato, com preferência do decimal: só é
+milhar quando há vírgula no número, quando há mais de um ponto, ou no padrão
+`1.500` (1 a 3 dígitos, três depois, sem começar em zero).
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -272,7 +281,7 @@ query com `CAST`.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 242 testes contra nutridb_test
+./run-dev.sh test         # 256 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

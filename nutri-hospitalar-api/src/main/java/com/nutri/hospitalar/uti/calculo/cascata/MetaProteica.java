@@ -1,6 +1,7 @@
 package com.nutri.hospitalar.uti.calculo.cascata;
 
 import com.nutri.hospitalar.uti.enums.OrigemValor;
+import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 
 import java.math.BigDecimal;
 
@@ -15,8 +16,15 @@ import java.math.BigDecimal;
  *
  * @param gramasDia meta em g/dia
  * @param origem    o ramo que a produziu
+ * @param posicao   onde na faixa foi fixada. Nula quando a origem é valor
+ *                  único — alvo digitado, terapia renal ou obesidade.
  */
-public record MetaProteica(BigDecimal gramasDia, OrigemValor origem) {
+public record MetaProteica(BigDecimal gramasDia, OrigemValor origem, PosicaoNaFaixa posicao) {
+
+    /** Meta que não vem de faixa: não há posição a declarar. */
+    public MetaProteica(BigDecimal gramasDia, OrigemValor origem) {
+        this(gramasDia, origem, null);
+    }
 
     public MetaProteica {
         if (gramasDia == null || gramasDia.signum() < 0)
@@ -26,6 +34,8 @@ public record MetaProteica(BigDecimal gramasDia, OrigemValor origem) {
     }
 
     public String descricaoOrigem() {
-        return origem.getDescricao();
+        return posicao == null
+                ? origem.getDescricao()
+                : origem.getDescricao() + " · " + posicao.getDescricao();
     }
 }

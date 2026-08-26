@@ -1,6 +1,7 @@
 package com.nutri.hospitalar.uti.calculo.cascata;
 
 import com.nutri.hospitalar.uti.enums.OrigemValor;
+import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 
 import java.math.BigDecimal;
 
@@ -17,8 +18,16 @@ import java.math.BigDecimal;
  *
  * @param kcalDia meta em kcal/dia
  * @param origem  o ramo de {@code NecessidadeCalculator} que a produziu
+ * @param posicao onde na faixa a meta foi fixada, quando a origem é uma faixa.
+ *                Nulo quando não há faixa — alvo digitado, terapia renal, e a
+ *                proteína do protocolo de obesidade, que são valor único.
  */
-public record MetaEnergetica(BigDecimal kcalDia, OrigemValor origem) {
+public record MetaEnergetica(BigDecimal kcalDia, OrigemValor origem, PosicaoNaFaixa posicao) {
+
+    /** Meta que não vem de faixa: não há posição a declarar. */
+    public MetaEnergetica(BigDecimal kcalDia, OrigemValor origem) {
+        this(kcalDia, origem, null);
+    }
 
     public MetaEnergetica {
         if (kcalDia == null || kcalDia.signum() < 0)
@@ -28,6 +37,8 @@ public record MetaEnergetica(BigDecimal kcalDia, OrigemValor origem) {
     }
 
     public String descricaoOrigem() {
-        return origem.getDescricao();
+        return posicao == null
+                ? origem.getDescricao()
+                : origem.getDescricao() + " · " + posicao.getDescricao();
     }
 }

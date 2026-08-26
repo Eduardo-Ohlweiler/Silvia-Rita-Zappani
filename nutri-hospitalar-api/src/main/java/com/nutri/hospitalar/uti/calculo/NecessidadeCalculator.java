@@ -5,6 +5,7 @@ import com.nutri.hospitalar.uti.calculo.cascata.MetaProteica;
 import com.nutri.hospitalar.uti.calculo.cascata.PesoDeTrabalho;
 import com.nutri.hospitalar.uti.enums.FaseTerapia;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
+import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 
 import java.math.BigDecimal;
@@ -48,18 +49,30 @@ public final class NecessidadeCalculator {
     /** A partir daqui vale o protocolo de obesidade, e a fase não se aplica. */
     public static final BigDecimal IMC_OBESIDADE = new BigDecimal("30");
 
-    /** A partir daqui a energia passa a ser calculada sobre o peso ideal. */
-    public static final BigDecimal IMC_OBESIDADE_GRAVE = new BigDecimal("40");
+    /**
+     * A partir daqui a proteína sobe para 2,5 g/kg — é o corte do cabeçalho
+     * {@code IMC>40} ({@code Necessidades!C13}).
+     *
+     * <p>ASPEN/SCCM 2016, recomendação C4: 2,0 g/kg de peso ideal em IMC 30–40 e
+     * <b>2,5 g/kg em IMC ≥ 40</b>.
+     * (<a href="https://www.guidelinecentral.com/guideline/39804/">resumo</a> ·
+     * <a href="https://nutritioncare.org/text-based-resource/feeding-the-patient-with-obesity-in-the-critical-care-setting-discussion-and-key-recommendations/">ASPEN</a>)
+     */
+    public static final BigDecimal IMC_PROTEINA_MAXIMA = new BigDecimal("40");
 
     /**
-     * A partir daqui a proteína sobe para 2,5 g/kg.
+     * A partir daqui a energia passa a ser calculada sobre o peso ideal — é o
+     * corte do rodapé {@code IMC >50} ({@code Necessidades!C18}).
      *
-     * <p>Interpretação declarada: o cabeçalho da coluna diz {@code IMC>40}
-     * ({@code C13}) e o rodapé diz {@code IMC >50} ({@code C18}) — defeito 18 de
-     * {@code docs/10} §11. A leitura que usa os dois é energia a partir de 40 e
-     * proteína a partir de 50, e há teste nas fronteiras 30, 40 e 50.
+     * <p>ASPEN/SCCM 2016, recomendação C3: 11–14 kcal/kg de <b>peso atual</b> em
+     * IMC 30–50 e 22–25 kcal/kg de <b>peso ideal</b> em IMC > 50.
+     *
+     * <p><b>Os dois rótulos da planilha não se contradizem</b> — cabeçalho e
+     * rodapé pertencem a <i>linhas</i> diferentes da mesma coluna: {@code IMC>40}
+     * é o corte da proteína, {@code IMC >50} é o da energia. Ver {@code docs/10}
+     * §3.3 e o defeito 18 de §11.
      */
-    public static final BigDecimal IMC_PROTEINA_MAXIMA = new BigDecimal("50");
+    public static final BigDecimal IMC_OBESIDADE_GRAVE = new BigDecimal("50");
 
     // ─── Faixa por fase ─────────────────────────────────────────────────
 
@@ -106,14 +119,14 @@ public final class NecessidadeCalculator {
      * A faixa energética no obeso.
      *
      * <p><b>A base do peso muda com o IMC, e é o erro mais fácil de cometer.</b>
-     * Até IMC 40 a energia é 11–14 kcal/kg de <b>peso atual</b>; acima de 40 é
+     * Até IMC 50 a energia é 11–14 kcal/kg de <b>peso atual</b>; acima de 50 é
      * 22–25 kcal/kg de <b>peso ideal</b>. Na planilha isso são duas células
      * separadas ({@code F2} e {@code F3}) que o usuário confunde.
      *
      * <p>Por isso este método recebe os <b>dois</b> pesos e escolhe internamente:
      * o chamador não pode ter essa liberdade.
      *
-     * <p>Confere, peso 68 e ideal 82: 748–952 (IMC 30–40) e 1804–2050 (IMC ≥ 40).
+     * <p>Confere, peso 68 e ideal 82: 748–952 (IMC 30–50) e 1804–2050 (IMC ≥ 50).
      */
     public static Faixa energiaObesidade(BigDecimal imc, PesoDeTrabalho pesoAtual,
                                          PesoDeTrabalho pesoIdeal) {
@@ -133,7 +146,7 @@ public final class NecessidadeCalculator {
     /**
      * Proteína no obeso — <b>sempre sobre o peso ideal</b>, nas duas faixas.
      *
-     * <p>2,0 g/kg até IMC 50 e 2,5 g/kg daí em diante. Confere, ideal 82:
+     * <p>2,0 g/kg até IMC 40 e 2,5 g/kg daí em diante. Confere, ideal 82:
      * 164 g e 205 g.
      */
     public static BigDecimal proteinaObesidade(BigDecimal imc, PesoDeTrabalho pesoIdeal) {
@@ -167,21 +180,39 @@ public final class NecessidadeCalculator {
     // ─── A meta que a dieta vai perseguir ───────────────────────────────
 
     /**
-     * O topo da faixa vira a meta que desce para a dieta enteral.
+     * Um ponto da faixa vira a meta que desce para a dieta enteral.
      *
-     * <p>Escolher o topo é convenção nossa e está declarada: a planilha não
-     * escolhe — ela tabula a faixa e deixa a meta ser <b>redigitada à mão</b> na
-     * aba da dieta (defeito 14). Aqui a meta é derivada, carrega a origem, e a
-     * tela mostra a faixa inteira ao lado para que a escolha continue visível.
+     * <p>Escolher <b>qual</b> ponto é decisão de quem prescreve, e ela deixou de
+     * ser silenciosa: a planilha não escolhe — tabula a faixa e deixa a meta ser
+     * <b>redigitada à mão</b> na aba da dieta (defeito 14) — e o eroERP escolhe
+     * o ponto médio sem dizer. Aqui a posição é entrada, o padrão é o topo (o
+     * que o exemplo em cache da planilha mostra) e a meta carrega a escolha
+     * junto com a origem. Ver {@link PosicaoNaFaixa}.
      */
-    public static MetaEnergetica metaDaFaixa(Faixa faixa, OrigemValor origem) {
-        if (faixa == null || faixa.maximo() == null) return null;
-        return new MetaEnergetica(faixa.maximo(), origem);
+    public static MetaEnergetica metaDaFaixa(Faixa faixa, OrigemValor origem,
+                                             PosicaoNaFaixa posicao) {
+        BigDecimal valor = pontoDaFaixa(faixa, posicao);
+        return valor == null ? null : new MetaEnergetica(valor, origem, posicaoOuPadrao(posicao));
     }
 
-    public static MetaProteica metaProteicaDaFaixa(Faixa faixa, OrigemValor origem) {
-        if (faixa == null || faixa.maximo() == null) return null;
-        return new MetaProteica(faixa.maximo(), origem);
+    public static MetaProteica metaProteicaDaFaixa(Faixa faixa, OrigemValor origem,
+                                                   PosicaoNaFaixa posicao) {
+        BigDecimal valor = pontoDaFaixa(faixa, posicao);
+        return valor == null ? null : new MetaProteica(valor, origem, posicaoOuPadrao(posicao));
+    }
+
+    /** O topo é o padrão, e é o que a planilha mostra no seu próprio exemplo. */
+    public static PosicaoNaFaixa posicaoOuPadrao(PosicaoNaFaixa posicao) {
+        return posicao == null ? PosicaoNaFaixa.MAXIMO : posicao;
+    }
+
+    private static BigDecimal pontoDaFaixa(Faixa faixa, PosicaoNaFaixa posicao) {
+        if (faixa == null) return null;
+        return switch (posicaoOuPadrao(posicao)) {
+            case MINIMO -> faixa.minimo();
+            case MEDIO  -> faixa.medio();
+            case MAXIMO -> faixa.maximo();
+        };
     }
 
     /**

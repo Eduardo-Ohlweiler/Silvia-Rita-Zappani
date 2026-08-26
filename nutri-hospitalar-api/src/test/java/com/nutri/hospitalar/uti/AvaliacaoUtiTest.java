@@ -211,7 +211,7 @@ class AvaliacaoUtiTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.resultado.antropometria.pesoDeTrabalhoOrigem")
                         .value("peso estimado · Rabito 2008"))
                 .andExpect(jsonPath("$.resultado.necessidades.metaEnergeticaOrigem")
-                        .value("da faixa da fase"))
+                        .value("da faixa da fase · máximo"))
                 .andReturn().getResponse().getContentAsString();
 
         String id = objectMapper.readTree(corpoAvaliacao).get("id").asText();

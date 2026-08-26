@@ -59,6 +59,7 @@ public final class AvaliacaoUtiMapper {
                 a.getPopulacaoReferencia(), a.getOrigemPesoPreferida(),
                 a.getFase(), a.getTerapiaRenal(),
                 a.getKcalPorKgAlvo(), a.getProteinaPorKgAlvo(),
+                a.getPosicaoNaFaixa(),
                 a.getFormulaEnteral() == null ? null : a.getFormulaEnteral().getId(),
                 a.getModoInfusao(), a.getVolumePorTempo(), a.getTempo(),
                 a.getVolumeDietaManualMl());

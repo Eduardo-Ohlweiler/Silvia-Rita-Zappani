@@ -296,23 +296,36 @@ class NaoReplicamosOsBugsDaPlanilhaTest {
     }
 
     @Test
-    @DisplayName("defeito 18 — energia sobe em IMC 40, proteína em IMC 50")
+    @DisplayName("defeito 18 — proteína sobe em IMC 40, energia troca de peso em IMC 50")
     void defeito18_fronteirasDaObesidade() {
-        // O cabeçalho diz IMC>40 e o rodapé diz IMC>50. A leitura que usa os dois
-        // está declarada em docs/10 §3.3, e é esta.
+        // O cabeçalho da coluna C diz IMC>40 e o rodapé diz IMC >50. Os dois
+        // rótulos NÃO se contradizem: pertencem a LINHAS diferentes da mesma
+        // coluna. ASPEN/SCCM 2016 diz qual é qual — 2,5 g/kg de peso ideal a
+        // partir de IMC 40, e 22–25 kcal/kg de peso ideal só acima de 50.
+        // Ver docs/10 §3.3.
         PesoDeTrabalho atual = PesoDeTrabalho.informado(new BigDecimal("68"));
         PesoDeTrabalho ideal = PesoDeTrabalho.informado(new BigDecimal("82"));
 
-        // Energia: até 40 usa peso atual, de 40 em diante usa o ideal
-        assertThat(NecessidadeCalculator.energiaObesidade(new BigDecimal("39.9"), atual, ideal).maximo())
+        // Energia: até 50 usa peso atual, de 50 em diante usa o ideal
+        assertThat(NecessidadeCalculator.energiaObesidade(new BigDecimal("49.9"), atual, ideal).maximo())
                 .isEqualByComparingTo("952");
-        assertThat(NecessidadeCalculator.energiaObesidade(new BigDecimal("40"), atual, ideal).maximo())
+        assertThat(NecessidadeCalculator.energiaObesidade(new BigDecimal("50"), atual, ideal).maximo())
                 .isEqualByComparingTo("2050");
 
-        // Proteína: 2,0 g/kg até 50, e 2,5 daí em diante
-        assertThat(NecessidadeCalculator.proteinaObesidade(new BigDecimal("49.9"), ideal))
+        // Proteína: 2,0 g/kg até 40, e 2,5 daí em diante
+        assertThat(NecessidadeCalculator.proteinaObesidade(new BigDecimal("39.9"), ideal))
                 .isEqualByComparingTo("164");
-        assertThat(NecessidadeCalculator.proteinaObesidade(new BigDecimal("50"), ideal))
+        assertThat(NecessidadeCalculator.proteinaObesidade(new BigDecimal("40"), ideal))
+                .isEqualByComparingTo("205");
+
+        // E a trava contra a regressão: no IMC 45 a leitura invertida — a que
+        // este sistema já teve — dava 2050 kcal e 164 g. A correta dá o oposto:
+        // menos energia e mais proteína, que é o que a diretriz insiste.
+        assertThat(NecessidadeCalculator.energiaObesidade(new BigDecimal("45"), atual, ideal).maximo())
+                .isNotEqualByComparingTo("2050")
+                .isEqualByComparingTo("952");
+        assertThat(NecessidadeCalculator.proteinaObesidade(new BigDecimal("45"), ideal))
+                .isNotEqualByComparingTo("164")
                 .isEqualByComparingTo("205");
     }
 

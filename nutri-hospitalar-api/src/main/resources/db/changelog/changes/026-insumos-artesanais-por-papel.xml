@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Mais de um insumo por papel da receita artesanal.
+
+        POR QUE: a migration 019 semeou exatamente os quatro produtos que a
+        planilha nomeia — um por papel. A tela transformou esses quatro papéis em
+        combos, que é o ganho de tirá-los do código (no eroERP eram constante:
+        `calculoSistemaAberto.ts:6-11`, quatro campos de nome cravado). Mas combo
+        com uma opção não escolhe nada.
+
+        A REGRA QUE ESTA MIGRATION SEGUE: só entra produto cuja composição foi
+        conferida em fonte, e a fonte fica escrita aqui, linha a linha. É o mesmo
+        rigor da 018, onde conferir rótulo contra fabricante revelou os defeitos
+        1 e 2 do catálogo de fórmulas.
+
+        O QUE FICOU DE FORA, DE PROPÓSITO:
+
+        1. ÓLEO DE TCM. É o candidato mais óbvio de módulo lipídico e NÃO entra,
+           porque entraria errado: TCM rende 8,3 kcal/g, não 9
+           (https://nutritotal.com.br/pro/quais-sao-as-indicacoes-clinicas-para-utilizacao-de-triglicerideos-de-cadeia-media-em-nutricao-enteral/),
+           e o DietaArtesanalCalculator deriva a energia por Atwater
+           (`kcalDeMacros`, 4/4/9) em vez de usar a kcal declarada do produto —
+           é assim que a planilha faz, e é o que fecha o gabarito de 1946,6498.
+           Semear TCM hoje daria 108 kcal por colher onde o rótulo diz ~100, em
+           silêncio. Entra quando o calculador souber respeitar um fator
+           energético próprio do produto.
+
+        2. OUTRAS BASES POLIMÉRICAS EM PÓ. Procuradas e não semeadas: os
+           fabricantes publicam a tabela nutricional como IMAGEM na página do
+           produto, e loja não é fonte de rótulo. O papel BASE continua com o
+           Trophic Basic da planilha — cuja composição, aliás, esta pesquisa
+           CONFIRMOU: 435 kcal · 60 g CHO · 16 g PTN · 14 g LIP por 100 g de pó
+           (https://prodietnutrition.com/en/products/trophic-basic-po/), que
+           bate exatamente com a medida de 7,8 g da planilha (33,93 · 4,68 ·
+           1,24 · 1,09).
+
+        NOTA: o papel PROTEINA ganhou três opções sem tocar em dado nenhum — o
+        service passou a listar também os MODULO_PROTEICO já cadastrados e já
+        conferidos. Ver ProdutoNutricionalService.insumosPorPapel.
+    -->
+    <changeSet id="026-insumos-artesanais-por-papel" author="eduardo">
+
+        <!--
+            LIPÍDIO — óleos vegetais de cadeia longa.
+
+            Todos são gordura praticamente pura: a soma dos ácidos graxos por
+            100 g fica entre 98,5 e 99,9 g em todos eles
+            (https://nutritotal.com.br/pro/material/tabela-de-composicao-gorduras-oleos/),
+            ou seja, ~100 % lipídio, sem proteína e sem carboidrato. Por Atwater
+            isso é 9 kcal/g, o mesmo fator que o calculador aplica.
+
+            A MEDIDA É A DA PLANILHA, não invenção: `TNE SA!A5` fixa a colher de
+            sopa em 13 ml e 12 g de lipídio, dando 108 kcal. Como a densidade
+            desses óleos é a mesma (~0,92 g/ml), a colher de canola pesa o que
+            pesa a de soja. Trocar de óleo troca o perfil de ácidos graxos, que
+            é decisão clínica — não troca a energia.
+        -->
+        <sql>
+            INSERT INTO produto_nutricional (tenant_id, nome, tipo, medida_nome, medida_qtd,
+                embalagem_qtd, kcal, proteina_g, cho_g, lip_g,
+                modulo_proteico, papel_artesanal, observacao, ativo, created_at) VALUES
+            (NULL, 'Óleo de canola', 'INSUMO_ARTESANAL', 'colher', 13, 900, 108, 0, 0, 12, false, 'LIPIDIO',
+             'Colher de sopa 13 ml. Perfil monoinsaturado (62,6 g/100 g) — o de maior proporção entre os óleos de uso comum.', true, now()),
+            (NULL, 'Óleo de girassol', 'INSUMO_ARTESANAL', 'colher', 13, 900, 108, 0, 0, 12, false, 'LIPIDIO',
+             'Colher de sopa 13 ml. Predomínio poli-insaturado (62,6 g/100 g).', true, now()),
+            (NULL, 'Óleo de milho', 'INSUMO_ARTESANAL', 'colher', 13, 900, 108, 0, 0, 12, false, 'LIPIDIO',
+             'Colher de sopa 13 ml. Perfil intermediário entre soja e girassol.', true, now()),
+            (NULL, 'Azeite de oliva extravirgem', 'INSUMO_ARTESANAL', 'colher', 13, 500, 108, 0, 0, 12, false, 'LIPIDIO',
+             'Colher de sopa 13 ml. Monoinsaturado 75,5 g/100 g — o mais alto da tabela.', true, now());
+        </sql>
+
+        <!--
+            CARBOIDRATO — maltodextrina pura.
+
+            Carbodex, que a planilha usa, é maltodextrina: `TNE SA!A3` declara
+            10 g por medida, 40 kcal e 10 g de carboidrato — exatamente 4 kcal/g
+            e 100 % de carboidrato, que é a definição do produto. A linha abaixo
+            é a genérica, para o hospital que compra maltodextrina a granel em
+            vez da marca, e usa a mesma medida de 10 g da planilha.
+
+            Embalagem de 1 kg: é a apresentação comum do genérico, e só afeta a
+            estimativa de embalagens por mês — nenhum valor nutricional.
+        -->
+        <sql>
+            INSERT INTO produto_nutricional (tenant_id, nome, tipo, medida_nome, medida_qtd,
+                embalagem_qtd, kcal, proteina_g, cho_g, lip_g,
+                modulo_proteico, papel_artesanal, observacao, ativo, created_at) VALUES
+            (NULL, 'Maltodextrina', 'INSUMO_ARTESANAL', 'medida', 10, 1000, 40, 0, 10, 0, false, 'CARBOIDRATO',
+             'Maltodextrina pura a granel — 100 % carboidrato, 4 kcal/g. Mesma medida de 10 g do Carbodex (TNE SA!A3).', true, now());
+        </sql>
+
+        <rollback>
+            <sql>
+                DELETE FROM produto_nutricional
+                WHERE tenant_id IS NULL
+                  AND nome IN ('Óleo de canola', 'Óleo de girassol', 'Óleo de milho',
+                               'Azeite de oliva extravirgem', 'Maltodextrina');
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

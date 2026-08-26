@@ -148,7 +148,7 @@ export function CalculoPediatrico({
               label="Peso"
               suffix="kg"
               inputMode="decimal"
-              placeholder="Ex.: 9"
+              placeholder="Ex.: 9,25"
               value={entradas.peso}
               onChange={(e) => alterar('peso', e.target.value)}
             />
@@ -156,7 +156,7 @@ export function CalculoPediatrico({
               label="Estatura"
               suffix="cm"
               inputMode="decimal"
-              placeholder="Ex.: 70"
+              placeholder="Ex.: 70,5"
               value={entradas.estatura}
               onChange={(e) => alterar('estatura', e.target.value)}
             />
@@ -233,7 +233,7 @@ export function CalculoPediatrico({
               label="Volume por tomada"
               suffix="ml"
               inputMode="decimal"
-              placeholder="Ex.: 110"
+              placeholder="Ex.: 110,5"
               value={entradas.volumeMl}
               onChange={(e) => alterar('volumeMl', e.target.value)}
             />
@@ -241,7 +241,7 @@ export function CalculoPediatrico({
               label="Frequência"
               suffix="horas"
               inputMode="decimal"
-              placeholder="Ex.: 3"
+              placeholder="Ex.: 3,5"
               ajuda="Intervalo entre as tomadas, não quantas são."
               value={entradas.frequenciaHoras}
               onChange={(e) => alterar('frequenciaHoras', e.target.value)}

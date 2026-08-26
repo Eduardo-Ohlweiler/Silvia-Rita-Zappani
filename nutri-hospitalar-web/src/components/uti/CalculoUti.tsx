@@ -26,6 +26,7 @@ import {
   OPCOES_MODO_INFUSAO,
   OPCOES_ORIGEM_PESO,
   OPCOES_POPULACAO,
+  OPCOES_POSICAO_FAIXA,
   OPCOES_SEGMENTO,
   OPCOES_SEXO,
   OPCOES_TERAPIA_RENAL,
@@ -120,6 +121,18 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
     onChange({ ...entradas, [campo]: valor })
   }
 
+  // O alvo digitado vence a faixa — então a posição só governa o que sobrou.
+  // Dizer isso é melhor do que deixar o seletor mexer sem efeito visível.
+  const alvoCalorico = entradas.kcalPorKgAlvo.trim() !== ''
+  const alvoProteico = entradas.proteinaPorKgAlvo.trim() !== ''
+  const ajudaPosicao = alvoCalorico
+    ? alvoProteico
+      ? 'Sem efeito: os dois alvos digitados vencem a faixa.'
+      : 'Vale para a proteína — o alvo calórico digitado vence a faixa.'
+    : alvoProteico
+      ? 'Vale para a energia — o alvo proteico digitado vence a faixa.'
+      : 'Onde fixar a meta dentro da faixa acima.'
+
   function alternarSegmento(segmento: string) {
     const atuais = entradas.segmentosAmputados
     alterar(
@@ -184,6 +197,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Altura"
               suffix="cm"
               inputMode="decimal"
+              placeholder="Ex.: 168,5"
               ajuda="Em branco, estimamos pela altura do joelho."
               value={entradas.alturaCm}
               onChange={(e) => alterar('alturaCm', e.target.value)}
@@ -193,6 +207,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Peso atual"
               suffix="kg"
               inputMode="decimal"
+              placeholder="Ex.: 68,4"
               ajuda="Em branco, estimamos pelas circunferências."
               value={entradas.pesoAtualKg}
               onChange={(e) => alterar('pesoAtualKg', e.target.value)}
@@ -201,6 +216,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Altura do joelho"
               suffix="cm"
               inputMode="decimal"
+              placeholder="Ex.: 53,5"
               value={entradas.alturaJoelhoCm}
               onChange={(e) => alterar('alturaJoelhoCm', e.target.value)}
             />
@@ -208,6 +224,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Circunferência do braço"
               suffix="cm"
               inputMode="decimal"
+              placeholder="Ex.: 25,5"
               value={entradas.circBracoCm}
               onChange={(e) => alterar('circBracoCm', e.target.value)}
             />
@@ -215,6 +232,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Circunferência da panturrilha"
               suffix="cm"
               inputMode="decimal"
+              placeholder="Ex.: 34,5"
               value={entradas.circPanturrilhaCm}
               onChange={(e) => alterar('circPanturrilhaCm', e.target.value)}
             />
@@ -222,6 +240,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Circunferência abdominal"
               suffix="cm"
               inputMode="decimal"
+              placeholder="Ex.: 90,5"
               value={entradas.circAbdominalCm}
               onChange={(e) => alterar('circAbdominalCm', e.target.value)}
             />
@@ -230,6 +249,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Peso habitual"
               suffix="kg"
               inputMode="decimal"
+              placeholder="Ex.: 72,5"
               value={entradas.pesoUsualKg}
               onChange={(e) => alterar('pesoUsualKg', e.target.value)}
             />
@@ -498,6 +518,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Alvo calórico"
               suffix="kcal/kg"
               inputMode="decimal"
+              placeholder="Ex.: 22,5"
               ajuda="Preenchido, vence a faixa da fase."
               value={entradas.kcalPorKgAlvo}
               onChange={(e) => alterar('kcalPorKgAlvo', e.target.value)}
@@ -506,8 +527,17 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Alvo proteico"
               suffix="g/kg"
               inputMode="decimal"
+              placeholder="Ex.: 1,3"
               value={entradas.proteinaPorKgAlvo}
               onChange={(e) => alterar('proteinaPorKgAlvo', e.target.value)}
+            />
+            <TSelect
+              label="Meta na faixa"
+              opcoes={OPCOES_POSICAO_FAIXA.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
+              ajuda={ajudaPosicao}
+              disabled={alvoCalorico && alvoProteico}
+              value={entradas.posicaoNaFaixa}
+              onChange={(e) => alterar('posicaoNaFaixa', e.target.value)}
             />
           </div>
 
@@ -623,6 +653,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label={entradas.modoInfusao === 'INTERMITENTE' ? 'Volume por horário' : 'Vazão'}
               suffix={entradas.modoInfusao === 'INTERMITENTE' ? 'ml' : 'ml/h'}
               inputMode="decimal"
+              placeholder={entradas.modoInfusao === 'INTERMITENTE' ? 'Ex.: 133,5' : 'Ex.: 62,5'}
               value={entradas.volumePorTempo}
               onChange={(e) => alterar('volumePorTempo', e.target.value)}
             />
@@ -786,6 +817,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               label="Volume de dieta"
               suffix="ml/dia"
               inputMode="decimal"
+              placeholder="Ex.: 1600"
               ajuda="Só se você não preencheu a aba da dieta. O da dieta tem prioridade."
               value={entradas.volumeDietaManualMl}
               onChange={(e) => alterar('volumeDietaManualMl', e.target.value)}

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Acompanhamento diário na UTI: o que o paciente recebeu, o que os exames
+        mostraram e como ele passou o dia.
+
+        DUAS COISAS QUE O eroERP NÃO TEM, e são o motivo desta tabela existir
+        diferente da de lá:
+
+        1. `avaliacao_id`, NULLABLE e ON DELETE RESTRICT.
+
+           Nullable porque paciente que internou de madrugada tem dia antes de
+           avaliação, e obrigar o vínculo travaria o uso à beira do leito. Mas
+           quando existe, o vínculo paga quatro coisas que hoje não existem:
+             · o % recebido contra o volume PRESCRITO na avaliação, e não contra
+               o que alguém digitou como prescrito;
+             · kcal/kg e g/kg de fato recebidos, pela composição da fórmula;
+             · diurese em ml/kg/h, que precisa do peso;
+             · "recebido × meta prescrita" no painel.
+
+           RESTRICT e não CASCADE: apagar uma avaliação com dias vinculados tem
+           de doer. O service devolve 409 dizendo quantos.
+
+        2. UNIQUE (tenant_id, pessoa_id, data).
+
+           Sem isso dois registros do mesmo dia coexistem e o painel plota os
+           dois — o eroERP faz exatamente isso.
+
+        E TRÊS TIPOS CORRIGIDOS. No eroERP `hgt` e `vm_o2` são VARCHAR(255)
+        enquanto o TypeScript os declara `number | null`; funciona só porque o
+        Jackson converte número em texto na saída, e o painel não consegue
+        plotá-los. `pa` é texto livre "120/80", impróprio para gráfico. Aqui:
+        hgt numérico, suporte ventilatório em enum mais FiO₂ numérica, e a
+        pressão em duas colunas numéricas.
+    -->
+    <changeSet id="024-create-registro-diario-uti" author="eduardo">
+
+        <createTable tableName="registro_diario_uti">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_registro_diario_uti"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_registro_diario_uti_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="pessoa_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_registro_diario_uti_pessoa"
+                             references="pessoa(id)"/>
+            </column>
+
+            <!-- Nullable: o dia pode vir antes da avaliação. Ver comentário acima. -->
+            <column name="avaliacao_id" type="UUID"/>
+
+            <column name="data" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- ─── Dieta e terapia nutricional enteral ────────────────── -->
+            <column name="dieta" type="VARCHAR(255)"/>
+            <column name="vol_prescrito_24h" type="NUMERIC(10,3)"/>
+            <column name="vol_recebido_24h" type="NUMERIC(10,3)"/>
+
+            <!--
+                NÃO existe coluna `perc_recebido`.
+
+                No eroERP ela é campo digitável ao lado de um "% recebido
+                (calculado)" que a tela mostra — o mesmo valor duas vezes, e os
+                dois vão para o banco podendo divergir. Aqui o percentual é
+                derivado na leitura, e não há como discordar do volume.
+            -->
+
+            <!-- ─── Laboratório ────────────────────────────────────────── -->
+            <column name="mg" type="NUMERIC(10,2)"/>
+            <column name="k" type="NUMERIC(10,2)"/>
+            <column name="na" type="NUMERIC(10,2)"/>
+            <column name="lactato" type="NUMERIC(10,2)"/>
+            <column name="pcr" type="NUMERIC(10,2)"/>
+            <column name="ph" type="NUMERIC(10,2)"/>
+            <column name="pco2" type="NUMERIC(10,2)"/>
+            <column name="hco3" type="NUMERIC(10,2)"/>
+            <!-- Numérico, ao contrário do VARCHAR(255) do eroERP -->
+            <column name="hgt" type="NUMERIC(10,2)"/>
+
+            <!-- ─── Clínica e balanço ──────────────────────────────────── -->
+            <column name="suporte_ventilatorio" type="VARCHAR(30)"/>
+            <column name="fio2_perc" type="NUMERIC(5,2)"/>
+            <column name="pa_sistolica" type="NUMERIC(5,1)"/>
+            <column name="pa_diastolica" type="NUMERIC(5,1)"/>
+            <column name="balanco_hidrico_ml" type="NUMERIC(10,2)"/>
+            <column name="diurese_ml" type="NUMERIC(10,2)"/>
+            <column name="evacuacao" type="VARCHAR(100)"/>
+
+            <!-- ─── Ingestão oral, % de aceitação por refeição ─────────── -->
+            <column name="cafe_manha" type="NUMERIC(5,2)"/>
+            <column name="lanche_manha" type="NUMERIC(5,2)"/>
+            <column name="almoco" type="NUMERIC(5,2)"/>
+            <column name="lanche_tarde" type="NUMERIC(5,2)"/>
+            <column name="jantar" type="NUMERIC(5,2)"/>
+            <column name="ceia" type="NUMERIC(5,2)"/>
+
+            <column name="observacao" type="TEXT"/>
+
+            <column name="created_by" type="UUID"/>
+            <column name="updated_by" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <!--
+            RESTRICT: apagar avaliação com dias vinculados é recusado, e o
+            service diz quantos dias estão presos a ela. Um CASCADE aqui levaria
+            embora o acompanhamento inteiro sem avisar.
+        -->
+        <addForeignKeyConstraint baseTableName="registro_diario_uti"
+                                 baseColumnNames="avaliacao_id"
+                                 referencedTableName="avaliacao_uti"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_registro_diario_uti_avaliacao"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="registro_diario_uti"
+                                 baseColumnNames="created_by"
+                                 referencedTableName="usuario"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_registro_diario_uti_created_by"/>
+        <addForeignKeyConstraint baseTableName="registro_diario_uti"
+                                 baseColumnNames="updated_by"
+                                 referencedTableName="usuario"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_registro_diario_uti_updated_by"/>
+
+        <!-- Um registro por paciente por dia. O eroERP não tem, e o painel plota os dois. -->
+        <addUniqueConstraint tableName="registro_diario_uti"
+                             columnNames="tenant_id, pessoa_id, data"
+                             constraintName="uk_registro_diario_uti_paciente_dia"/>
+
+        <sql>
+            ALTER TABLE registro_diario_uti ADD CONSTRAINT ck_registro_diario_uti_suporte
+            CHECK (suporte_ventilatorio IS NULL OR suporte_ventilatorio IN
+                   ('AR_AMBIENTE', 'CATETER_NASAL', 'MASCARA', 'ALTO_FLUXO',
+                    'VNI', 'VENTILACAO_MECANICA', 'TRAQUEOSTOMIA'));
+        </sql>
+
+        <!-- Percentual de aceitação vai de 0 a 100, e FiO₂ de 21 (ar ambiente) a 100 -->
+        <sql>
+            ALTER TABLE registro_diario_uti ADD CONSTRAINT ck_registro_diario_uti_aceitacao
+            CHECK ((cafe_manha   IS NULL OR (cafe_manha   BETWEEN 0 AND 100))
+               AND (lanche_manha IS NULL OR (lanche_manha BETWEEN 0 AND 100))
+               AND (almoco       IS NULL OR (almoco       BETWEEN 0 AND 100))
+               AND (lanche_tarde IS NULL OR (lanche_tarde BETWEEN 0 AND 100))
+               AND (jantar       IS NULL OR (jantar       BETWEEN 0 AND 100))
+               AND (ceia         IS NULL OR (ceia         BETWEEN 0 AND 100)));
+        </sql>
+        <sql>
+            ALTER TABLE registro_diario_uti ADD CONSTRAINT ck_registro_diario_uti_fio2
+            CHECK (fio2_perc IS NULL OR (fio2_perc BETWEEN 21 AND 100));
+        </sql>
+
+        <!-- Volumes e pressões não são negativos; o balanço hídrico É. -->
+        <sql>
+            ALTER TABLE registro_diario_uti ADD CONSTRAINT ck_registro_diario_uti_volumes
+            CHECK ((vol_prescrito_24h IS NULL OR vol_prescrito_24h &gt;= 0)
+               AND (vol_recebido_24h  IS NULL OR vol_recebido_24h  &gt;= 0)
+               AND (diurese_ml        IS NULL OR diurese_ml        &gt;= 0)
+               AND (pa_sistolica      IS NULL OR pa_sistolica      &gt; 0)
+               AND (pa_diastolica     IS NULL OR pa_diastolica     &gt; 0));
+        </sql>
+
+        <createIndex tableName="registro_diario_uti" indexName="idx_registro_diario_uti_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex tableName="registro_diario_uti" indexName="idx_registro_diario_uti_pessoa_data">
+            <column name="pessoa_id"/>
+            <column name="data"/>
+        </createIndex>
+        <createIndex tableName="registro_diario_uti" indexName="idx_registro_diario_uti_avaliacao">
+            <column name="avaliacao_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="registro_diario_uti"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -37,5 +37,8 @@
     <include file="db/changelog/changes/021-normalizar-categoria-formula-enteral.xml"/>
     <include file="db/changelog/changes/022-nome-formula-sem-apresentacao.xml"/>
     <include file="db/changelog/changes/023-create-avaliacao-uti.xml"/>
+    <include file="db/changelog/changes/024-create-registro-diario-uti.xml"/>
+    <include file="db/changelog/changes/025-avaliacao-uti-posicao-na-faixa.xml"/>
+    <include file="db/changelog/changes/026-insumos-artesanais-por-papel.xml"/>
 
 </databaseChangeLog>

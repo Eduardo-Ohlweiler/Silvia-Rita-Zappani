@@ -2,6 +2,7 @@ package com.nutri.hospitalar.uti;
 
 import com.nutri.hospitalar.AbstractIntegrationTest;
 import com.nutri.hospitalar.pessoa.enums.Sexo;
+import com.nutri.hospitalar.uti.calculo.UtiMatematica;
 import com.nutri.hospitalar.uti.entity.FormulaEnteral;
 import com.nutri.hospitalar.uti.entity.ProdutoNutricional;
 import com.nutri.hospitalar.uti.enums.PapelArtesanal;
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,7 +56,8 @@ class CatalogoUtiTest extends AbstractIntegrationTest {
         @DisplayName("os 30 produtos entram, separados nos três tipos")
         void produtos() {
             var todos = produtoNutricionalRepository.findAll();
-            assertThat(todos).hasSize(30);
+            // 30 da migration 019 + 5 insumos artesanais da 026
+            assertThat(todos).hasSize(35);
             assertThat(todos).allMatch(ProdutoNutricional::ehGlobal);
 
             assertThat(todos).filteredOn(p -> p.getTipo() == TipoProdutoNutricional.SUPLEMENTO_ORAL)
@@ -61,7 +65,7 @@ class CatalogoUtiTest extends AbstractIntegrationTest {
             assertThat(todos).filteredOn(p -> p.getTipo() == TipoProdutoNutricional.MODULO_PROTEICO)
                     .hasSize(3);
             assertThat(todos).filteredOn(p -> p.getTipo() == TipoProdutoNutricional.INSUMO_ARTESANAL)
-                    .hasSize(4);
+                    .hasSize(9);
         }
 
         @Test
@@ -74,6 +78,83 @@ class CatalogoUtiTest extends AbstractIntegrationTest {
                         .as("papel %s", papel)
                         .anyMatch(p -> p.getPapelArtesanal() == papel);
             }
+        }
+
+        /** Os que vieram de `TNE SA!A2:A5`, e cujos números o gabarito usa. */
+        private static final Set<String> QUATRO_DA_PLANILHA = Set.of(
+                "Trophic basic pó", "Carbodex", "Albumix power", "Óleo de soja");
+
+        @Test
+        @DisplayName("os insumos da 026 fecham por Atwater e não mexem nos quatro da planilha")
+        void insumosDaMigration026() {
+            var insumos = produtoNutricionalRepository.findAll().stream()
+                    .filter(p -> p.getTipo() == TipoProdutoNutricional.INSUMO_ARTESANAL)
+                    .toList();
+
+            // Todo insumo entra em cálculo, e o calculador deriva a energia por
+            // Atwater (4/4/9). Se o rótulo transcrito não fecha, o número que a
+            // tela mostra não é o do produto — foi assim que os defeitos 1 e 2
+            // do catálogo de fórmulas apareceram.
+            //
+            // A tolerância existe porque rótulo REAL não fecha exato: o Trophic
+            // basic declara 33,93 kcal/medida e os macros somam 33,49 — 1,3 %,
+            // que é fibra, poliol e arredondamento do fabricante, não erro de
+            // transcrição. É a mesma razão do CHECK de ±12 % da migration 018.
+            // Os insumos de macronutriente puro (óleo, maltodextrina) fecham em
+            // zero, e é isso que a folga apertada garante.
+            BigDecimal folgaMaxima = new BigDecimal("5");
+
+            for (var p : insumos) {
+                BigDecimal porAtwater = UtiMatematica.kcalDeMacros(
+                        p.getChoG(), p.getProteinaG(), p.getLipG());
+                BigDecimal desvio = porAtwater.subtract(p.getKcal())
+                        .abs()
+                        .multiply(new BigDecimal("100"))
+                        .divide(p.getKcal(), 4, RoundingMode.HALF_UP);
+
+                assertThat(desvio)
+                        .as("%s declara %s kcal e os macros somam %s (%s %% de desvio)",
+                                p.getNome(), p.getKcal(), porAtwater, desvio)
+                        .isLessThanOrEqualTo(folgaMaxima);
+            }
+
+            // Os cinco da 026 são macronutriente puro: fecham exato, sem folga.
+            for (var p : insumos.stream().filter(i -> !QUATRO_DA_PLANILHA.contains(i.getNome())).toList()) {
+                assertThat(UtiMatematica.kcalDeMacros(p.getChoG(), p.getProteinaG(), p.getLipG()))
+                        .as("%s é macronutriente puro e tem de fechar exato", p.getNome())
+                        .isEqualByComparingTo(p.getKcal());
+            }
+
+            // Os quatro da planilha continuam com os números da planilha: o
+            // gabarito artesanal de docs/10 §10 é calculado sobre eles.
+            var trophic = insumos.stream()
+                    .filter(p -> p.getNome().equals("Trophic basic pó")).findFirst().orElseThrow();
+            assertThat(trophic.getMedidaQtd()).isEqualByComparingTo("7.8");
+            assertThat(trophic.getKcal()).isEqualByComparingTo("33.93");
+            assertThat(trophic.getProteinaG()).isEqualByComparingTo("1.24");
+            assertThat(trophic.getChoG()).isEqualByComparingTo("4.68");
+            assertThat(trophic.getLipG()).isEqualByComparingTo("1.09");
+
+            // E nenhum papel ficou com uma opção só, exceto a base — que é o
+            // que a 026 registra como pendência de rótulo, não de código.
+            assertThat(insumos).filteredOn(p -> p.getPapelArtesanal() == PapelArtesanal.LIPIDIO)
+                    .hasSize(5);
+            assertThat(insumos).filteredOn(p -> p.getPapelArtesanal() == PapelArtesanal.CARBOIDRATO)
+                    .hasSize(2);
+        }
+
+        @Test
+        @DisplayName("o papel proteico enxerga também os módulos proteicos do catálogo")
+        void papelProteicoIncluiModulos() throws Exception {
+            // Sem isto o combo de proteína mostrava uma opção enquanto três
+            // módulos já conferidos estavam no catálogo, invisíveis.
+            mockMvc.perform(get("/produtos-nutricionais/insumos-artesanais")
+                            .param("papel", "PROTEINA")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(4))
+                    .andExpect(jsonPath("$[?(@.nome == 'Albumix power')]").exists())
+                    .andExpect(jsonPath("$[?(@.nome == 'Nutren Just Protein')]").exists());
         }
 
         @Test

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Onde na faixa recomendada a meta foi fixada.
+
+        A recomendação é sempre um intervalo — 15 a 20 kcal/kg na fase aguda — e
+        a meta que desce para a dieta é UM número. Alguém escolhe, e até aqui
+        esse alguém era o código: `metaDaFaixa` devolvia o topo, calado.
+
+        Vira ENTRADA GRAVADA, e não resultado derivado, porque é decisão
+        clínica: sem ela, a meta de 1360 kcal de hoje não se distingue da de
+        1190 no dia em que o padrão do sistema mudar. Prontuário não se
+        reescreve sozinho — é a mesma razão do retrato da fórmula em 023.
+
+        O padrão continua sendo o MÁXIMO, e é documental: o exemplo em cache da
+        própria planilha usa VCT 1360 para 68 kg em fase aguda, e 1360 é
+        exatamente 20 × 68. O eroERP usa o ponto médio sem dizer.
+    -->
+    <changeSet id="025-avaliacao-uti-posicao-na-faixa" author="eduardo">
+
+        <addColumn tableName="avaliacao_uti">
+            <column name="posicao_na_faixa" type="VARCHAR(20)"/>
+        </addColumn>
+
+        <!--
+            As avaliações que já existem foram calculadas com o topo. Escrever
+            MAXIMO nelas é registrar o que de fato aconteceu, não inventar
+            passado: era o único comportamento possível antes desta coluna.
+        -->
+        <update tableName="avaliacao_uti">
+            <column name="posicao_na_faixa" value="MAXIMO"/>
+            <where>posicao_na_faixa IS NULL</where>
+        </update>
+
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_posicao_na_faixa
+            CHECK (posicao_na_faixa IS NULL
+                   OR posicao_na_faixa IN ('MINIMO', 'MEDIO', 'MAXIMO'));
+        </sql>
+
+        <rollback>
+            <sql>ALTER TABLE avaliacao_uti DROP CONSTRAINT ck_avaliacao_uti_posicao_na_faixa;</sql>
+            <dropColumn tableName="avaliacao_uti" columnName="posicao_na_faixa"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -12,6 +12,7 @@ import com.nutri.hospitalar.uti.enums.JanelaPerdaPeso;
 import com.nutri.hospitalar.uti.enums.ModoInfusao;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
+import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 import com.nutri.hospitalar.uti.enums.SegmentoAmputado;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 import com.nutri.hospitalar.uti.enums.TomResultado;
@@ -203,19 +204,74 @@ class CalculoUtiTest {
         @Test
         @DisplayName("obesidade — a base do peso muda com o IMC")
         void obesidade() {
-            // Necessidades!B15/B16 usam peso ATUAL; C15/C16 e a proteína usam IDEAL
-            var ate40 = NecessidadeCalculator.energiaObesidade(
+            // Necessidades!B15/B16 usam peso ATUAL; C15/C16 e a proteína usam IDEAL.
+            // Energia troca de base em IMC 50; a proteína sobe em IMC 40 — ASPEN 2016.
+            var ate50 = NecessidadeCalculator.energiaObesidade(
                     new BigDecimal("32"), peso68, ideal82);
-            conferir(ate40.minimo(), "748");
-            conferir(ate40.maximo(), "952");
+            conferir(ate50.minimo(), "748");
+            conferir(ate50.maximo(), "952");
 
-            var acima40 = NecessidadeCalculator.energiaObesidade(
-                    new BigDecimal("42"), peso68, ideal82);
-            conferir(acima40.minimo(), "1804");
-            conferir(acima40.maximo(), "2050");
+            // IMC 45 continua sobre o peso ATUAL — é o que a correção mudou
+            var imc45 = NecessidadeCalculator.energiaObesidade(
+                    new BigDecimal("45"), peso68, ideal82);
+            conferir(imc45.minimo(), "748");
+            conferir(imc45.maximo(), "952");
+
+            var acima50 = NecessidadeCalculator.energiaObesidade(
+                    new BigDecimal("52"), peso68, ideal82);
+            conferir(acima50.minimo(), "1804");
+            conferir(acima50.maximo(), "2050");
 
             conferir(NecessidadeCalculator.proteinaObesidade(new BigDecimal("32"), ideal82), "164");
-            conferir(NecessidadeCalculator.proteinaObesidade(new BigDecimal("52"), ideal82), "205");
+            conferir(NecessidadeCalculator.proteinaObesidade(new BigDecimal("45"), ideal82), "205");
+        }
+
+        @Test
+        @DisplayName("a meta é um ponto escolhido da faixa, e o padrão é o topo")
+        void posicaoNaFaixa() {
+            var energia = NecessidadeCalculator.energiaPorFase(FaseTerapia.AGUDA, peso68);
+            var proteina = NecessidadeCalculator.proteinaPorFase(FaseTerapia.AGUDA, peso68);
+
+            // 15 · 17,5 · 20 kcal/kg sobre 68 kg
+            conferir(NecessidadeCalculator.metaDaFaixa(
+                    energia, OrigemValor.META_POR_FAIXA, PosicaoNaFaixa.MINIMO).kcalDia(), "1020");
+            conferir(NecessidadeCalculator.metaDaFaixa(
+                    energia, OrigemValor.META_POR_FAIXA, PosicaoNaFaixa.MEDIO).kcalDia(), "1190");
+            conferir(NecessidadeCalculator.metaDaFaixa(
+                    energia, OrigemValor.META_POR_FAIXA, PosicaoNaFaixa.MAXIMO).kcalDia(), "1360");
+
+            // 1,2 · 1,35 · 1,5 g/kg sobre 68 kg
+            conferir(NecessidadeCalculator.metaProteicaDaFaixa(
+                    proteina, OrigemValor.META_POR_FAIXA, PosicaoNaFaixa.MINIMO).gramasDia(), "81.6");
+            conferir(NecessidadeCalculator.metaProteicaDaFaixa(
+                    proteina, OrigemValor.META_POR_FAIXA, PosicaoNaFaixa.MEDIO).gramasDia(), "91.8");
+            conferir(NecessidadeCalculator.metaProteicaDaFaixa(
+                    proteina, OrigemValor.META_POR_FAIXA, PosicaoNaFaixa.MAXIMO).gramasDia(), "102");
+
+            // Sem escolha, o topo — é o que o exemplo em cache da planilha usa,
+            // e é o que os gabaritos de docs/10 §10 assumem.
+            var padrao = NecessidadeCalculator.metaDaFaixa(energia, OrigemValor.META_POR_FAIXA, null);
+            conferir(padrao.kcalDia(), "1360");
+            assertThat(padrao.posicao()).isEqualTo(PosicaoNaFaixa.MAXIMO);
+
+            // E a escolha aparece por escrito, junto da origem
+            assertThat(padrao.descricaoOrigem()).isEqualTo("da faixa da fase · máximo");
+            assertThat(NecessidadeCalculator.metaDaFaixa(
+                    energia, OrigemValor.META_POR_FAIXA, PosicaoNaFaixa.MEDIO).descricaoOrigem())
+                    .isEqualTo("da faixa da fase · médio");
+        }
+
+        @Test
+        @DisplayName("o alvo digitado vence as três posições da faixa")
+        void alvoDigitadoVenceAPosicao() {
+            // 35 kcal/kg está fora da faixa da fase aguda nas três posições —
+            // se a posição vencesse, o número cairia para 1020, 1190 ou 1360.
+            var meta = NecessidadeCalculator.energiaPersonalizada(new BigDecimal("35"), peso68);
+            conferir(meta.kcalDia(), "2380");
+
+            // E não declara posição: alvo digitado não é ponto de faixa nenhuma
+            assertThat(meta.posicao()).isNull();
+            assertThat(meta.descricaoOrigem()).isEqualTo("alvo informado");
         }
 
         @Test
