@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { TButton, TEntry, TPage, TPanel, TSelect } from '@/components/common'
 import { handleApiError } from '@/services/api'
 import { formulaLacteaService } from '@/services/pediatriaService'
-import { paraNumero } from '@/utils/format'
+import { paraNumero, textoDaMascara } from '@/utils/format'
 
 /**
  * O campo continua string no formulário e a conversão acontece no envio — sem
@@ -67,8 +67,9 @@ export function FormulaLacteaForm() {
       .then((f) =>
         reset({
           nome: f.nome,
-          kcalPor100ml: String(f.kcalPor100ml).replace('.', ','),
-          proteinaPor100ml: String(f.proteinaPor100ml).replace('.', ','),
+          // Três casas, como o DTO aceita: reabrir com menos truncaria o rótulo.
+          kcalPor100ml: textoDaMascara(f.kcalPor100ml, 3),
+          proteinaPor100ml: textoDaMascara(f.proteinaPor100ml, 3),
           ativo: String(f.ativo),
         }),
       )
@@ -128,7 +129,8 @@ export function FormulaLacteaForm() {
             <TEntry
               label="Calorias"
               suffix="kcal / 100 ml"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 73,8"
               error={errors.kcalPor100ml?.message}
               {...register('kcalPor100ml')}
@@ -136,7 +138,8 @@ export function FormulaLacteaForm() {
             <TEntry
               label="Proteína"
               suffix="g / 100 ml"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 1,65"
               error={errors.proteinaPor100ml?.message}
               {...register('proteinaPor100ml')}

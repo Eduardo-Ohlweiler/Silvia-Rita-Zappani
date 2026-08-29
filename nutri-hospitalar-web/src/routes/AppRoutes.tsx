@@ -24,6 +24,9 @@ import { FerramentasClinicas } from '@/pages/uti/FerramentasClinicas'
 import { RegistroDiarioUtiForm } from '@/pages/uti/RegistroDiarioUtiForm'
 import { RegistroDiarioUtiList } from '@/pages/uti/RegistroDiarioUtiList'
 import { UtiCalculadora } from '@/pages/uti/UtiCalculadora'
+import { DashboardUti } from '@/pages/uti/DashboardUti'
+import { PainelAcompanhamentoUti } from '@/pages/uti/PainelAcompanhamentoUti'
+import { PainelPacienteUti } from '@/pages/uti/PainelPacienteUti'
 import { Perfil } from '@/pages/perfil/Perfil'
 import { PessoaForm } from '@/pages/pessoa/PessoaForm'
 import { PessoaList } from '@/pages/pessoa/PessoaList'
@@ -82,6 +85,9 @@ export function AppRoutes() {
             <Route path="pediatria/formulas-lacteas/:id" element={<FormulaLacteaForm />} />
 
             {/* Rota literal antes de /:id — o Spring e o router preferem o literal */}
+            <Route path="uti/painel" element={<DashboardUti />} />
+            <Route path="uti/painel-paciente" element={<PainelPacienteUti />} />
+            <Route path="uti/painel-acompanhamento" element={<PainelAcompanhamentoUti />} />
             <Route path="uti/calculadora" element={<UtiCalculadora />} />
             <Route path="uti/ferramentas" element={<FerramentasClinicas />} />
             <Route path="uti/avaliacoes" element={<AvaliacaoUtiList />} />

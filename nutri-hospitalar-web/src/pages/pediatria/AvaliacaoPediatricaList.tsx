@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconAdicionar } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TBadge,
   TButton,
   TCombo,
@@ -13,7 +14,9 @@ import {
   TSelect,
   type Coluna,
   type OpcaoSelect,
+  type ResultadoDaCarga,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { handleApiError } from '@/services/api'
 import { catalogoService } from '@/services/catalogoService'
@@ -27,6 +30,7 @@ import {
   formatarNumero,
   paraNumero,
 } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 /** Faixa vira tom de badge. O texto vem do backend, junto da faixa. */
 const TOM_FAIXA: Record<FaixaOms, 'info' | 'sucesso' | 'alerta'> = {
@@ -50,6 +54,8 @@ export function AvaliacaoPediatricaList() {
   const [formulas, setFormulas] = useState<OpcaoSelect[]>([])
   const [tipoPacienteId, setTipoPacienteId] = useState<string>()
   const [carregando, setCarregando] = useState(true)
+  const [paraImprimir, setParaImprimir] =
+    useState<ResultadoDaCarga<AvaliacaoPediatricaLista>>()
 
   useEffect(() => {
     catalogoService
@@ -85,6 +91,67 @@ export function AvaliacaoPediatricaList() {
   }, [sessao?.tenantId, pacienteId, formulaLacteaId, de, ate, mesesMin, mesesMax, pagina])
 
   useEffect(carregar, [carregar])
+
+  /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<AvaliacaoPediatricaLista>> => {
+      const pagina = await pediatriaService.getAll({
+        pacienteId: pacienteId || undefined,
+        formulaLacteaId: formulaLacteaId || undefined,
+        de: de || undefined,
+        ate: ate || undefined,
+        mesesMin: paraNumero(mesesMin),
+        mesesMax: paraNumero(mesesMax),
+        page: 0,
+        size: limite,
+      })
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [pacienteId, formulaLacteaId, de, ate, mesesMin, mesesMax],
+  )
+
+  /**
+   * O resumo de uma criança no papel: quem, quando, com que idade, em que
+   * estado nutricional e com qual fórmula. As mesmas colunas alimentam o CSV.
+   */
+  const colunasExportadas: ColunaExportavel<AvaliacaoPediatricaLista>[] = [
+    { titulo: 'Paciente', valor: (a) => a.pacienteNome },
+    { titulo: 'Data', valor: (a) => formatarData(a.dataAvaliacao) },
+    {
+      titulo: 'Idade (meses)',
+      numerica: true,
+      valor: (a) => String(a.idadeMeses),
+    },
+    { titulo: 'Peso (kg)', numerica: true, valor: (a) => txt(a.peso, 2) },
+    { titulo: 'IMC', numerica: true, valor: (a) => txt(a.imc, 2) },
+    {
+      titulo: 'IMC para a idade',
+      valor: (a) => a.classifImcIdadeRotulo ?? 'Sem estatura',
+    },
+    { titulo: 'Fórmula láctea', valor: (a) => a.formulaNome ?? '—' },
+  ]
+
+  const filtrosAplicados = [
+    {
+      rotulo: 'Paciente',
+      // O combo devolve só o id. Quando há filtro de paciente, toda linha do
+      // relatório é dele — então o nome sai do próprio recorte. Deixar em
+      // branco faria a folha dizer "sem filtro aplicado" mostrando um paciente
+      // só, que é justamente a mentira que este cabeçalho existe para evitar.
+      valor: pacienteId ? (paraImprimir?.linhas[0]?.pacienteNome ?? 'selecionado') : '',
+    },
+    {
+      rotulo: 'Fórmula',
+      valor: formulas.find((f) => f.valor === formulaLacteaId)?.rotulo ?? '',
+    },
+    { rotulo: 'De', valor: de ? formatarData(de) : '' },
+    { rotulo: 'Até', valor: ate ? formatarData(ate) : '' },
+    { rotulo: 'Idade mínima', valor: mesesMin ? `${mesesMin} meses` : '' },
+    { rotulo: 'Idade máxima', valor: mesesMax ? `${mesesMax} meses` : '' },
+  ]
 
   const colunas: Coluna<AvaliacaoPediatricaLista>[] = [
     {
@@ -139,10 +206,38 @@ export function AvaliacaoPediatricaList() {
       title="Avaliações pediátricas"
       subtitle="Estado nutricional pela OMS, necessidades pelas DRIs e adequação da dieta."
       actions={
-        <TButton onClick={() => navigate('/app/pediatria/avaliacoes/nova')}>
-          <IconAdicionar className="size-4" />
-          Nova avaliação
-        </TButton>
+        <>
+          <TAcoesDeExportacao
+            nome="Avaliações pediátricas"
+            colunas={colunasExportadas}
+            carregar={carregarTudo}
+            aoCarregarParaImprimir={setParaImprimir}
+          />
+          <TButton onClick={() => navigate('/app/pediatria/avaliacoes/nova')}>
+            <IconAdicionar className="size-4" />
+            Nova avaliação
+          </TButton>
+        </>
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Avaliações pediátricas"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(a) => a.id}
+            resumo={[
+              { rotulo: 'Avaliações', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Crianças',
+                valor: String(new Set(paraImprimir.linhas.map((a) => a.pacienteNome)).size),
+              },
+            ]}
+            nota="Classificação da OMS como foi gravada em cada avaliação — nada é recalculado na emissão."
+          />
+        )
       }
     >
       <TPanel>
@@ -198,7 +293,7 @@ export function AvaliacaoPediatricaList() {
           <TEntry
             label="Idade de"
             suffix="meses"
-            inputMode="numeric"
+            mascara="inteiro"
             value={mesesMin}
             onChange={(e) => {
               setMesesMin(e.target.value)
@@ -208,7 +303,7 @@ export function AvaliacaoPediatricaList() {
           <TEntry
             label="Idade até"
             suffix="meses"
-            inputMode="numeric"
+            mascara="inteiro"
             value={mesesMax}
             onChange={(e) => {
               setMesesMax(e.target.value)
@@ -232,4 +327,9 @@ export function AvaliacaoPediatricaList() {
       <TDataGridFooter pagina={dados} onPaginaChange={setPagina} />
     </TPage>
   )
+}
+
+/** Número em pt-BR, ou traço. */
+function txt(valor?: number | null, casas = 1): string {
+  return valor == null ? '—' : formatarNumero(valor, casas, casas)
 }

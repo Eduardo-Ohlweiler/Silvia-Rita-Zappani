@@ -1,4 +1,10 @@
 export { TBadge } from './TBadge'
+export {
+  TAcoesDeExportacao,
+  TETO_DE_EXPORTACAO,
+  type ResultadoDaCarga,
+} from './TAcoesDeExportacao'
+export { TBotaoImprimir } from './TBotaoImprimir'
 export { TButton } from './TButton'
 export { TCombo } from './TCombo'
 export { TDataGrid, type Coluna } from './TDataGrid'

@@ -8,7 +8,7 @@ import {
   DistribuicaoClassificacoes,
   ProporcaoSexo,
 } from '@/components/pediatria/graficos/GraficosGerenciais'
-import { TituloGrafico } from '@/components/pediatria/graficos/chrome'
+import { TituloGrafico } from '@/components/graficos/chrome'
 import { useAuth } from '@/hooks/useAuth'
 import { handleApiError } from '@/services/api'
 import { formulaLacteaService, pediatriaService } from '@/services/pediatriaService'

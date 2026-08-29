@@ -13,7 +13,7 @@ import {
   type PapelArtesanal,
   type TipoProdutoNutricional,
 } from '@/types/uti'
-import { paraNumero } from '@/utils/format'
+import { paraNumero, textoDaMascara } from '@/utils/format'
 
 const numero = (mensagem: string, minimo: number) =>
   z
@@ -125,7 +125,9 @@ function opcional(valor: string): number | undefined {
 }
 
 function texto(valor: number | undefined | null): string {
-  return valor == null ? '' : String(valor).replace('.', ',')
+  // Três casas, que é o que estes DTOs aceitam: reabrir um cadastro com menos
+  // casas do que o gravado faria a máscara truncar o rótulo em silêncio.
+  return textoDaMascara(valor, 3)
 }
 
 export function ProdutoNutricionalForm() {
@@ -306,7 +308,8 @@ export function ProdutoNutricionalForm() {
             <TEntry
               label="Quantidade da medida"
               suffix="g ou ml"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 7,8"
               error={errors.medidaQtd?.message}
               {...register('medidaQtd')}
@@ -314,7 +317,8 @@ export function ProdutoNutricionalForm() {
             <TEntry
               label="Embalagem fechada"
               suffix="g ou ml"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 800"
               ajuda="Sem ela não há cálculo de latas por mês."
               error={errors.embalagemQtd?.message}
@@ -328,7 +332,8 @@ export function ProdutoNutricionalForm() {
             <TEntry
               label="Calorias"
               suffix="kcal"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 30"
               error={errors.kcal?.message}
               {...register('kcal')}
@@ -336,7 +341,8 @@ export function ProdutoNutricionalForm() {
             <TEntry
               label="Proteína"
               suffix="g"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 1,2"
               error={errors.proteinaG?.message}
               {...register('proteinaG')}
@@ -344,7 +350,8 @@ export function ProdutoNutricionalForm() {
             <TEntry
               label="Carboidrato"
               suffix="g"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 5,6"
               error={errors.choG?.message}
               {...register('choG')}
@@ -352,21 +359,24 @@ export function ProdutoNutricionalForm() {
             <TEntry
               label="Açúcar"
               suffix="g"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               error={errors.acucarG?.message}
               {...register('acucarG')}
             />
             <TEntry
               label="Lipídio"
               suffix="g"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               error={errors.lipG?.message}
               {...register('lipG')}
             />
             <TEntry
               label="Fibras"
               suffix="g"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               error={errors.fibrasG?.message}
               {...register('fibrasG')}
             />
@@ -381,35 +391,40 @@ export function ProdutoNutricionalForm() {
             <TEntry
               label="Sódio"
               suffix="mg"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               error={errors.sodioMg?.message}
               {...register('sodioMg')}
             />
             <TEntry
               label="Potássio"
               suffix="mg"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               error={errors.potassioMg?.message}
               {...register('potassioMg')}
             />
             <TEntry
               label="Fósforo"
               suffix="mg"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               error={errors.fosforoMg?.message}
               {...register('fosforoMg')}
             />
             <TEntry
               label="Ferro"
               suffix="mg"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               error={errors.ferroMg?.message}
               {...register('ferroMg')}
             />
             <TEntry
               label="Osmolaridade"
               suffix="mOsm / L"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               error={errors.osmolaridadeMosmL?.message}
               {...register('osmolaridadeMosmL')}
             />

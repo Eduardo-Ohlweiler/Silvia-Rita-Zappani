@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -27,6 +28,8 @@ public record AvaliacaoPediatricaUpdateDto(
         UUID profissionalId,
 
         @NotNull(message = "Informe a data da avaliação")
+        // Igual à UTI: avaliação é registro do que aconteceu, nunca agendamento.
+        @PastOrPresent(message = "A data da avaliação não pode ser no futuro")
         LocalDate dataAvaliacao,
 
         @NotNull(message = "Informe o sexo")

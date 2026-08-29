@@ -174,6 +174,67 @@ class AvaliacaoUtiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("avaliação salva explica o campo vazio, em vez do traço mudo")
+    void avaliacaoSalvaExplicaAAusencia() throws Exception {
+        // O caso canônico sem peso habitual e sem a fórmula: dois blocos ficam
+        // sem número, e é exatamente aí que a tela precisa de uma frase.
+        String corpoAvaliacao = mockMvc.perform(post("/uti/avaliacoes")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pacienteId":"%s","dataAvaliacao":"%s",
+                                 "calculo":{"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,
+                                            "pesoAtualKg":68,"fase":"AGUDA"}}
+                                """.formatted(pacienteA.getId(), LocalDate.now())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(corpoAvaliacao).get("id").asText();
+
+        mockMvc.perform(get("/uti/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                // Os números continuam vindo do banco
+                .andExpect(jsonPath("$.resultado.antropometria.imc").value(24.0930))
+                .andExpect(jsonPath("$.resultado.necessidades.metaEnergetica").value(1360.0))
+                // E o que não saiu diz por quê — antes tudo isto vinha nulo
+                .andExpect(jsonPath("$.resultado.antropometria.percentualPerdaPeso").doesNotExist())
+                .andExpect(jsonPath("$.resultado.antropometria.motivoPerdaPeso").value(
+                        "Informe o peso habitual e a janela de tempo para avaliar a perda"))
+                .andExpect(jsonPath("$.resultado.antropometria.motivoEstimativas").value(
+                        "Informe altura do joelho e circunferência do braço para as estimativas de peso"))
+                .andExpect(jsonPath("$.resultado.dieta.volumeTotalMl").doesNotExist())
+                .andExpect(jsonPath("$.resultado.dieta.motivo").value(
+                        "Escolha a fórmula enteral para calcular o que a dieta entrega"));
+    }
+
+    @Test
+    @DisplayName("a tabela derivada explica a si mesma, sem sujar o motivo do bloco")
+    void tabelaDerivadaExplicaSeMesma() throws Exception {
+        String corpoAvaliacao = mockMvc.perform(post("/uti/avaliacoes")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content(corpo(pacienteA.getId(), formulaGlobal("Peptamen Intense"))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(corpoAvaliacao).get("id").asText();
+
+        mockMvc.perform(get("/uti/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                // A dieta saiu inteira: o bloco não tem motivo nenhum...
+                .andExpect(jsonPath("$.resultado.dieta.volumeTotalMl").value(1364.0))
+                .andExpect(jsonPath("$.resultado.dieta.motivo").doesNotExist())
+                // ...e a origem do volume, que também vinha muda, voltou
+                .andExpect(jsonPath("$.resultado.dieta.volumeTotalDescricao").exists())
+                // ...mas a tabela derivada, que não é gravada, diz o que é
+                .andExpect(jsonPath("$.resultado.dieta.progressao.length()").value(0))
+                .andExpect(jsonPath("$.resultado.dieta.motivoProgressao").value(
+                        containsString("Tabela derivada")))
+                .andExpect(jsonPath("$.resultado.hidratacao.motivoDistribuicao").value(
+                        containsString("Tabela derivada")));
+    }
+
+    @Test
     @DisplayName("o retrato da fórmula guarda os macros, não só nome e densidade")
     void retratoCompleto() throws Exception {
         String corpoAvaliacao = mockMvc.perform(post("/uti/avaliacoes")

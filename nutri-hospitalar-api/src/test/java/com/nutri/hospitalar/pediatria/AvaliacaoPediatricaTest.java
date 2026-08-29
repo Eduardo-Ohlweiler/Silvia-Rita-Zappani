@@ -137,7 +137,7 @@ class AvaliacaoPediatricaTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("abrir uma avaliação salva devolve o que foi gravado, sem motivos")
+    @DisplayName("abrir uma avaliação salva devolve o que foi gravado")
     void abreSemRecalcular() throws Exception {
         String id = criarAvaliacao();
 
@@ -145,9 +145,58 @@ class AvaliacaoPediatricaTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, autenticar(adminA.getEmail())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultado.necessidades.vet").value(723.0000))
-                // Motivo explica o instante da digitação; o registro só mostra
-                // o que foi calculado. Ver ResultadoPediatricoDto.
+                // Nada faltou: motivo nenhum acompanha um número que saiu.
                 .andExpect(jsonPath("$.resultado.necessidades.motivoVet").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("avaliação salva fora da faixa das DRIs reabre com o motivo, não com traço mudo")
+    void avaliacaoSalvaExplicaAAusencia() throws Exception {
+        // 37 meses: passa das curvas? Não — a OMS vai a 60. Passa das DRIs, que
+        // definem VET até 35 meses e proteína até 36.
+        String corpo = mockMvc.perform(post("/pediatria/avaliacoes")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pacienteId":"%s","dataAvaliacao":"2026-08-18",
+                                 "sexo":"FEMININO","idadeMeses":37,"peso":12,"estatura":100,
+                                 "formulaLacteaId":"%s","volumeMl":110,"frequenciaHoras":3}
+                                """.formatted(pacienteA.getId(), nan2)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(corpo).get("id").asText();
+
+        mockMvc.perform(get("/pediatria/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                // Os números continuam sendo os do banco: a dieta saiu inteira
+                .andExpect(jsonPath("$.resultado.estadoNutricional.imc").value(12.0000))
+                .andExpect(jsonPath("$.resultado.dieta.caloriasTotais").value(649.4400))
+                // e o que não saiu diz por quê, em vez do traço mudo
+                .andExpect(jsonPath("$.resultado.necessidades.vet").doesNotExist())
+                .andExpect(jsonPath("$.resultado.necessidades.motivoVet").value(
+                        "O VET das DRIs 2002 é definido até 35 meses"))
+                .andExpect(jsonPath("$.resultado.necessidades.proteinaNecessidade").doesNotExist())
+                .andExpect(jsonPath("$.resultado.necessidades.motivoProteina").value(
+                        "A necessidade proteica das DRIs 2002 é definida até 36 meses"))
+                // As adequações caem junto — não há denominador. A tela usa o
+                // motivo da meta para explicá-las (CalculoPediatrico.tsx)
+                .andExpect(jsonPath("$.resultado.dieta.percCalorico").doesNotExist())
+                .andExpect(jsonPath("$.resultado.dieta.percProteico").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("data de avaliação no futuro é recusada, como já era na UTI")
+    void naoAceitaDataFutura() throws Exception {
+        mockMvc.perform(post("/pediatria/avaliacoes")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pacienteId":"%s","dataAvaliacao":"2099-01-01",
+                                 "sexo":"FEMININO","idadeMeses":8,"peso":9,
+                                 "formulaLacteaId":"%s","volumeMl":110,"frequenciaHoras":3}
+                                """.formatted(pacienteA.getId(), nan2)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

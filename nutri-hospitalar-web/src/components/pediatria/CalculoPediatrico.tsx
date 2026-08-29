@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   TEntry,
   TPanel,
@@ -30,6 +30,19 @@ interface Props {
   resultadoInicial?: ResultadoPediatrico | null
   /** Conteúdo de uma aba extra, ao fim. A avaliação usa para as observações. */
   abaExtra?: { id: string; rotulo: string; conteudo: React.ReactNode }
+  /**
+   * Espelha o que a tela está mostrando para quem está em volta — é o que
+   * permite montar o prontuário impresso, que nasce do resultado e não das
+   * entradas. Ver `DocumentoAvaliacaoPediatrica`.
+   *
+   * A fórmula vai junto porque o catálogo é buscado <b>aqui dentro</b>: sem
+   * ela, a tela teria de repetir a mesma consulta só para escrever a composição
+   * no papel.
+   */
+  onResultado?: (
+    resultado: ResultadoPediatrico | null,
+    formula?: FormulaLacteaSelect,
+  ) => void
 }
 
 const ABA_NUTRICIONAL = 'nutricional'
@@ -55,6 +68,7 @@ export function CalculoPediatrico({
   onChange,
   resultadoInicial,
   abaExtra,
+  onResultado,
 }: Props) {
   const [aba, setAba] = useState(ABA_NUTRICIONAL)
   const [formulas, setFormulas] = useState<FormulaLacteaSelect[]>([])
@@ -63,7 +77,25 @@ export function CalculoPediatrico({
   )
   const [recalculando, setRecalculando] = useState(false)
 
+  /**
+   * Enquanto true, a tela está mostrando o que o BANCO gravou e ninguém mexeu.
+   * `useRef` e não `useState`: isto não pinta nada, só decide se o efeito de
+   * recálculo desiste — e como ref não entra na lista de dependências, o efeito
+   * continua disparando só quando as entradas mudam.
+   */
+  const mostrandoOGravado = useRef(false)
+
   const entradasDebounce = useDebounce(JSON.stringify(entradas), 500)
+
+  // Espelha para fora, sem virar fonte da verdade: quem calcula continua sendo
+  // o efeito de debounce abaixo.
+  useEffect(() => {
+    onResultado?.(
+      resultado,
+      formulas.find((f) => f.id === entradas.formulaLacteaId),
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultado, formulas, entradas.formulaLacteaId])
 
   useEffect(() => {
     formulaLacteaService.select().then(setFormulas).catch(handleApiError)
@@ -71,6 +103,7 @@ export function CalculoPediatrico({
 
   useEffect(() => {
     setResultado(resultadoInicial ?? null)
+    if (resultadoInicial) mostrandoOGravado.current = true
   }, [resultadoInicial])
 
   useEffect(() => {
@@ -82,6 +115,10 @@ export function CalculoPediatrico({
       setResultado(null)
       return
     }
+
+    // Abrir avaliação salva não recalcula — mesma razão de `CalculoUti`: o
+    // debounce substituiria os números gravados pelos de hoje, sem salvar.
+    if (mostrandoOGravado.current) return
 
     let cancelado = false
     setRecalculando(true)
@@ -107,6 +144,7 @@ export function CalculoPediatrico({
   }, [entradasDebounce])
 
   function alterar(campo: keyof EntradasCalculo, valor: string) {
+    mostrandoOGravado.current = false
     onChange({ ...entradas, [campo]: valor })
   }
 
@@ -126,7 +164,7 @@ export function CalculoPediatrico({
 
       <TPanel>
         {/* ─── Estado nutricional e necessidades ───────────────────── */}
-        <TTabPanel id={ABA_NUTRICIONAL} ativa={aba}>
+        <TTabPanel id={ABA_NUTRICIONAL} ativa={aba} rotulo="Estado nutricional e necessidades">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <TSelect
               label="Sexo"
@@ -139,7 +177,7 @@ export function CalculoPediatrico({
             <TEntry
               label="Idade"
               suffix="meses"
-              inputMode="numeric"
+              mascara="inteiro"
               placeholder="Ex.: 8"
               value={entradas.idadeMeses}
               onChange={(e) => alterar('idadeMeses', e.target.value)}
@@ -147,7 +185,7 @@ export function CalculoPediatrico({
             <TEntry
               label="Peso"
               suffix="kg"
-              inputMode="decimal"
+              mascara="decimal"
               placeholder="Ex.: 9,25"
               value={entradas.peso}
               onChange={(e) => alterar('peso', e.target.value)}
@@ -155,8 +193,8 @@ export function CalculoPediatrico({
             <TEntry
               label="Estatura"
               suffix="cm"
-              inputMode="decimal"
-              placeholder="Ex.: 70,5"
+              mascara="decimal"
+              placeholder="Ex.: 70,50"
               value={entradas.estatura}
               onChange={(e) => alterar('estatura', e.target.value)}
             />
@@ -219,7 +257,7 @@ export function CalculoPediatrico({
         </TTabPanel>
 
         {/* ─── Dieta láctea ────────────────────────────────────────── */}
-        <TTabPanel id={ABA_DIETA} ativa={aba}>
+        <TTabPanel id={ABA_DIETA} ativa={aba} rotulo="Dieta láctea">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <TSelect
               label="Fórmula láctea"
@@ -232,16 +270,16 @@ export function CalculoPediatrico({
             <TEntry
               label="Volume por tomada"
               suffix="ml"
-              inputMode="decimal"
-              placeholder="Ex.: 110,5"
+              mascara="decimal"
+              placeholder="Ex.: 110,50"
               value={entradas.volumeMl}
               onChange={(e) => alterar('volumeMl', e.target.value)}
             />
             <TEntry
               label="Frequência"
               suffix="horas"
-              inputMode="decimal"
-              placeholder="Ex.: 3,5"
+              mascara="decimal"
+              placeholder="Ex.: 3,50"
               ajuda="Intervalo entre as tomadas, não quantas são."
               value={entradas.frequenciaHoras}
               onChange={(e) => alterar('frequenciaHoras', e.target.value)}

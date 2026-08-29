@@ -103,14 +103,38 @@ export function TTabs({ abas, ativa, onChange, className = '' }: TTabsProps) {
 interface TTabPanelProps {
   id: string
   ativa: string
+  /**
+   * O rótulo da aba, repetido como título **só no papel**. Sem ele, as quatro
+   * seções de uma avaliação impressa correm juntas, porque a barra de abas é
+   * `<button>` e não sai. Opcional: tela de conferência avulsa não precisa.
+   */
+  rotulo?: string
   children: React.ReactNode
 }
 
-/** O painel de uma aba. Não renderiza nada quando a aba não é a ativa. */
-export function TTabPanel({ id, ativa, children }: TTabPanelProps) {
-  if (id !== ativa) return null
+/**
+ * O painel de uma aba.
+ *
+ * <b>Fora da aba ativa ele é escondido, não desmontado</b>, e isso é por causa
+ * do papel: a barra de abas é `<button>`, some na impressão, e um painel que
+ * desmontasse levaria três quartos da avaliação junto — sairia da impressora só
+ * a aba que estava aberta. Escondido com `hidden`, a regra de `@media print`
+ * traz todos de volta e a folha fica com o registro inteiro.
+ *
+ * O custo é que os quatro painéis ficam montados. Aqui isso não pesa: os campos
+ * já são controlados pelo estado do pai, e nenhum deles busca nada sozinho.
+ */
+export function TTabPanel({ id, ativa, rotulo, children }: TTabPanelProps) {
+  const ativo = id === ativa
   return (
-    <div role="tabpanel" id={`painel-${id}`} aria-labelledby={`aba-${id}`}>
+    <div
+      role="tabpanel"
+      id={`painel-${id}`}
+      aria-labelledby={`aba-${id}`}
+      hidden={!ativo}
+      className={ativo ? undefined : 'so-impressao'}
+    >
+      {rotulo && <h2 className="so-impressao mb-2 mt-4 text-h2 font-medium">{rotulo}</h2>}
       {children}
     </div>
   )

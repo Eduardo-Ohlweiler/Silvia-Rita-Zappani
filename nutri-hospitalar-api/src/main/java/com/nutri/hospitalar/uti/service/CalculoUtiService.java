@@ -41,12 +41,26 @@ public class CalculoUtiService {
 
     @Transactional(readOnly = true)
     public ResultadoUti calcular(CalculoUtiRequestDto dto) {
+        return calcular(dto, resolverFormula(dto));
+    }
+
+    /**
+     * O mesmo cálculo, recebendo a <b>composição</b> em vez de buscá-la no
+     * catálogo.
+     *
+     * <p>Existe para a avaliação salva, que guarda o retrato da fórmula
+     * ({@code formula_densidade_kcal_ml} e companhia) e não pode depender de o
+     * catálogo continuar igual — a fórmula pode ter mudado, ou saído dele, desde
+     * que a dieta foi prescrita. Só quem já tem o retrato na mão chama esta
+     * versão; a tela chama a outra.
+     */
+    @Transactional(readOnly = true)
+    public ResultadoUti calcular(CalculoUtiRequestDto dto, FormulaEnteralResolvida formula) {
         EntradaUti entrada = paraEntrada(dto);
 
         recusarAmputacaoSobreposta(entrada);
 
-        return AvaliacaoUtiCalculator.calcular(
-                entrada, resolverFormula(dto), buscarP50(dto));
+        return AvaliacaoUtiCalculator.calcular(entrada, formula, buscarP50(dto));
     }
 
     // ─────────────────────────────────────────────────────────────────────

@@ -91,8 +91,16 @@ public record ResultadoUti(
     ) {}
 
     /**
-     * @param formulaNome retrato do que foi usado, para a tela e para o registro
-     * @param progressao  a escada de 25 a 100 % dos dias 1 a 4
+     * @param formulaNome       retrato do que foi usado, para a tela e para o
+     *                          registro
+     * @param progressao        a escada de 25 a 100 % dos dias 1 a 4
+     * @param motivoProgressao  por que a escada está vazia, quando está. Tem
+     *                          campo próprio porque a tabela pode faltar com o
+     *                          bloco inteiro calculado — é o caso da avaliação
+     *                          salva, que não grava tabela derivada. Sem isto o
+     *                          motivo da tabela ocupava o {@code motivo} do
+     *                          bloco e aparecia colado a números que existem
+     * @param motivo            por que o BLOCO não saiu
      */
     public record Dieta(
             String formulaNome,
@@ -119,6 +127,7 @@ public record ResultadoUti(
             String unidadeDoVolume,
 
             List<DegrauProgressao> progressao,
+            String motivoProgressao,
             String motivo
     ) {}
 
@@ -126,9 +135,12 @@ public record ResultadoUti(
                                    BigDecimal volume) {}
 
     /**
-     * @param percentualAguaOrigem "água livre do rótulo" ou "estimada pela
-     *                             densidade" — a diferença importa, e some se
-     *                             não for dita
+     * @param percentualAguaOrigem  "água livre do rótulo" ou "estimada pela
+     *                              densidade" — a diferença importa, e some se
+     *                              não for dita
+     * @param motivoDistribuicao    por que as duas distribuições estão vazias.
+     *                              Campo próprio pelo mesmo motivo de
+     *                              {@link Dieta#motivoProgressao}
      */
     public record Hidratacao(
             BigDecimal necessidadeMinima,
@@ -143,6 +155,7 @@ public record ResultadoUti(
             BigDecimal aguaExtraIdeal,
             List<FracaoAgua> distribuicaoMinima,
             List<FracaoAgua> distribuicaoIdeal,
+            String motivoDistribuicao,
             String motivo
     ) {}
 

@@ -8,6 +8,7 @@ import type {
   AvaliacaoUtiResponse,
   AvaliacaoUtiUpdate,
   CalculoUtiRequest,
+  DashboardUti,
   FerramentasClinicasRequest,
   ResultadoFerramentas,
   ResultadoUti,
@@ -16,6 +17,8 @@ import type {
   FormulaEnteralResponse,
   FormulaEnteralSelect,
   FormulaEnteralUpdate,
+  PainelAcompanhamentoUti,
+  PainelPacienteUti,
   PapelArtesanal,
   ProdutoNutricionalCreate,
   ProdutoNutricionalFiltros,
@@ -184,4 +187,29 @@ export const produtoNutricionalService = {
         params: { ativo },
       })
       .then((r) => r.data),
+}
+
+/**
+ * Os três painéis. Só leitura, e nenhum deles recalcula: o servidor soma o que
+ * já está gravado.
+ */
+export const utiPainelService = {
+  /** `dias = 0` traz desde sempre — é o padrão de um painel de paciente. */
+  painelPaciente: (pacienteId: string, dias = 0, formulaEnteralId?: string) =>
+    api
+      .get<PainelPacienteUti>('/uti/painel-paciente', {
+        params: { pacienteId, dias, formulaEnteralId },
+      })
+      .then((r) => r.data),
+
+  /** Sem `de`, o servidor devolve os últimos 30 dias. */
+  painelAcompanhamento: (pessoaId: string, de?: string, ate?: string) =>
+    api
+      .get<PainelAcompanhamentoUti>('/uti/painel-acompanhamento', {
+        params: { pessoaId, de, ate },
+      })
+      .then((r) => r.data),
+
+  dashboard: (params: { dias?: number; formulaEnteralId?: string }) =>
+    api.get<DashboardUti>('/uti/dashboard', { params }).then((r) => r.data),
 }

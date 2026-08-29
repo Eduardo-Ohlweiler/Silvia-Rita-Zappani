@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /**
- * As peças comuns a todos os gráficos da pediatria.
+ * As peças comuns a todos os gráficos do sistema — pediatria e UTI.
  *
  * Grade e eixos são hairline sólidos, um tom fora da superfície — tracejado
  * significa limiar (a linha dos 100 % de adequação), não grade. Texto de eixo e
@@ -73,6 +73,21 @@ export function TituloGrafico({
   )
 }
 
+/**
+ * Número solto com o seu rótulo — a linha de indicadores no topo dos painéis.
+ *
+ * Mora aqui, e não em cada painel, porque os três da UTI e os dois da pediatria
+ * mostram a mesma coisa: um valor grande e uma etiqueta pequena.
+ */
+export function Indicador({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-caption text-txt-secondary">{rotulo}</span>
+      <span className="text-h3 font-semibold text-txt">{valor}</span>
+    </div>
+  )
+}
+
 /** Estado vazio de um gráfico — sem dado não se desenha eixo nenhum. */
 export function GraficoVazio({ children }: { children: ReactNode }) {
   return (
@@ -82,4 +97,4 @@ export function GraficoVazio({ children }: { children: ReactNode }) {
   )
 }
 
-export { EIXO, GRADE } from './eixos'
+export { EIXO, GRADE } from '@/components/graficos/eixos'

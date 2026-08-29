@@ -13,7 +13,7 @@ import {
 } from 'recharts'
 import type { Contagem, ContagemFaixa, FaixaOms, PontoPeriodo } from '@/types/pediatria'
 import { formatarNumero } from '@/utils/format'
-import { EIXO, GRADE, GraficoVazio, TooltipCartao } from './chrome'
+import { EIXO, GRADE, GraficoVazio, TooltipCartao } from '@/components/graficos/chrome'
 
 /** Uma série só: o título nomeia, não precisa de legenda. */
 export function AvaliacoesPorPeriodo({ dados }: { dados: PontoPeriodo[] }) {

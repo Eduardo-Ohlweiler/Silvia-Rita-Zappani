@@ -479,14 +479,119 @@ herdam a cor do texto — nenhum componente define ícone fora desse módulo.
 
 Ficha do paciente e relatórios saem no papel.
 
-- Fundo branco, texto `#000F27`, sem sombra e sem cor de fundo
-- Corpo em **Lato** 11pt, entrelinha 1,4
-- Logo monocromático no cabeçalho, com nome do paciente, tenant e data de emissão
-- Faixa de contexto (adulto/pediátrico) impressa em tom de cinza + rótulo textual
-- Rodapé com numeração e "Documento gerado por Nutri Hospitalar de Sucesso"
-- Sidebar, header, botões e filtros com `display: none`
-- Tabelas com borda fina `#9D9D9D`, sem zebra
+**A folha não é a tela — é um documento próprio.** Imprimir o formulário dava
+formulário: campos de entrada, rótulos de digitação, abas. Quem lê no papel
+precisa de um **demonstrativo** — identificação no topo, tira de indicadores,
+seções com o número já calculado e a sua procedência ao lado.
+
+Cada tela imprimível monta uma `Folha` (`components/impressao/Folha.tsx`) e a
+entrega à `TPage` pela prop `documento`. A `TPage` então marca **todo o conteúdo
+de tela como `.nao-imprime`**: a folha é o que sai, e não há como uma tela ganhar
+documento e continuar imprimindo o formulário por baixo dele.
+
+**O desenho vem do eroERP** (`ero/src/utils/geradorPdf.ts`), que monta relatório
+com jsPDF. A ferramenta não vem: jsPDF seria dependência nova, layout imperativo
+em milímetros e — o que pesa — uma **segunda montagem** do mesmo documento, com
+os números reescritos à mão. Duas montagens divergem, e a do papel envelhece
+calada. Aqui o documento lê os mesmos objetos que a tela leu, com os mesmos
+formatadores e os mesmos tokens.
+
+Tela sem documento próprio ainda imprime como está, limpa da interface. É o
+fallback de quem aperta Ctrl+P fora das telas de registro.
+
+### 8.0 As peças da folha
+
+| Peça | O que é |
+|---|---|
+| `Folha` | a folha: cabeçalho com logo, título, paciente, linha de referência e rodapé |
+| `TiraIndicadores` | os cinco números do topo, em caixa — o que se lê primeiro |
+| `Secao` | bloco com barra de título na cor da marca e nota de procedência |
+| `LinhasDeValor` | rótulo → **valor** → detalhe (classificação, origem do número) |
+| `TabelaDoc` | tabela de verdade, para série no tempo e listagem |
+| `DocumentoLista` | relatório de uma listagem, **com os filtros aplicados escritos no cabeçalho** |
+
+**O cabeçalho não é faixa cheia.** Um bloco navy sangrando de margem a margem
+pesa na página, come tinta e faz o documento parecer papel timbrado de banco — o
+oposto do que o sistema é na tela. A cor aparece em três lugares e só: o logo, o
+filete sob o cabeçalho e o número dentro da tira de indicadores.
+
+- **Fundo branco, e a paleta clara da marca por cima.** Tinta navy `#000F27`,
+  cartão de canto arredondado com borda hairline `--line`, faixa de gráfico no
+  seu próprio tom
+- Corpo em **IBM Plex Sans** 10,5pt, entrelinha 1,45 — a mesma família da tela
+- **Logo colorido** no cabeçalho de cada folha, com o título do documento e o
+  paciente à direita
+- Rodapé com "Documento gerado por Nutri Hospitalar de Sucesso"
+- Sidebar, header da aplicação, botões, abas e filtros com `display: none`
+- Tabelas com **linha de base** `--line` e o cabeçalho no seu fundo; sem grade
+  fechada e sem zebra — o sistema não usa zebra em lugar nenhum
+- Sombra sai: no papel ela vira mancha cinza, não profundidade
 - `@page { margin: 15mm; }`
+
+### 8.1 As duas coisas que a cor exige
+
+1. **`print-color-adjust: exact` na árvore inteira.** Sem isso o Chrome
+   descarta todo fundo e toda faixa de gráfico, e a folha sai com o desenho
+   pela metade.
+2. **O tema escuro vale só em tela.** O bloco `[data-theme="dark"]` de
+   `theme.css` está envolvido em `@media screen`, e por isso o papel herda
+   sempre a paleta clara. Sem esse envelope, quem trabalha no escuro imprimiria
+   navy chapado — um cartucho por folha. Envolver custa uma linha; redeclarar os
+   trinta tokens na regra de impressão seria a próxima coisa a divergir.
+
+### 8.1.1 Quebra de página
+
+**Só promete não quebrar quem é menor que a página.** `break-inside: avoid` numa
+caixa mais alta que o A4 — a tabela de 18 dias de acompanhamento é — faz o
+navegador empurrá-la inteira para a folha seguinte e deixar a anterior em
+branco. A regra fica onde a unidade é pequena:
+
+| Elemento | Regra | Por quê |
+|---|---|---|
+| `.folha-tira` | `break-inside: avoid` | cinco números que só significam algo juntos |
+| `.folha-tabela tr` | `break-inside: avoid` | a maior unidade que cabe sempre |
+| `.folha-secao-titulo` | `break-after: avoid` | título no pé com o conteúdo na folha seguinte é pior que quebrar a tabela |
+| `.folha-tabela thead` | `display: table-header-group` | da segunda folha em diante seriam números sem nome de coluna |
+| `.folha-rodape` | `break-before: avoid` | senão ele sozinho vira uma última folha |
+| `.folha-secao` | **nenhuma** | é o que pode ser mais alto que a página |
+
+### 8.2 O que não conseguimos entregar
+
+**A numeração de página não é nossa.** Regras de margem paginada
+(`@bottom-right { content: counter(page) }`) não são suportadas por nenhum
+navegador; quem numera é o cabeçalho/rodapé do próprio diálogo de impressão,
+ligado por padrão. O rodapé traz a identificação; o número vem de lá.
+
+### 8.3 Listas: relatório e planilha
+
+Toda listagem clínica oferece os dois, **no recorte que está na tela**:
+
+- **Relatório** — `DocumentoLista`, com os filtros aplicados escritos no
+  cabeçalho. Uma folha com 40 linhas e sem o recorte que as produziu é
+  indefensável: quem a recebe não sabe se são todos os pacientes ou os de um mês.
+- **Planilha** — CSV com BOM UTF-8 e ponto-e-vírgula, que abre no Excel em
+  português com um duplo clique. XLSX exigiria ~1 MB de biblioteca para escrever
+  um formato que aqui ninguém precisa.
+
+Dois cuidados que não são detalhe:
+
+1. **Os dois cobrem o filtro inteiro, não a página visível.** Exportar "os 20 da
+   página 1" seria a armadilha óbvia, e o usuário só descobriria ao conferir o
+   total. Há um teto de 2.000 linhas, e quando ele corta o relatório **diz
+   quantas ficaram de fora** — truncar em silêncio faz a exportação parecer
+   completa sem ser.
+2. **Injeção de fórmula no CSV.** Célula que começa com `=`, `+`, `-` ou `@` é
+   executada ao abrir a planilha. Nome de paciente é texto que o usuário digitou;
+   `utils/planilha.ts` prefixa com apóstrofo, como o OWASP recomenda.
+
+As colunas do relatório e as da planilha são **as mesmas**: um só lugar define o
+que é relevante naquela lista, e os dois não conseguem divergir.
+
+> **Esta seção foi reescrita duas vezes.** A primeira versão mandava folha em
+> preto e branco, logo monocromático, Lato 11pt e grade `#9D9D9D` — herança de
+> relatório de sistema antigo. A segunda trocou por **cor, suavidade e o logo da
+> marca**, mas ainda imprimia a tela. A terceira é esta: o papel passou a ser um
+> **documento próprio**, porque imprimir o formulário devolvia formulário.
 
 ---
 

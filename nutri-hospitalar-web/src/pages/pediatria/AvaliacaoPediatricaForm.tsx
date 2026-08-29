@@ -2,20 +2,21 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar } from '@/assets/icons'
-import { TButton, TCombo, TEntry, TPage, TPanel } from '@/components/common'
+import { TBotaoImprimir, TButton, TCombo, TEntry, TPage, TPanel } from '@/components/common'
 import { CalculoPediatrico } from '@/components/pediatria/CalculoPediatrico'
 import {
   ENTRADAS_VAZIAS,
   type EntradasCalculo,
 } from '@/components/pediatria/entradas'
+import { DocumentoAvaliacaoPediatrica } from '@/components/pediatria/impressao/DocumentoAvaliacaoPediatrica'
 import { PessoaRapidaModal } from '@/components/pessoa/PessoaRapidaModal'
 import { handleApiError } from '@/services/api'
 import { catalogoService } from '@/services/catalogoService'
 import { pediatriaService } from '@/services/pediatriaService'
 import { pessoaService } from '@/services/pessoaService'
-import type { ResultadoPediatrico } from '@/types/pediatria'
+import type { FormulaLacteaSelect, ResultadoPediatrico } from '@/types/pediatria'
 import type { Sexo } from '@/types/pessoa'
-import { formatarDocumento, paraNumero } from '@/utils/format'
+import { formatarDocumento, paraNumero, textoDaMascara } from '@/utils/format'
 
 /** Idade em meses completos entre o nascimento e a data da avaliação. */
 function idadeEmMeses(nascimento: string, referencia: string): number | undefined {
@@ -50,6 +51,10 @@ export function AvaliacaoPediatricaForm() {
   const [modalAberto, setModalAberto] = useState(false)
 
   const [resultadoSalvo, setResultadoSalvo] = useState<ResultadoPediatrico | null>(null)
+  /** O resultado que está na tela agora — salvo ou recém-calculado. */
+  const [resultado, setResultado] = useState<ResultadoPediatrico | null>(null)
+  /** A fórmula escolhida, espelhada pelo cálculo, que já busca o catálogo. */
+  const [formulaEscolhida, setFormulaEscolhida] = useState<FormulaLacteaSelect>()
   const [carregando, setCarregando] = useState(editando)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string>()
@@ -78,13 +83,15 @@ export function AvaliacaoPediatricaForm() {
         setObservacao(a.observacao ?? '')
         setEntradas({
           sexo: a.sexo,
-          idadeMeses: String(a.idadeMeses),
-          peso: String(a.peso).replace('.', ','),
-          estatura: a.estatura != null ? String(a.estatura).replace('.', ',') : '',
+          // No formato da máscara — duas casas fixas. Sem isso a primeira
+          // tecla releria "9,25" como os dígitos 925 e o campo viraria 9,25 →
+          // 92,5 na tecla seguinte. Idade é inteira.
+          idadeMeses: textoDaMascara(a.idadeMeses, 0),
+          peso: textoDaMascara(a.peso, 2),
+          estatura: textoDaMascara(a.estatura, 2),
           formulaLacteaId: a.formulaLacteaId ?? '',
-          volumeMl: a.volumeMl != null ? String(a.volumeMl).replace('.', ',') : '',
-          frequenciaHoras:
-            a.frequenciaHoras != null ? String(a.frequenciaHoras).replace('.', ',') : '',
+          volumeMl: textoDaMascara(a.volumeMl, 2),
+          frequenciaHoras: textoDaMascara(a.frequenciaHoras, 2),
         })
         // Enquanto nada for tocado, mostra o que foi gravado — sem recalcular.
         setResultadoSalvo(a.resultado)
@@ -116,7 +123,7 @@ export function AvaliacaoPediatricaForm() {
           ...atual,
           sexo: escolhido.sexo ?? atual.sexo,
           idadeMeses: escolhido.dataNascimento
-            ? String(idadeEmMeses(escolhido.dataNascimento, dataAvaliacao) ?? '')
+            ? textoDaMascara(idadeEmMeses(escolhido.dataNascimento, dataAvaliacao), 0)
             : atual.idadeMeses,
         }))
       })
@@ -129,7 +136,7 @@ export function AvaliacaoPediatricaForm() {
     // A idade é sempre relativa à data da avaliação, não a hoje.
     setEntradas((atual) => ({
       ...atual,
-      idadeMeses: String(idadeEmMeses(nascimento, nova) ?? ''),
+      idadeMeses: textoDaMascara(idadeEmMeses(nascimento, nova), 0),
     }))
   }
 
@@ -191,6 +198,29 @@ export function AvaliacaoPediatricaForm() {
     <TPage
       title={editando ? 'Editar avaliação pediátrica' : 'Nova avaliação pediátrica'}
       subtitle="Os resultados são calculados no servidor e gravados junto com as entradas."
+      actions={resultado && <TBotaoImprimir />}
+      // O papel é o prontuário, não este formulário — ver `Folha`.
+      documento={
+        resultado && (
+          <DocumentoAvaliacaoPediatrica
+            entradas={{
+              sexo: (entradas.sexo || null) as Sexo | null,
+              idadeMeses: paraNumero(entradas.idadeMeses) ?? null,
+              peso: paraNumero(entradas.peso) ?? null,
+              estatura: paraNumero(entradas.estatura) ?? null,
+              formulaLacteaId: entradas.formulaLacteaId || null,
+              volumeMl: paraNumero(entradas.volumeMl) ?? null,
+              frequenciaHoras: paraNumero(entradas.frequenciaHoras) ?? null,
+            }}
+            resultado={resultado}
+            formula={formulaEscolhida}
+            paciente={pacienteRotulo || undefined}
+            profissional={profissionalRotulo || undefined}
+            data={dataAvaliacao}
+            observacao={observacao}
+          />
+        )
+      }
     >
       <div className="flex flex-col gap-5">
         {/* Identificação fica FORA das abas: não é entrada de cálculo. */}
@@ -253,6 +283,10 @@ export function AvaliacaoPediatricaForm() {
           entradas={entradas}
           onChange={setEntradas}
           resultadoInicial={resultadoSalvo}
+          onResultado={(r, f) => {
+            setResultado(r)
+            setFormulaEscolhida(f)
+          }}
           abaExtra={{
             id: 'observacoes',
             rotulo: 'Observações',
@@ -306,7 +340,7 @@ export function AvaliacaoPediatricaForm() {
             ...atual,
             sexo: pessoa.sexo ?? atual.sexo,
             idadeMeses: pessoa.dataNascimento
-              ? String(idadeEmMeses(pessoa.dataNascimento, dataAvaliacao) ?? '')
+              ? textoDaMascara(idadeEmMeses(pessoa.dataNascimento, dataAvaliacao), 0)
               : atual.idadeMeses,
           }))
           setModalAberto(false)

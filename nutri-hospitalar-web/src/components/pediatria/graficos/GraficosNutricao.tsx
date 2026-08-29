@@ -11,7 +11,7 @@ import {
 } from 'recharts'
 import type { PontoEvolutivo } from '@/types/pediatria'
 import { formatarNumero } from '@/utils/format'
-import { EIXO, GRADE, GraficoVazio, TituloGrafico, TooltipCartao } from './chrome'
+import { EIXO, GRADE, GraficoVazio, TituloGrafico, TooltipCartao } from '@/components/graficos/chrome'
 
 /**
  * Quanto da necessidade a dieta cobriu, ao longo do tempo.

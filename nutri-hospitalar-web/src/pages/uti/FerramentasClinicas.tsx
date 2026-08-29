@@ -66,7 +66,7 @@ const VAZIO: Entradas = {
   balancoUreiaG: '',
   propofolVazaoMlH: '',
   // 24 h é o padrão, mas visível: na planilha é constante escondida na fórmula.
-  propofolHoras: '24',
+  propofolHoras: '24,00',
   artesanalVetKcal: '',
   artesanalPesoKg: '',
   insumoBaseId: '',
@@ -221,14 +221,14 @@ export function FerramentasClinicas() {
               <TEntry
                 label="Peso"
                 suffix="kg"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.noraPesoKg}
                 onChange={(e) => alterar('noraPesoKg', e.target.value)}
               />
               <TEntry
                 label="Vazão da bomba"
                 suffix="ml/h"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.noraVazaoMlH}
                 onChange={(e) => alterar('noraVazaoMlH', e.target.value)}
               />
@@ -248,14 +248,14 @@ export function FerramentasClinicas() {
                   <TEntry
                     label="Ampolas"
                     suffix="de 4 mg"
-                    inputMode="decimal"
+                    mascara="decimal"
                     value={entradas.noraAmpolas}
                     onChange={(e) => alterar('noraAmpolas', e.target.value)}
                   />
                   <TEntry
                     label="Volume do soro"
                     suffix="ml"
-                    inputMode="decimal"
+                    mascara="decimal"
                     ajuda="O volume final da bolsa, já com as ampolas."
                     value={entradas.noraVolumeSoroMl}
                     onChange={(e) => alterar('noraVolumeSoroMl', e.target.value)}
@@ -291,14 +291,14 @@ export function FerramentasClinicas() {
               <TEntry
                 label="Proteína ingerida em 24 h"
                 suffix="g"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.balancoProteinaG}
                 onChange={(e) => alterar('balancoProteinaG', e.target.value)}
               />
               <TEntry
                 label="Ureia urinária de 24 h"
                 suffix="g"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.balancoUreiaG}
                 onChange={(e) => alterar('balancoUreiaG', e.target.value)}
               />
@@ -338,14 +338,14 @@ export function FerramentasClinicas() {
               <TEntry
                 label="Vazão do propofol"
                 suffix="ml/h"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.propofolVazaoMlH}
                 onChange={(e) => alterar('propofolVazaoMlH', e.target.value)}
               />
               <TEntry
                 label="Horas de infusão"
                 suffix="h"
-                inputMode="decimal"
+                mascara="decimal"
                 ajuda="Desligado ao meio-dia não entregou 24 horas de caloria."
                 value={entradas.propofolHoras}
                 onChange={(e) => alterar('propofolHoras', e.target.value)}
@@ -380,20 +380,20 @@ export function FerramentasClinicas() {
               <TEntry
                 label="VET desejado"
                 suffix="kcal/dia"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.artesanalVetKcal}
                 onChange={(e) => alterar('artesanalVetKcal', e.target.value)}
               />
               <TEntry
                 label="Peso"
                 suffix="kg"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.artesanalPesoKg}
                 onChange={(e) => alterar('artesanalPesoKg', e.target.value)}
               />
               <TEntry
                 label="Administrações por dia"
-                inputMode="numeric"
+                mascara="inteiro"
                 ajuda="A receita é dividida por este número."
                 value={entradas.administracoesPorDia}
                 onChange={(e) => alterar('administracoesPorDia', e.target.value)}
@@ -415,7 +415,7 @@ export function FerramentasClinicas() {
               />
               <TEntry
                 label="Doses da base"
-                inputMode="decimal"
+                mascara="decimal"
                 ajuda="Em branco, sugerimos pelo VET."
                 value={entradas.dosesBase}
                 onChange={(e) => alterar('dosesBase', e.target.value)}
@@ -430,7 +430,7 @@ export function FerramentasClinicas() {
               />
               <TEntry
                 label="Medidas de carboidrato"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.medidasCarboidrato}
                 onChange={(e) => alterar('medidasCarboidrato', e.target.value)}
               />
@@ -444,7 +444,7 @@ export function FerramentasClinicas() {
               />
               <TEntry
                 label="Medidas de proteína"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.medidasProteina}
                 onChange={(e) => alterar('medidasProteina', e.target.value)}
               />
@@ -458,7 +458,7 @@ export function FerramentasClinicas() {
               />
               <TEntry
                 label="Medidas de lipídio"
-                inputMode="decimal"
+                mascara="decimal"
                 value={entradas.medidasLipidio}
                 onChange={(e) => alterar('medidasLipidio', e.target.value)}
               />

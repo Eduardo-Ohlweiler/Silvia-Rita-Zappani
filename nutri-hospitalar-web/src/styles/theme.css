@@ -169,6 +169,11 @@
  * Aqui os degraus são reais e crescentes — canvas → superfície → superfície
  * elevada — cada um com separação visível do anterior.
  */
+/* Só em tela: no papel a marca é clara, e um fundo navy chapado gastaria
+   um cartucho por folha. Envolver o bloco em `@media screen` faz a
+   impressão herdar a paleta do `:root` sem repetir um token sequer —
+   redeclarar os trinta aqui embaixo seria a próxima coisa a divergir. */
+@media screen {
 [data-theme="dark"] {
   --bg: #00091A;              /* mais fundo que o navy da marca, para o resto subir */
   --surface: #0B2145;         /* card, header — degrau claro sobre o canvas */
@@ -225,6 +230,7 @@
   --viz-ordinal-4: #9ec5f4;
   --viz-ordinal-5: #cde2fb;
 }
+}
 
 /* ══ Base ═════════════════════════════════════════════════════════ */
 html {
@@ -263,5 +269,378 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Impressão — docs/05 §8
+
+   **A folha é a mesma interface, sem a interface.** O sistema imprime o DOM
+   que já está na tela: gerar PDF no servidor seria uma segunda montagem do
+   mesmo documento, e duas montagens divergem — a do papel envelhece calada.
+   Num sistema que prescreve dieta, essa divergência é o problema.
+
+   O que some é interface: sidebar, header, filtros, botões, abas. O que fica
+   é o conteúdo, com a cor e a suavidade da marca — cartão de canto arredondado
+   sobre fundo claro, tinta navy, faixa de referência do gráfico no seu tom.
+
+   **A cor exige duas coisas.** `print-color-adjust: exact` pede ao navegador
+   que não descarte fundo nem imagem de fundo; e o tema escuro está envolvido
+   em `@media screen`, lá em cima, para que o papel herde sempre a paleta clara
+   — imprimir navy chapado gastaria um cartucho por folha.
+
+   Limite conhecido: **a numeração de página não é nossa**. Regras de margem
+   paginada (`@bottom-right { content: counter(page) }`) não são suportadas
+   pelos navegadores; quem numera é o cabeçalho/rodapé do próprio diálogo de
+   impressão. O rodapé abaixo traz a identificação; o número vem de lá.
+   ───────────────────────────────────────────────────────────────────── */
+@media print {
+  @page {
+    margin: 15mm;
+  }
+
+  /* Sem isto o Chrome joga fora todo fundo e toda faixa de gráfico, e a folha
+     sai com o desenho pela metade. Vale para a árvore inteira. */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: var(--txt);
+    font-size: 10.5pt;
+    line-height: 1.45;
+  }
+
+  /* Interface não vai para o papel.
+
+     `.nao-imprime` é explícito de propósito: o header da aplicação e o
+     `<header>` do TPage são os dois `header`, e só o primeiro é interface — o
+     segundo carrega o H1 que dá nome ao documento. Seletor estrutural não
+     distingue os dois sem depender da profundidade da árvore, que muda. */
+  aside,
+  button,
+  .nao-imprime {
+    display: none !important;
+  }
+
+  /* A sidebar é fixa a partir de lg; sem ela, o deslocamento sobra. */
+  .conteudo-da-aplicacao {
+    padding-left: 0 !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* O cartão continua cartão: canto arredondado e borda hairline. O que sai é
+     a sombra — no papel ela vira uma mancha cinza, não profundidade. */
+  .shadow-card,
+  .shadow-hover,
+  .shadow-modal,
+  .shadow-xs {
+    box-shadow: none !important;
+  }
+
+  /* Tabela: só a linha de baixo, no tom suave da paleta — em vez da grade
+     fechada de #9D9D9D que a regra antiga pedia. A linha de cabeçalho mantém
+     o seu fundo (`--surface-alt`), que é o que separa o rótulo do dado; o
+     sistema não usa zebra, nem na tela nem aqui.
+
+     Vale para a tela que ainda **não tem documento próprio** e sai como está
+     ao apertar Ctrl+P. Onde há `Folha`, quem manda são as regras dela. */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th,
+  td {
+    border-bottom: 1px solid var(--line);
+    padding: 4px 6px;
+  }
+
+  th {
+    color: var(--txt-secondary);
+  }
+
+  /* Nada de quebrar um resultado no meio, nem deixar título órfão no pé. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  tr,
+  .quebra-evitar {
+    break-inside: avoid;
+  }
+
+  /* O gráfico imprime — é para isso que a cor foi preservada. A tabela
+     equivalente continua ao lado, para quem lê no cinza (docs/05 §10.6). */
+  .recharts-responsive-container {
+    break-inside: avoid;
+  }
+
+  /* Link não leva a lugar nenhum no papel: sem sublinhado, mas a cor fica —
+     ela distingue o nome do paciente clicável do texto corrido. */
+  a {
+    text-decoration: none !important;
+  }
+
+  .so-impressao {
+    display: block !important;
+  }
+}
+
+/* Só existe no papel. Fora da regra de impressão para não depender de ordem. */
+.so-impressao {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   A FOLHA — o documento impresso
+
+   Não é a tela reaproveitada: é um demonstrativo, no desenho que o eroERP
+   monta com jsPDF (faixa de identificação, tira de indicadores, seções com
+   barra de título, tabela rótulo → valor). O que muda aqui é a paleta, que é
+   a nossa, e o fato de o documento ler os mesmos objetos que a tela leu — não
+   há segunda montagem para divergir.
+
+   Fora da regra de impressão o bloco inteiro some. Ele existe no DOM porque é
+   assim que ele fica sincronizado com o dado que a tela acabou de carregar.
+   ───────────────────────────────────────────────────────────────────── */
+.folha {
+  display: none;
+}
+
+@media print {
+  .folha {
+    display: block;
+    color: var(--txt);
+    font-size: 9.5pt;
+    line-height: 1.4;
+  }
+
+  /* ── Cabeçalho ──────────────────────────────────────────────────────
+     Sem faixa cheia. Um bloco navy sangrando de margem a margem pesa na
+     página, come tinta e faz o documento parecer papel timbrado de banco —
+     o oposto do que o sistema é na tela, onde a cor entra em fio e em
+     tinta, não em mancha.
+
+     A cor aparece em três lugares e só: o logo, o filete sob o cabeçalho e
+     o número dentro da tira de indicadores. */
+  .folha-faixa {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10mm;
+    padding-bottom: 3mm;
+    /* O filete: um trecho na primária, o resto no tom claro da marca. Parada
+       dura em vez de degradê — degradê rasteriza mal em impressora a laser. */
+    border-bottom: 2px solid transparent;
+    border-image: linear-gradient(
+        to right,
+        var(--primary) 0 38mm,
+        var(--color-brand-200) 38mm
+      )
+      1;
+  }
+
+  .folha-logo {
+    height: 8.5mm;
+    flex-shrink: 0;
+    color: var(--primary);
+  }
+
+  .folha-identidade {
+    text-align: right;
+  }
+
+  .folha-titulo {
+    margin: 0;
+    color: var(--txt);
+    font-size: 12.5pt;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .folha-paciente {
+    margin: 0.8mm 0 0;
+    color: var(--txt-secondary);
+    font-size: 10pt;
+  }
+
+  .folha-referencia {
+    margin: 2.5mm 0 0;
+    color: var(--txt-muted);
+    font-size: 8pt;
+  }
+
+  /* ── Tira de indicadores ────────────────────────────────────────── */
+  .folha-tira {
+    display: flex;
+    margin-top: 5mm;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-alt);
+    overflow: hidden;
+    break-inside: avoid;
+  }
+
+  .folha-tira-item {
+    flex: 1;
+    padding: 3.5mm 3mm;
+    text-align: center;
+    border-left: 1px solid var(--line);
+  }
+
+  .folha-tira-item:first-child {
+    border-left: none;
+  }
+
+  .folha-tira-rotulo {
+    display: block;
+    color: var(--txt-muted);
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .folha-tira-valor {
+    display: block;
+    margin-top: 1mm;
+    color: var(--primary);
+    font-size: 12pt;
+    font-weight: 600;
+  }
+
+  /* ── Seções ─────────────────────────────────────────────────────── */
+
+  /* **Sem `break-inside: avoid` aqui.** Uma seção pode ser mais alta que a
+     página — a tabela de 18 dias é — e uma caixa que não cabe em página
+     nenhuma é empurrada inteira para a seguinte, deixando a primeira em
+     branco. Foi exatamente o que aconteceu: capa vazia e o relatório
+     começando na página 2.
+
+     O que não pode quebrar é pequeno e está marcado onde é pequeno: a tira de
+     indicadores, a linha da tabela, e o título, que não fica órfão no pé da
+     página graças ao `break-after: avoid` abaixo. */
+  .folha-secao {
+    margin-top: 6mm;
+  }
+
+  .folha-secao-titulo {
+    /* Título no pé da página com o conteúdo na seguinte é o pior dos dois
+       mundos — pior até que a quebra no meio da tabela. */
+    break-after: avoid;
+    margin: 0 0 2mm;
+    padding: 1.6mm 3mm;
+    background: var(--color-brand-100);
+    border-left: 3px solid var(--primary);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--primary);
+    font-size: 9.5pt;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .folha-secao-nota {
+    margin: 0 0 2mm;
+    color: var(--txt-muted);
+    font-size: 7.5pt;
+  }
+
+  /* ── Tabelas ────────────────────────────────────────────────────── */
+  .folha-tabela {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .folha-tabela th,
+  .folha-tabela td {
+    padding: 1.6mm 3mm;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: baseline;
+  }
+
+  .folha-tabela thead th {
+    background: var(--surface-alt);
+    color: var(--txt-secondary);
+    font-size: 8pt;
+    font-weight: 500;
+  }
+
+  .folha-num {
+    text-align: right;
+  }
+
+  /* Rótulo → valor → detalhe. O valor puxa o olho, o rótulo o guia, e o
+     detalhe (classificação, origem) fica em cinza para não competir. */
+  .folha-tabela-valores th {
+    width: 45%;
+    color: var(--txt-secondary);
+    font-weight: 400;
+  }
+
+  .folha-tabela-valores td {
+    width: 22%;
+    font-weight: 600;
+    text-align: right;
+  }
+
+  .folha-tabela-valores .folha-detalhe {
+    width: 33%;
+    color: var(--txt-muted);
+    font-weight: 400;
+    text-align: left;
+  }
+
+  .folha-vazio,
+  .folha-observacao {
+    margin: 0;
+    padding: 2mm 3mm;
+    color: var(--txt-muted);
+  }
+
+  .folha-observacao {
+    color: var(--txt);
+    white-space: pre-wrap;
+  }
+
+  /* Fecha o documento, e **não puxa página nova para isso**: 8 mm de respiro
+     mais a altura do rodapé bastavam para ele sozinho virar uma segunda folha
+     com nada além dele. */
+  .folha-rodape {
+    margin-top: 5mm;
+    padding-top: 2mm;
+    border-top: 1px solid var(--line);
+    color: var(--txt-muted);
+    font-size: 7.5pt;
+    break-before: avoid;
+    break-inside: avoid;
+  }
+
+  /* A linha não se parte ao meio — e é a maior unidade que pode prometer isso
+     sem esvaziar página. */
+  .folha-tabela tr {
+    break-inside: avoid;
+  }
+
+  /* Tabela de várias páginas repete o cabeçalho: sem ele, da segunda folha em
+     diante são números sem nome de coluna. É o padrão do navegador para
+     `thead`, declarado aqui para não depender dele. */
+  .folha-tabela thead {
+    display: table-header-group;
+  }
+
+  .folha-tabela tbody {
+    break-inside: auto;
   }
 }

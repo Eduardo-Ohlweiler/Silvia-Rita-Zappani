@@ -339,10 +339,16 @@ export interface CalculoUtiRequest {
   volumeDietaManualMl?: number | null
 }
 
+/**
+ * O tom com que o servidor mandou colorir. É gravado junto com o rótulo, e é
+ * por ele que os gráficos colorem — nunca por procurar palavra dentro do texto.
+ */
+export type TomResultado = 'NEUTRO' | 'ADEQUADO' | 'ATENCAO' | 'CRITICO'
+
 /** Rótulo e tom, atribuídos pelo servidor. A cor nunca sai de casar texto. */
 export interface ClassificacaoUti {
   rotulo: string
-  tom: 'NEUTRO' | 'ADEQUADO' | 'ATENCAO' | 'CRITICO'
+  tom: TomResultado
 }
 
 /**
@@ -436,6 +442,13 @@ export interface ResultadoDieta {
   proteinaSuplementar?: number
   unidadeDoVolume?: string
   progressao: DegrauProgressao[]
+  /**
+   * Por que a escada está vazia. Campo próprio, e não o `motivo` do bloco: numa
+   * avaliação salva a tabela derivada não é gravada mesmo com o bloco inteiro
+   * calculado, e a frase acabava colada a números que existem.
+   */
+  motivoProgressao?: string
+  /** Por que o BLOCO não saiu. */
   motivo?: string
 }
 
@@ -456,6 +469,8 @@ export interface ResultadoHidratacao {
   aguaExtraIdeal?: number
   distribuicaoMinima: FracaoAgua[]
   distribuicaoIdeal: FracaoAgua[]
+  /** Mesma história de `ResultadoDieta.motivoProgressao`. */
+  motivoDistribuicao?: string
   motivo?: string
 }
 
@@ -621,7 +636,7 @@ export interface AvaliacaoUtiLista {
   pesoTrabalhoOrigem?: string
   imc?: number
   classificacaoImc?: string
-  tomClassificacao?: 'NEUTRO' | 'ADEQUADO' | 'ATENCAO' | 'CRITICO'
+  tomClassificacao?: TomResultado
   metaEnergetica?: number
   formulaNome?: string
 }
@@ -753,4 +768,153 @@ export interface AvaliacaoSugerida {
   volumePrescrito?: number
   formulaNome?: string
   motivo?: string
+}
+
+// ─── Painéis ───────────────────────────────────────────────────────────
+
+/**
+ * Um ponto da trajetória de um paciente de UTI.
+ *
+ * Rótulo e tom das classificações viajam juntos porque foram gravados juntos: o
+ * tom é o que o gráfico usa para colorir. Colorir por texto — como o eroERP faz
+ * com `includes('adequado')` — quebra no primeiro rótulo que contém a palavra
+ * por acaso.
+ */
+export interface PontoAvaliacaoUti {
+  dataAvaliacao: string
+  idadeAnos?: number
+
+  pesoTrabalhoKg?: number
+  imc?: number
+  classifImcOms?: string
+  classifImcOmsTom?: TomResultado
+
+  percPerdaPeso?: number
+  classifPerdaPeso?: string
+  classifPerdaPesoTom?: TomResultado
+
+  adequacaoCircBracoPerc?: number
+  classifAdequacaoCb?: string
+  classifAdequacaoCbTom?: TomResultado
+
+  metaEnergetica?: number
+  metaProteica?: number
+
+  volumeTotalMl?: number
+  caloriasOfertadas?: number
+  proteinaOfertada?: number
+  caloriasPorQuilo?: number
+  proteinaPorQuilo?: number
+  percentualDoVct?: number
+  percentualDaProteina?: number
+}
+
+export interface HistoricoFormulaUti {
+  formulaNome: string
+  avaliacoes: number
+  primeiroUso?: string
+  ultimoUso?: string
+}
+
+export interface PainelPacienteUti {
+  pacienteId: string
+  pacienteNome: string
+  sexo?: 'MASCULINO' | 'FEMININO'
+  dataNascimento?: string
+  idadeAnosAtual?: number
+
+  totalAvaliacoes: number
+  primeiraAvaliacao?: string
+  ultimaAvaliacao?: string
+  ultima?: AvaliacaoUtiResponse
+
+  evolucao: PontoAvaliacaoUti[]
+  historicoFormulas: HistoricoFormulaUti[]
+
+  /** A ponte para o painel de acompanhamento. */
+  totalDiasRegistrados: number
+  primeiroDia?: string
+  ultimoDia?: string
+}
+
+export interface PainelAcompanhamentoUti {
+  pessoaId: string
+  pessoaNome: string
+
+  de?: string
+  ate?: string
+  totalDias: number
+  diasSemAvaliacao: number
+
+  /** Média das adesões. **Não é nota** — ver `AdesaoNoTempo`. */
+  adesaoMedia?: number
+  caloriasPorQuiloMedia?: number
+  proteinaPorQuiloMedia?: number
+  balancoAcumuladoMl?: number
+  diureseMediaMlKgHora?: number
+  ingestaoOralMedia?: number
+
+  ultimaAvaliacao?: string
+  metaEnergetica?: number
+  metaProteica?: number
+  volumePrescritoNaAvaliacao?: number
+
+  /** Ordem cronológica crescente: é o eixo X. */
+  dias: RegistroDiarioUtiResponse[]
+}
+
+export interface PontoPeriodoUti {
+  periodo: string
+  avaliacoes: number
+  dias: number
+}
+
+/** `tom` nulo = a fatia "não classificado", que não é categoria clínica. */
+export interface ContagemRotuladaUti {
+  rotulo: string
+  tom?: TomResultado
+  quantidade: number
+}
+
+export interface ContagemUti {
+  rotulo: string
+  quantidade: number
+}
+
+export interface PacienteRankingUti {
+  pacienteId: string
+  pacienteNome: string
+  avaliacoes: number
+  dias: number
+}
+
+export interface DashboardUti {
+  totalAvaliacoes: number
+  totalPacientes: number
+  avaliacoesMes: number
+  totalDiasRegistrados: number
+
+  idadeMediaAnos?: number
+  pesoTrabalhoMedio?: number
+  imcMedio?: number
+  metaEnergeticaMedia?: number
+  metaProteicaMedia?: number
+  kcalPorQuiloMedio?: number
+  proteinaPorQuiloMedio?: number
+  adesaoMedia?: number
+  percEutrofia?: number
+  avaliacoesObesidade: number
+
+  porPeriodo: PontoPeriodoUti[]
+
+  classifImcOms: ContagemRotuladaUti[]
+  classifAdequacaoCb: ContagemRotuladaUti[]
+  classifPerdaPeso: ContagemRotuladaUti[]
+
+  porFormula: ContagemUti[]
+  porFase: ContagemUti[]
+  porTerapiaRenal: ContagemUti[]
+  porModoInfusao: ContagemUti[]
+
+  pacientesMaisAvaliados: PacienteRankingUti[]
 }

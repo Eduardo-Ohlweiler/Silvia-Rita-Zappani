@@ -129,6 +129,19 @@ public final class AntropometriaCalculator {
      * Peso ajustado: {@code (atual − ideal) × 0,33 + ideal}
      * ({@code Estimativas!E9}).
      *
+     * <p><b>De onde vem o 0,33.</b> É a fração metabolicamente ativa do excesso
+     * de peso: cerca de <b>25 % do tecido adiposo é massa magra</b>, e o
+     * restante do excesso é gordura, que consome pouca energia. A prática
+     * clínica arredonda para 0,25 ou 0,33 conforme a escola — Wilkens (1986) e a
+     * ADA popularizaram o 0,25; o 0,33 é a variante conservadora, e é a que a
+     * planilha usa. Não é constante com fórmula fechada: é convenção clínica, e
+     * este sistema segue a da planilha porque é a que a Silvia pratica.
+     *
+     * <p><b>Só faz sentido em excesso de peso.</b> Com atual abaixo do ideal a
+     * expressão devolve valor <i>entre</i> os dois, o que não é o propósito —
+     * quem decide se o ajustado entra na cascata é
+     * {@code PesoDeTrabalho}, e ele só o oferece quando há obesidade.
+     *
      * <p>Confere: (85; 58,71) → 67,3857.
      */
     public static BigDecimal pesoAjustado(BigDecimal pesoAtualKg, BigDecimal pesoIdealKg) {
@@ -242,7 +255,19 @@ public final class AntropometriaCalculator {
         return percentual(circBracoCm, p50Cm);
     }
 
-    /** Classificação da % de adequação de CB, em seis faixas ({@code N12:O17}). */
+    /**
+     * Classificação da % de adequação de CB, em <b>seis faixas</b>
+     * ({@code Estimativas!N12:O17}).
+     *
+     * <p><b>Os cortes — 70 · 80 · 90 · 110 · 120 % — são de Blackburn e Thornton
+     * (1979)</b>, o esquema clássico de adequação antropométrica contra o
+     * percentil 50 de referência: abaixo de 90 % há déficit em três graus, entre
+     * 90 e 110 % é eutrofia, e acima há excesso em dois graus. É a mesma régua
+     * que a planilha tabula, e vale para CB, CMB e prega tricipital.
+     *
+     * <p>A <b>tabela de percentis</b> contra a qual se compara é outra coisa e
+     * tem fonte própria — ver {@code PercentilCb} e {@code docs/10 §2.8}.
+     */
     public static Classificacao classificarAdequacaoCircBraco(BigDecimal adequacaoPerc) {
         if (adequacaoPerc == null) return null;
         if (menorQue(adequacaoPerc, "70"))  return Classificacao.critica("Desnutrição grave");

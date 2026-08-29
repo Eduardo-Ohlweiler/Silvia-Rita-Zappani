@@ -598,8 +598,10 @@ A planilha tabula quatro densidades exatas *(`G5:H8`)*:
 | 1,2 kcal/ml | 80 |
 | 1,0 kcal/ml | 85 |
 
-> ⚠️ **12 das 54 fórmulas do catálogo têm densidade intermediária** (1,12 · 1,14 ·
-> 1,21 · 1,23 · 1,24 · 1,3 · 1,31 · 1,33) e **não têm linha nesta tabela**.
+> ⚠️ **9 das 53 fórmulas do catálogo têm densidade intermediária** — oito valores
+> distintos (1,12 · 1,14 · 1,21 · 1,23 · 1,24 *(duas fórmulas)* · 1,3 · 1,31 ·
+> 1,33) — e **não têm linha nesta tabela**. As outras 44 caem numa das quatro
+> densidades exatas: 1,0 *(16)* · 1,2 *(7)* · 1,5 *(18)* · 2,0 *(3)*.
 > Aplicar uma função escada seria inferência nossa.
 >
 > **O teor de água livre é propriedade do produto e vem no rótulo — não se deriva
@@ -888,7 +890,7 @@ regressão.
 | 18 | `Necessidades!C13` vs `C18` | cabeçalho diz `IMC>40`, rodapé diz `IMC >50` — **não é contradição**: são os cortes de *linhas* diferentes | ver §3.3 — a primeira implementação trocou os dois, e a correção mudou dose |
 | 19 | `Estimativas!J24` | o P50 de CB é **digitado**, com a tabela `I12:K21` ao lado sem ser consultada | |
 | 20 | — | o peso estimado de `Estimativas` **não alimenta aba nenhuma** | |
-| 21 | `Hidratação!G5:H8` | a tabela de % de água só tem 4 densidades exatas; 12 das 54 fórmulas não têm linha | ver §5.1 |
+| 21 | `Hidratação!G5:H8` | a tabela de % de água só tem 4 densidades exatas; 9 das 53 fórmulas não têm linha | ver §5.1 |
 | 22 | `Prescr x Inf!E7:E452` | 446 células gravadas com `#DIV/0!` | fora desta fatia |
 
 **Defeitos 14 e 15 são o problema estrutural**, não erros de fórmula: a planilha
@@ -966,18 +968,89 @@ intermediárias, e arredondamento uma vez na saída com a escala declarada.
    recomendações publicadas (Gonzalez 2021 e a orientação GLIM 2022) que
    discordam só na faixa IMC < 18,5. Vira o campo `populacao_referencia`, visível
    apenas nessa faixa, com padrão clínico deduzido da perda de peso. Ver §2.9.
-3. **Faixas de referência de laboratório** (K, Na, Mg, lactato, pH, pCO₂, HCO₃,
-   PCR, glicemia) — não estão na planilha e só são necessárias para as bandas dos
-   gráficos do painel diário. Pesquisar com citação quando a fatia dos painéis
-   chegar.
+3. ~~**Faixas de referência de laboratório**~~ — **resolvido**, ver §14.
 4. **`agua_livre_perc` está vazio nas 53 fórmulas do catálogo.** A coluna existe
    e o cálculo a prefere quando preenchida (§5.1), mas o seed não trouxe o dado:
    ele vem do **rótulo de cada produto**, e inventá-lo por aproximação seria
-   exatamente a inferência que este documento recusa. Consequência hoje: as 41
+   exatamente a inferência que este documento recusa. Consequência hoje: as 44
    fórmulas de densidade exata caem na escada da planilha — dizendo que
-   estimaram — e as **12 de densidade intermediária ficam sem cálculo de água**,
+   estimaram — e as **9 de densidade intermediária ficam sem cálculo de água**,
    com o motivo na tela. É preenchimento de cadastro, não de código: a tela de
    fórmula enteral tem o campo, e a nutricionista o preenche com o rótulo na mão.
 5. **As abas fora do escopo desta fatia:** `Controle Ingestão` (média de aceitação
    por refeição), `Prescr x Inf` (prescrito × infundido), `Acomp` e `Paciente`
    (formulários em branco, 1.087 células sem fórmula) e `Siglário` (35 siglas).
+
+---
+
+## 14. Faixas de referência dos painéis
+
+**Nenhuma delas está na planilha.** Todas vieram de literatura para a fatia dos
+painéis, e cada uma carrega a fonte — mesma regra do resto do documento:
+constante clínica sem procedência não entra. Implementadas em
+`components/graficos/referencias.ts`.
+
+### 14.1 Por que não são todas do mesmo tipo
+
+Um componente que só soubesse desenhar banda **mentiria em três dos nove**:
+
+| Forma | Quando | Analitos |
+|---|---|---|
+| **banda** | há valor de menos e valor de mais | K · Na · Mg · pH · pCO₂ · HCO₃ |
+| **limiar superior** | só o excesso importa | lactato · PCR |
+| **alvo terapêutico** | não é normalidade, é onde se quer manter | glicemia |
+
+Não existe "lactato baixo demais" nem "PCR baixa demais": desenhar um piso ali
+inventaria um alerta que a clínica não faz.
+
+### 14.2 A tabela
+
+| Analito | Unidade | Faixa | Forma | Fonte |
+|---|---|---|---|---|
+| Potássio | mEq/L | 3,5 – 5,0 | banda | referência laboratorial de adulto |
+| Sódio | mEq/L | 135 – 145 | banda | referência laboratorial de adulto |
+| Magnésio | mg/dL | 1,7 – 2,2 | banda | referência laboratorial de adulto |
+| pH | — | 7,35 – 7,45 | banda | gasometria arterial, faixa fisiológica |
+| pCO₂ | mmHg | 35 – 45 | banda | gasometria arterial, faixa fisiológica |
+| HCO₃ | mEq/L | 21 – 28 | banda | gasometria arterial, faixa fisiológica |
+| Lactato | mmol/L | > 2 alerta · **> 4 grave** | limiar | Surviving Sepsis Campaign |
+| PCR | mg/dL | < 0,5 | limiar | limite superior de referência |
+| Glicemia (HGT) | mg/dL | **140 – 180** | **alvo** | NICE-SUGAR, NEJM 2009 |
+
+### 14.3 A glicemia é o caso delicado
+
+A faixa de adulto saudável é **70–99 mg/dL em jejum**, e usá-la num painel de
+UTI marcaria quase todo paciente crítico como alterado. O alvo em terapia
+intensiva é **140–180**: o NICE-SUGAR mostrou que controle estrito (< 110)
+**aumenta hipoglicemia grave sem ganho de mortalidade**. Por isso o rótulo do
+gráfico diz *"alvo"*, e não *"normal"* — a palavra errada ali vira conduta
+errada.
+
+### 14.4 Duas linhas que não são laboratório
+
+| Linha | Valor | Fonte | Por que existe |
+|---|---|---|---|
+| **Oligúria** | 0,5 ml/kg/h | KDIGO 2012, critério de LRA por débito urinário | é o que justifica o sistema ter calculado diurese em ml/kg/h em vez de deixar o volume bruto, que não diz nada sem o peso |
+| **PAM alvo** | 65 mmHg | Surviving Sepsis Campaign | só é desenhável porque este sistema grava sistólica e diastólica **separadas** — no eroERP `pa` é texto livre `"120/80"` e não plota nada |
+
+A PAM é calculada na leitura da tela (`diastólica + (sistólica − diastólica)/3`),
+não gravada: não é prescrição, e o registro não muda por causa dela.
+
+### 14.5 A adesão à dieta não é nota
+
+O gráfico de adesão **não colore o desvio**, e isso é decisão clínica:
+
+- a **ESPEN** recomenda oferta hipocalórica — abaixo de 70 % — nos três primeiros
+  dias, com progressão do 3º ao 7º;
+- a própria planilha diz o mesmo na escada de **25 · 50 · 75 · 100 %**
+  (`Contínuo!P15:P18`), que o sistema implementa em §4.1;
+- mas adequação sustentada abaixo de 70 % associa-se a **1,4× mais óbito**, e
+  *overfeeding* também piora desfecho.
+
+**O mesmo 60 % é conduta no dia 2 e alerta no dia 10.** Um gráfico que pintasse
+o desvio de vermelho — como o `corPerc` do eroERP (verde ≥ 90 · âmbar ≥ 70 ·
+vermelho < 70) — estaria errado metade do tempo. Há a linha tracejada nos 100 %
+e a nota; o julgamento fica com quem prescreve.
+
+Também não se replica o `domain={[0, 120]}` de lá, que **corta fora** a barra de
+quem recebeu mais que o prescrito — justamente o caso que se quer enxergar.

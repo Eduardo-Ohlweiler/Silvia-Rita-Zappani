@@ -5,6 +5,7 @@ import {
   TButton,
   TCombo,
   TEntry,
+  TBotaoImprimir,
   TPage,
   TPanel,
   TResult,
@@ -15,6 +16,7 @@ import {
   TTextArea,
   type Aba,
 } from '@/components/common'
+import { DocumentoRegistroDiario } from '@/components/uti/impressao/DocumentoRegistroDiario'
 import { handleApiError } from '@/services/api'
 import { catalogoService } from '@/services/catalogoService'
 import { pessoaService } from '@/services/pessoaService'
@@ -25,7 +27,13 @@ import {
   type RegistroDiarioUtiResponse,
   type SuporteVentilatorio,
 } from '@/types/uti'
-import { formatarData, formatarDocumento, formatarNumero, paraNumero } from '@/utils/format'
+import {
+  formatarData,
+  formatarDocumento,
+  formatarNumero,
+  paraNumero,
+  textoDaMascara,
+} from '@/utils/format'
 
 const HOJE = () => new Date().toISOString().slice(0, 10)
 
@@ -134,8 +142,8 @@ export function RegistroDiarioUtiForm() {
           hgt: texto(r.hgt),
           suporteVentilatorio: r.suporteVentilatorio ?? '',
           fio2Perc: texto(r.fio2Perc),
-          paSistolica: texto(r.paSistolica),
-          paDiastolica: texto(r.paDiastolica),
+          paSistolica: inteiro(r.paSistolica),
+          paDiastolica: inteiro(r.paDiastolica),
           balancoHidricoMl: texto(r.balancoHidricoMl),
           diureseMl: texto(r.diureseMl),
           evacuacao: r.evacuacao ?? '',
@@ -253,6 +261,10 @@ export function RegistroDiarioUtiForm() {
     <TPage
       title={editando ? 'Editar acompanhamento' : 'Novo acompanhamento diário'}
       subtitle="Um registro por paciente por dia. O que foi recebido é comparado com o que a avaliação prescreveu."
+      // Só há evolução para imprimir depois de gravada: os derivados nascem no
+      // servidor, e uma folha sem eles seria o formulário de novo.
+      actions={derivados && <TBotaoImprimir rotulo="Imprimir evolução" />}
+      documento={derivados && <DocumentoRegistroDiario registro={derivados} />}
     >
       <div className="flex flex-col gap-5">
         <TPanel>
@@ -317,7 +329,7 @@ export function RegistroDiarioUtiForm() {
 
         <TPanel>
           {/* ───────────────────── Dieta e TNE ────────────────────────── */}
-          <TTabPanel id={ABA_DIETA} ativa={aba}>
+          <TTabPanel id={ABA_DIETA} ativa={aba} rotulo="Dieta e TNE">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <TEntry
                 label="Dieta"
@@ -329,7 +341,7 @@ export function RegistroDiarioUtiForm() {
               <TEntry
                 label="Volume prescrito em 24 h"
                 suffix="ml"
-                inputMode="decimal"
+                mascara="decimal"
                 ajuda="Só se não houver avaliação vinculada — ela já traz o prescrito."
                 value={campos.volPrescrito24h}
                 onChange={(e) => alterar('volPrescrito24h', e.target.value)}
@@ -337,7 +349,7 @@ export function RegistroDiarioUtiForm() {
               <TEntry
                 label="Volume recebido em 24 h"
                 suffix="ml"
-                inputMode="decimal"
+                mascara="decimal"
                 value={campos.volRecebido24h}
                 onChange={(e) => alterar('volRecebido24h', e.target.value)}
               />
@@ -377,7 +389,7 @@ export function RegistroDiarioUtiForm() {
           </TTabPanel>
 
           {/* ───────────────────── Laboratório ────────────────────────── */}
-          <TTabPanel id={ABA_LAB} ativa={aba}>
+          <TTabPanel id={ABA_LAB} ativa={aba} rotulo="Laboratório">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {/*
                 O exemplo é da faixa normal do exame e mostra a casa decimal:
@@ -385,21 +397,21 @@ export function RegistroDiarioUtiForm() {
                 paciente. Aceita vírgula ou ponto — ver `paraNumero`.
               */}
               {[
-                ['k', 'Potássio', 'mEq/L', 'Ex.: 4,2'],
-                ['na', 'Sódio', 'mEq/L', 'Ex.: 138'],
-                ['mg', 'Magnésio', 'mg/dL', 'Ex.: 1,9'],
-                ['lactato', 'Lactato', 'mmol/L', 'Ex.: 1,4'],
+                ['k', 'Potássio', 'mEq/L', 'Ex.: 4,20'],
+                ['na', 'Sódio', 'mEq/L', 'Ex.: 138,00'],
+                ['mg', 'Magnésio', 'mg/dL', 'Ex.: 1,90'],
+                ['lactato', 'Lactato', 'mmol/L', 'Ex.: 1,40'],
                 ['ph', 'pH', '', 'Ex.: 7,38'],
-                ['pco2', 'pCO₂', 'mmHg', 'Ex.: 40,5'],
-                ['hco3', 'Bicarbonato', 'mEq/L', 'Ex.: 24,3'],
+                ['pco2', 'pCO₂', 'mmHg', 'Ex.: 40,50'],
+                ['hco3', 'Bicarbonato', 'mEq/L', 'Ex.: 24,30'],
                 ['pcr', 'PCR', 'mg/dL', 'Ex.: 0,42'],
-                ['hgt', 'Glicemia (HGT)', 'mg/dL', 'Ex.: 152'],
+                ['hgt', 'Glicemia (HGT)', 'mg/dL', 'Ex.: 152,00'],
               ].map(([campo, rotulo, unidade, exemplo]) => (
                 <TEntry
                   key={campo}
                   label={rotulo}
                   suffix={unidade || undefined}
-                  inputMode="decimal"
+                  mascara="decimal"
                   placeholder={exemplo}
                   value={campos[campo]}
                   onChange={(e) => alterar(campo, e.target.value)}
@@ -409,7 +421,7 @@ export function RegistroDiarioUtiForm() {
           </TTabPanel>
 
           {/* ────────────────── Clínica e balanço ─────────────────────── */}
-          <TTabPanel id={ABA_CLINICA} ativa={aba}>
+          <TTabPanel id={ABA_CLINICA} ativa={aba} rotulo="Clínica e balanço">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <TSelect
                 label="Suporte ventilatório"
@@ -422,7 +434,7 @@ export function RegistroDiarioUtiForm() {
               <TEntry
                 label="FiO₂"
                 suffix="%"
-                inputMode="decimal"
+                mascara="decimal"
                 ajuda="De 21 (ar ambiente) a 100."
                 value={campos.fio2Perc}
                 onChange={(e) => alterar('fio2Perc', e.target.value)}
@@ -431,14 +443,14 @@ export function RegistroDiarioUtiForm() {
                 <TEntry
                   label="PA sistólica"
                   suffix="mmHg"
-                  inputMode="decimal"
+                  mascara="inteiro"
                   value={campos.paSistolica}
                   onChange={(e) => alterar('paSistolica', e.target.value)}
                 />
                 <TEntry
                   label="PA diastólica"
                   suffix="mmHg"
-                  inputMode="decimal"
+                  mascara="inteiro"
                   value={campos.paDiastolica}
                   onChange={(e) => alterar('paDiastolica', e.target.value)}
                 />
@@ -447,7 +459,7 @@ export function RegistroDiarioUtiForm() {
               <TEntry
                 label="Balanço hídrico"
                 suffix="ml"
-                inputMode="decimal"
+                mascara="decimalComSinal"
                 ajuda="Aceita negativo."
                 value={campos.balancoHidricoMl}
                 onChange={(e) => alterar('balancoHidricoMl', e.target.value)}
@@ -455,7 +467,7 @@ export function RegistroDiarioUtiForm() {
               <TEntry
                 label="Diurese"
                 suffix="ml"
-                inputMode="decimal"
+                mascara="decimal"
                 value={campos.diureseMl}
                 onChange={(e) => alterar('diureseMl', e.target.value)}
               />
@@ -482,7 +494,7 @@ export function RegistroDiarioUtiForm() {
           </TTabPanel>
 
           {/* ───────────────────── Ingestão oral ──────────────────────── */}
-          <TTabPanel id={ABA_ORAL} ativa={aba}>
+          <TTabPanel id={ABA_ORAL} ativa={aba} rotulo="Ingestão oral">
             <p className="text-caption mb-4 text-txt-secondary">
               Percentual de aceitação de cada refeição. Deixar em branco não é o mesmo que
               zero — refeição não registrada fica fora da média.
@@ -500,7 +512,7 @@ export function RegistroDiarioUtiForm() {
                   key={campo}
                   label={rotulo}
                   suffix="%"
-                  inputMode="decimal"
+                  mascara="decimal"
                   value={campos[campo]}
                   onChange={(e) => alterar(campo, e.target.value)}
                 />
@@ -520,7 +532,7 @@ export function RegistroDiarioUtiForm() {
           </TTabPanel>
 
           {/* ───────────────────── Observações ────────────────────────── */}
-          <TTabPanel id={ABA_OBS} ativa={aba}>
+          <TTabPanel id={ABA_OBS} ativa={aba} rotulo="Observações">
             <TTextArea
               label="Observações"
               value={campos.observacao}
@@ -554,6 +566,12 @@ export function RegistroDiarioUtiForm() {
   )
 }
 
+/** No formato da máscara — ver `textoDaMascara`. */
 function texto(valor?: number | null): string {
-  return valor == null ? '' : String(valor).replace('.', ',')
+  return textoDaMascara(valor, 2)
+}
+
+/** PA é mmHg redondo, e o DTO só aceita uma casa. */
+function inteiro(valor?: number | null): string {
+  return textoDaMascara(valor, 0)
 }

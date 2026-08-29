@@ -54,16 +54,21 @@ sistema silvia/
         ├── assets/brand/          # logo-full · logo-mark · logo-simbolo (currentColor)
         ├── assets/icons/          # SVG inline, módulo único
         ├── styles/theme.css       # tokens Tailwind v4 + temas claro/escuro
+        ├── components/graficos/   # chrome · eixos · referencias (faixas com fonte)
+        │                          # SerieNoTempo · MetaVersusOfertado · BarrasComZero
+        ├── components/impressao/  # Folha · TiraIndicadores · Secao · LinhasDeValor
+        │                          # TabelaDoc · DocumentoLista (doc 05 §8)
         ├── components/common/     # TPage TPanel TDataGrid TDataGridFooter
         │                          # TEntry TSelect TCombo TButton TBadge TModal TThemeToggle
-        │                          # TTabs TResult (telas de cálculo — doc 04 §7)
+        │                          # TTabs TResult TBotaoImprimir (doc 04 §7)
         ├── components/layout/     # Layout · Sidebar · TenantSwitcher · TProtected
         ├── contexts/              # AuthContext · ThemeContext
         ├── hooks/                 # useAuth · useTheme · useDebounce
         ├── services/              # api.ts (interceptor + refresh) + um por módulo
         ├── pages/                 # auth/Login · Dashboard · usuario · tenant
         │                          # pessoa · loginlog · perfil · pediatria
-        │                          # uti/ (catálogos da terapia nutricional)
+        │                          # uti/ (catálogos, cálculo, avaliação,
+        │                          #      acompanhamento e os 3 painéis)
         ├── components/pessoa/     # PessoaRapidaModal (cadastro rápido)
         ├── types/ utils/
         └── routes/AppRoutes.tsx
@@ -82,12 +87,11 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **2 — Casca do front e área administrativa** | ✅ pronta |
 | **3 — Pessoas** | ✅ pronta · porte do eroERP, com endereços (IBGE) e vínculos |
 | **5 — Pediatria** | ✅ pronta · cálculo no servidor, telas em abas, painéis com paleta validada |
-| **6 — Terapia Nutricional (UTI adulto)** | ⬅️ **em construção** · especificação [docs/10](docs/10-calculos-uti-adulto.md) ✅ · catálogos ✅ · **cálculo e calculadora ✅** · **ferramentas clínicas ✅** · **avaliação ✅** · **acompanhamento diário ✅** · **passe de verificação ✅** ·
-faltam painéis e impressão |
+| **6 — Terapia Nutricional (UTI adulto)** | ✅ pronta · especificação [docs/10](docs/10-calculos-uti-adulto.md) · catálogos · cálculo e calculadora · ferramentas clínicas · avaliação · acompanhamento diário · **3 painéis** · **impressão** |
 | 4 — Atendimento | pendente |
 | 7 a 9 — Catálogos · Acompanhamento · audit_log | pendentes |
 
-**256 testes** no total, contra o banco `nutridb_test`.
+**271 testes** no total, contra o banco `nutridb_test`.
 
 **Bloqueio resolvido.** As fatias de cálculo dependiam de uma especificação
 numérica das fórmulas — com célula de origem, referência bibliográfica, unidade e
@@ -227,6 +231,74 @@ mandando ponto. Hoje a regra é pelo formato, com preferência do decimal: só �
 milhar quando há vírgula no número, quando há mais de um ponto, ou no padrão
 `1.500` (1 a 3 dígitos, três depois, sem começar em zero).
 
+**Campo numérico usa máscara de centavos, e vazio tem de continuar vazio.**
+`TEntry` recebe `mascara="decimal" | "inteiro" | "decimalComSinal"`: os dígitos
+entram pela direita e a vírgula se posiciona sozinha (`7250` → `72,50`), como no
+eroERP. Duas diferenças deliberadas em relação a lá, e as duas são defeito de
+lá: **apagar tudo devolve string vazia**, não `0,00` — senão um campo opcional
+que o usuário limpou viraria zero e o cálculo devolveria número em vez de dizer
+o que falta; e **colar passa por `paraNumero`** antes de formatar, senão colar
+`70` daria `0,70`. Ao repovoar registro salvo, use `textoDaMascara(valor, casas)`
+com as mesmas casas do campo: `String(72.5)` daria `"72,5"`, e a primeira tecla
+releria isso como os dígitos `725`.
+
+**A compilação incremental do Maven mente quando você muda uma assinatura.**
+`./run-dev.sh compile` respondeu *"Nothing to compile — all classes are up to
+date"* e **BUILD SUCCESS** com o projeto quebrado: uma assinatura de mapper
+mudou, o chamador em outro pacote não foi recompilado, e os testes rodaram
+contra o `.class` velho. O sintoma foi 500 em três testes de painel, com
+`NoSuchMethodError` escondido atrás de *"Erro inesperado"* — e nenhuma linha
+apontando para a mudança real. Mudou assinatura pública, rode
+`./run-dev.sh clean compile`. `touch` no arquivo não basta.
+
+**Motivo de ausência é função das entradas, e a entrada está gravada.**
+A avaliação salva devolvia todo motivo nulo — "eles explicam o instante da
+digitação", dizia o javadoc — e uma criança de 37 meses reabria com VET,
+proteína e as duas adequações em branco, **sem uma palavra**. Era o traço mudo
+que o sistema inteiro existe para não repetir; a UTI tinha o mesmo defeito, em
+nove campos. Hoje `findById` refaz o cálculo sobre as **entradas gravadas** e
+aproveita dele **só texto**: todo número continua vindo das colunas. Não é
+recalcular prontuário — é lembrar por que uma coluna está vazia. A UTI usa o
+**retrato** da fórmula, não o catálogo, senão o motivo explicaria uma avaliação
+que não é aquela.
+
+**Motivo de tabela derivada não cabe no motivo do bloco.**
+`TABELA_NAO_GRAVADA` ocupava o `motivo` de `Dieta` e `Hidratacao` na avaliação
+salva — mas esse campo também é o "por que este bloco não saiu", e a tela o
+pendura em **Volume total** e **Necessidade hídrica**. Resultado: a frase
+"tabela derivada, não faz parte do registro" aparecia debaixo de números que
+existiam. Hoje `motivoProgressao` e `motivoDistribuicao` são campos próprios, e
+`TResult` só mostra motivo quando o valor está mesmo vazio.
+
+**Imprimir o formulário devolve formulário.**
+A primeira impressão era o DOM da tela com a interface escondida — e saía uma
+folha de campos de entrada, rótulos de digitação e uma aba só, porque as outras
+três estavam desmontadas. Quem lê no papel quer **demonstrativo**: identificação,
+tira de indicadores, seções com o número já calculado e a procedência ao lado.
+Hoje cada tela imprimível monta uma `Folha` e a passa à `TPage` pela prop
+`documento`; a `TPage` marca o conteúdo de tela como `.nao-imprime`. O desenho
+veio do `geradorPdf.ts` do eroERP; a ferramenta, não — jsPDF seria uma segunda
+montagem dos mesmos números, e a do papel envelheceria calada.
+
+**`break-inside: avoid` numa caixa mais alta que a página esvazia a página.**
+As seções da folha impressa tinham `break-inside: avoid`, e a tabela de 18 dias
+de acompanhamento é mais alta que um A4. Uma caixa que não cabe em página
+nenhuma é empurrada inteira para a seguinte: saiu uma capa em branco e o
+relatório começando na página 2, com três páginas onde cabiam duas. A promessa
+de não quebrar só pode ser feita por quem é menor que a página — a linha da
+tabela, a tira de indicadores. Para o título existe `break-after: avoid`, que
+impede o órfão sem prometer nada sobre a altura do que vem depois. E o rodapé
+precisa de `break-before: avoid`: 8 mm de respiro bastavam para ele sozinho
+virar uma última folha com nada além dele.
+
+**Exportar a página visível é a armadilha da listagem.**
+Relatório e planilha de uma lista precisam cobrir **o filtro inteiro**, não os 20
+da página aberta — e o usuário só descobriria a diferença ao conferir o total.
+`TAcoesDeExportacao` refaz a consulta sem paginação, com teto de 2.000 linhas, e
+**anuncia quantas ficaram de fora** quando corta. E o CSV escapa `=`, `+`, `-` e
+`@` no início da célula: nome de paciente é texto digitado, e uma planilha que
+executa fórmula na máquina de quem abre é injeção, não formatação.
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -281,7 +353,7 @@ query com `CAST`.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 256 testes contra nutridb_test
+./run-dev.sh test         # 271 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

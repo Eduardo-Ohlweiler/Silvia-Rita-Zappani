@@ -1,5 +1,5 @@
 import type { CalculoUtiRequest } from '@/types/uti'
-import { paraNumero } from '@/utils/format'
+import { paraNumero, textoDaMascara } from '@/utils/format'
 
 /**
  * As entradas do cálculo da UTI, como a tela as guarda: **texto cru**, do jeito
@@ -76,7 +76,7 @@ export const ENTRADAS_UTI_VAZIAS: EntradasUti = {
   // branco faria a aba da dieta parecer quebrada antes do primeiro toque.
   modoInfusao: 'CONTINUA',
   volumePorTempo: '',
-  tempo: '22',
+  tempo: '22,00',
   volumeDietaManualMl: '',
 }
 
@@ -99,7 +99,7 @@ export function paraEntradas(c: CalculoUtiRequest): EntradasUti {
   return {
     sexo: c.sexo ?? '',
     etnia: c.etnia ?? '',
-    idadeAnos: texto(c.idadeAnos),
+    idadeAnos: inteiro(c.idadeAnos),
     alturaCm: texto(c.alturaCm),
     alturaJoelhoCm: texto(c.alturaJoelhoCm),
     circBracoCm: texto(c.circBracoCm),
@@ -156,6 +156,15 @@ export function paraRequisicao(e: EntradasUti): CalculoUtiRequest {
   }
 }
 
+/**
+ * No formato da máscara — duas casas fixas —, senão a primeira tecla digitada
+ * relê `72,5` como os dígitos `725` e o campo vira `7,25`.
+ */
 function texto(valor?: number | null): string {
-  return valor == null ? '' : String(valor).replace('.', ',')
+  return textoDaMascara(valor, 2)
+}
+
+/** Idade é inteira: sem casa decimal nenhuma. */
+function inteiro(valor?: number | null): string {
+  return textoDaMascara(valor, 0)
 }

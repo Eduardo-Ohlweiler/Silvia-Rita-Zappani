@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar, IconBusca } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TButton,
   TDataGrid,
   TDataGridFooter,
@@ -11,8 +12,10 @@ import {
   TPage,
   TPanel,
   type Coluna,
+  type ResultadoDaCarga,
   type TomResultado,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
@@ -20,6 +23,7 @@ import { avaliacaoUtiService } from '@/services/utiService'
 import type { Page } from '@/types/comum'
 import type { AvaliacaoUtiLista } from '@/types/uti'
 import { formatarData, formatarNumero } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 export function AvaliacaoUtiList() {
   const navigate = useNavigate()
@@ -32,6 +36,7 @@ export function AvaliacaoUtiList() {
   const [dados, setDados] = useState<Page<AvaliacaoUtiLista>>()
   const [carregando, setCarregando] = useState(true)
   const [aRemover, setARemover] = useState<AvaliacaoUtiLista>()
+  const [paraImprimir, setParaImprimir] = useState<ResultadoDaCarga<AvaliacaoUtiLista>>()
 
   const nomeBusca = useDebounce(nome)
 
@@ -66,6 +71,51 @@ export function AvaliacaoUtiList() {
       handleApiError(erro)
     }
   }
+
+  /**
+   * O relatório e a planilha cobrem **o filtro inteiro**, não a página aberta.
+   * Pede uma linha a mais que o teto: se ela vier, é porque há mais, e o papel
+   * diz quantas ficaram de fora em vez de cortar calado.
+   */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<AvaliacaoUtiLista>> => {
+      const pagina = await avaliacaoUtiService.getAll({
+        pacienteNome: nomeBusca || undefined,
+        de: de || undefined,
+        ate: ate || undefined,
+        page: 0,
+        size: limite,
+      })
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [nomeBusca, de, ate],
+  )
+
+  /**
+   * O que uma linha precisa dizer no papel: quem, quando, em que estado, com
+   * que meta e com qual dieta. É o resumo clínico da avaliação — as mesmas
+   * colunas alimentam o CSV, então os dois não conseguem divergir.
+   */
+  const colunasExportadas: ColunaExportavel<AvaliacaoUtiLista>[] = [
+    { titulo: 'Paciente', valor: (a) => a.pacienteNome },
+    { titulo: 'Data', valor: (a) => formatarData(a.dataAvaliacao) },
+    { titulo: 'Profissional', valor: (a) => a.profissionalNome ?? '—' },
+    { titulo: 'Peso (kg)', numerica: true, valor: (a) => txt(a.pesoTrabalhoKg, 2) },
+    { titulo: 'Origem do peso', valor: (a) => a.pesoTrabalhoOrigem ?? '—' },
+    { titulo: 'IMC', numerica: true, valor: (a) => txt(a.imc, 2) },
+    { titulo: 'Estado nutricional', valor: (a) => a.classificacaoImc ?? 'Sem peso ou altura' },
+    { titulo: 'Meta (kcal/dia)', numerica: true, valor: (a) => txt(a.metaEnergetica, 0) },
+    { titulo: 'Fórmula', valor: (a) => a.formulaNome ?? '—' },
+  ]
+
+  const filtrosAplicados = [
+    { rotulo: 'Paciente', valor: nomeBusca },
+    { rotulo: 'De', valor: de ? formatarData(de) : '' },
+    { rotulo: 'Até', valor: ate ? formatarData(ate) : '' },
+  ]
 
   const colunas: Coluna<AvaliacaoUtiLista>[] = [
     {
@@ -148,10 +198,40 @@ export function AvaliacaoUtiList() {
       title="Avaliações de terapia nutricional"
       subtitle="Cada avaliação guarda os resultados do dia. Abrir uma delas não recalcula."
       actions={
-        <TButton onClick={() => navigate('/app/uti/avaliacoes/nova')}>
-          <IconAdicionar className="size-4" />
-          Nova avaliação
-        </TButton>
+        <>
+          <TAcoesDeExportacao
+            nome="Avaliações de terapia nutricional"
+            colunas={colunasExportadas}
+            carregar={carregarTudo}
+            aoCarregarParaImprimir={setParaImprimir}
+          />
+          <TButton onClick={() => navigate('/app/uti/avaliacoes/nova')}>
+            <IconAdicionar className="size-4" />
+            Nova avaliação
+          </TButton>
+        </>
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Avaliações de terapia nutricional"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(a) => a.id}
+            resumo={[
+              { rotulo: 'Avaliações', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Pacientes',
+                valor: String(
+                  new Set(paraImprimir.linhas.map((a) => a.pacienteNome)).size,
+                ),
+              },
+            ]}
+            nota="Classificação e meta como foram gravadas em cada avaliação — nada é recalculado na emissão."
+          />
+        )
       }
     >
       <TPanel>
@@ -239,4 +319,9 @@ const COR_TOM: Record<TomResultado, string> = {
   ADEQUADO: 'text-success',
   ATENCAO: 'text-warning',
   CRITICO: 'text-danger',
+}
+
+/** Número em pt-BR, ou traço. No papel o traço é legítimo: não há como perguntar. */
+function txt(valor?: number | null, casas = 1): string {
+  return valor == null ? '—' : formatarNumero(valor, casas, casas)
 }

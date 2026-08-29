@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar, IconAlerta, IconBusca } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TBadge,
   TButton,
   TDataGrid,
@@ -12,7 +13,9 @@ import {
   TPage,
   TPanel,
   type Coluna,
+  type ResultadoDaCarga,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
@@ -20,6 +23,7 @@ import { registroDiarioUtiService } from '@/services/utiService'
 import type { Page } from '@/types/comum'
 import type { RegistroDiarioUtiLista } from '@/types/uti'
 import { formatarData, formatarNumero } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 export function RegistroDiarioUtiList() {
   const navigate = useNavigate()
@@ -32,6 +36,7 @@ export function RegistroDiarioUtiList() {
   const [dados, setDados] = useState<Page<RegistroDiarioUtiLista>>()
   const [carregando, setCarregando] = useState(true)
   const [aRemover, setARemover] = useState<RegistroDiarioUtiLista>()
+  const [paraImprimir, setParaImprimir] = useState<ResultadoDaCarga<RegistroDiarioUtiLista>>()
 
   const nomeBusca = useDebounce(nome)
 
@@ -65,6 +70,50 @@ export function RegistroDiarioUtiList() {
       handleApiError(erro)
     }
   }
+
+  /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<RegistroDiarioUtiLista>> => {
+      const pagina = await registroDiarioUtiService.getAll({
+        pessoaNome: nomeBusca || undefined,
+        de: de || undefined,
+        ate: ate || undefined,
+        page: 0,
+        size: limite,
+      })
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [nomeBusca, de, ate],
+  )
+
+  /**
+   * O resumo de um dia no papel: quem, quando, quanto recebeu do prescrito, o
+   * que isso deu por quilo, e o balanço. A coluna de avaliação vinculada entra
+   * porque é ela que explica por que kcal/kg pode estar vazio.
+   */
+  const colunasExportadas: ColunaExportavel<RegistroDiarioUtiLista>[] = [
+    { titulo: 'Paciente', valor: (r) => r.pessoaNome },
+    { titulo: 'Data', valor: (r) => formatarData(r.data) },
+    { titulo: 'Prescrito (ml)', numerica: true, valor: (r) => txt(r.volPrescrito24h, 0) },
+    { titulo: 'Recebido (ml)', numerica: true, valor: (r) => txt(r.volRecebido24h, 0) },
+    { titulo: 'Adesão (%)', numerica: true, valor: (r) => txt(r.percentualRecebido, 1) },
+    { titulo: 'kcal/kg', numerica: true, valor: (r) => txt(r.caloriasPorQuilo, 1) },
+    { titulo: 'Balanço (ml)', numerica: true, valor: (r) => txt(r.balancoHidricoMl, 0) },
+    { titulo: 'Diurese (ml)', numerica: true, valor: (r) => txt(r.diureseMl, 0) },
+    {
+      titulo: 'Avaliação vinculada',
+      valor: (r) => (r.temAvaliacao ? 'Sim' : 'Não — kcal/kg e diurese por quilo não existem'),
+    },
+  ]
+
+  const filtrosAplicados = [
+    { rotulo: 'Paciente', valor: nomeBusca },
+    { rotulo: 'De', valor: de ? formatarData(de) : '' },
+    { rotulo: 'Até', valor: ate ? formatarData(ate) : '' },
+  ]
 
   const colunas: Coluna<RegistroDiarioUtiLista>[] = [
     {
@@ -138,10 +187,42 @@ export function RegistroDiarioUtiList() {
       title="Acompanhamento diário"
       subtitle="Um registro por paciente por dia. O que chegou é comparado com o que a avaliação prescreveu."
       actions={
-        <TButton onClick={() => navigate('/app/uti/acompanhamento/novo')}>
-          <IconAdicionar className="size-4" />
-          Novo dia
-        </TButton>
+        <>
+          <TAcoesDeExportacao
+            nome="Acompanhamento diário"
+            colunas={colunasExportadas}
+            carregar={carregarTudo}
+            aoCarregarParaImprimir={setParaImprimir}
+          />
+          <TButton onClick={() => navigate('/app/uti/acompanhamento/novo')}>
+            <IconAdicionar className="size-4" />
+            Novo dia
+          </TButton>
+        </>
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Acompanhamento diário"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(r) => r.id}
+            resumo={[
+              { rotulo: 'Dias', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Pacientes',
+                valor: String(new Set(paraImprimir.linhas.map((r) => r.pessoaNome)).size),
+              },
+              {
+                rotulo: 'Sem avaliação',
+                valor: String(paraImprimir.linhas.filter((r) => !r.temAvaliacao).length),
+              },
+            ]}
+            nota="A adesão é medida contra a avaliação vigente no dia. Ela não é nota de desempenho: a ESPEN recomenda oferta abaixo de 70 % nos primeiros dias."
+          />
+        )
       }
     >
       <TPanel>
@@ -215,4 +296,9 @@ export function RegistroDiarioUtiList() {
       </TModal>
     </TPage>
   )
+}
+
+/** Número em pt-BR, ou traço. */
+function txt(valor?: number | null, casas = 1): string {
+  return valor == null ? '—' : formatarNumero(valor, casas, casas)
 }

@@ -77,10 +77,15 @@ public class AvaliacaoPediatricaService {
     /**
      * Abre uma avaliação salva — <b>sem recalcular</b>. Mostra o que foi
      * gravado, ainda que as curvas ou as DRIs tenham mudado desde então.
+     *
+     * <p>O cálculo que roda aqui não contradiz isso: dele se aproveitam
+     * <b>só os motivos de ausência</b>, e nenhum número. Sem isso a avaliação de
+     * uma criança fora da faixa das DRIs reabre com quatro traços mudos.
      */
     @Transactional(readOnly = true)
     public AvaliacaoPediatricaResponseDto findById(UUID id) {
-        return AvaliacaoPediatricaMapper.toResponse(buscar(id));
+        AvaliacaoPediatrica avaliacao = buscar(id);
+        return AvaliacaoPediatricaMapper.toResponse(avaliacao, calculoService.motivosDe(avaliacao));
     }
 
     @Transactional
@@ -89,13 +94,14 @@ public class AvaliacaoPediatricaService {
         avaliacao.setTenant(securityUtils.getTenantReference());
         avaliacao.setCreatedBy(securityUtils.getUsuarioLogado());
 
-        aplicar(avaliacao, dto.pacienteId(), dto.profissionalId(), dto.dataAvaliacao(),
+        ResultadoPediatrico r = aplicar(avaliacao,
+                dto.pacienteId(), dto.profissionalId(), dto.dataAvaliacao(),
                 dto.sexo(), dto.idadeMeses(), dto.peso(), dto.estatura(),
                 dto.formulaLacteaId(), dto.volumeMl(), dto.frequenciaHoras(), dto.observacao());
 
         AvaliacaoPediatrica salva = avaliacaoRepository.save(avaliacao);
         log.info("Avaliação pediátrica criada id={}", salva.getId());
-        return AvaliacaoPediatricaMapper.toResponse(salva);
+        return AvaliacaoPediatricaMapper.toResponse(salva, r);
     }
 
     @Transactional
@@ -103,12 +109,13 @@ public class AvaliacaoPediatricaService {
         AvaliacaoPediatrica avaliacao = buscar(id);
         avaliacao.setUpdatedBy(securityUtils.getUsuarioLogado());
 
-        aplicar(avaliacao, dto.pacienteId(), dto.profissionalId(), dto.dataAvaliacao(),
+        ResultadoPediatrico r = aplicar(avaliacao,
+                dto.pacienteId(), dto.profissionalId(), dto.dataAvaliacao(),
                 dto.sexo(), dto.idadeMeses(), dto.peso(), dto.estatura(),
                 dto.formulaLacteaId(), dto.volumeMl(), dto.frequenciaHoras(), dto.observacao());
 
         log.info("Avaliação pediátrica alterada id={}", id);
-        return AvaliacaoPediatricaMapper.toResponse(avaliacaoRepository.save(avaliacao));
+        return AvaliacaoPediatricaMapper.toResponse(avaliacaoRepository.save(avaliacao), r);
     }
 
     @Transactional
@@ -124,8 +131,11 @@ public class AvaliacaoPediatricaService {
      * Grava as entradas, <b>recalcula</b> e grava o resultado do próprio
      * cálculo. Serve create e update: o caminho é o mesmo, e ter um só evita
      * que a alteração deixe de recalcular por esquecimento.
+     *
+     * @return o cálculo recém-feito — a resposta o usa só pelos motivos de
+     *         ausência; os números ela lê da entidade já gravada
      */
-    private void aplicar(AvaliacaoPediatrica avaliacao,
+    private ResultadoPediatrico aplicar(AvaliacaoPediatrica avaliacao,
                          UUID pacienteId, UUID profissionalId, LocalDate dataAvaliacao,
                          Sexo sexo, Integer idadeMeses,
                          BigDecimal peso, BigDecimal estatura,
@@ -153,9 +163,12 @@ public class AvaliacaoPediatricaService {
         avaliacao.setFormulaKcalPor100ml(formula == null ? null : formula.getKcalPor100ml());
         avaliacao.setFormulaProteinaPor100ml(formula == null ? null : formula.getProteinaPor100ml());
 
-        aplicarResultado(avaliacao, calculoService.calcular(
-                sexo, idadeMeses, peso, estatura, formula, volumeMl, frequenciaHoras));
+        ResultadoPediatrico r = calculoService.calcular(
+                sexo, idadeMeses, peso, estatura, formula, volumeMl, frequenciaHoras);
+        aplicarResultado(avaliacao, r);
+        return r;
     }
+
 
     private void aplicarResultado(AvaliacaoPediatrica avaliacao, ResultadoPediatrico r) {
         avaliacao.setImc(r.imc());

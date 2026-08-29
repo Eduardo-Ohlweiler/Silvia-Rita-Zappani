@@ -126,11 +126,13 @@ export function TResult({
         )}
       </div>
 
-      {referencia && !motivoAusencia && (
+      {referencia && !(vazio && motivoAusencia) && (
         <span className="text-caption text-txt-muted">{referencia}</span>
       )}
 
-      {motivoAusencia && (
+      {/* O motivo explica uma ausência: ao lado de um número ele mentiria.
+          Passou a importar quando a avaliação salva começou a trazer motivo. */}
+      {vazio && motivoAusencia && (
         <span className="text-caption text-txt-muted">{motivoAusencia}</span>
       )}
     </div>

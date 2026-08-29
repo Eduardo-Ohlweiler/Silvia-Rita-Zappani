@@ -5,6 +5,7 @@ import com.nutri.hospitalar.pediatria.calculo.CalculoPediatricoCalculator;
 import com.nutri.hospitalar.pediatria.calculo.EntradaPediatrica;
 import com.nutri.hospitalar.pediatria.calculo.LinhaPercentil;
 import com.nutri.hospitalar.pediatria.calculo.ResultadoPediatrico;
+import com.nutri.hospitalar.pediatria.entity.AvaliacaoPediatrica;
 import com.nutri.hospitalar.pediatria.entity.FormulaLactea;
 import com.nutri.hospitalar.pediatria.entity.PercentilOms;
 import com.nutri.hospitalar.pediatria.repository.PercentilOmsRepository;
@@ -48,13 +49,56 @@ public class CalculoPediatricoService {
                                         BigDecimal volumeMl,
                                         BigDecimal frequenciaHoras) {
 
-        EntradaPediatrica entrada = new EntradaPediatrica(
-                sexo, idadeMeses, peso, estatura,
+        return calcular(sexo, idadeMeses, peso, estatura,
                 formula != null ? formula.getKcalPor100ml() : null,
                 formula != null ? formula.getProteinaPor100ml() : null,
                 volumeMl, frequenciaHoras);
+    }
+
+    /**
+     * O mesmo cálculo, recebendo a <b>composição</b> em vez da fórmula.
+     *
+     * <p>Existe para a avaliação salva, que guarda o retrato da fórmula
+     * ({@code formula_kcal_por_100ml}, {@code formula_proteina_por_100ml}) e
+     * não pode depender de o catálogo continuar igual — a fórmula pode ter
+     * mudado, ou saído do catálogo, desde que a dieta foi prescrita.
+     */
+    @Transactional(readOnly = true)
+    public ResultadoPediatrico calcular(Sexo sexo,
+                                        Integer idadeMeses,
+                                        BigDecimal peso,
+                                        BigDecimal estatura,
+                                        BigDecimal kcalPor100ml,
+                                        BigDecimal proteinaPor100ml,
+                                        BigDecimal volumeMl,
+                                        BigDecimal frequenciaHoras) {
+
+        EntradaPediatrica entrada = new EntradaPediatrica(
+                sexo, idadeMeses, peso, estatura,
+                kcalPor100ml, proteinaPor100ml, volumeMl, frequenciaHoras);
 
         return CalculoPediatricoCalculator.calcular(entrada, buscarLinha(sexo, idadeMeses));
+    }
+
+    /**
+     * Refaz o cálculo de uma avaliação <b>gravada</b>, para colher dele só os
+     * <b>motivos de ausência</b>.
+     *
+     * <p>Nenhum número deste resultado chega à tela: quem monta a resposta é
+     * {@link com.nutri.hospitalar.pediatria.mapper.ResultadoPediatricoMapper},
+     * e ele lê todo valor das colunas da avaliação. Sem isto, uma avaliação
+     * fora da faixa das DRIs reabre com traço mudo — o silêncio que este
+     * módulo existe para não repetir.
+     *
+     * <p>Usa o <b>retrato</b> da fórmula, não o catálogo de hoje: o motivo tem
+     * de explicar a avaliação como ela foi feita.
+     */
+    @Transactional(readOnly = true)
+    public ResultadoPediatrico motivosDe(AvaliacaoPediatrica a) {
+        return calcular(
+                a.getSexo(), a.getIdadeMeses(), a.getPeso(), a.getEstatura(),
+                a.getFormulaKcalPor100ml(), a.getFormulaProteinaPor100ml(),
+                a.getVolumeMl(), a.getFrequenciaHoras());
     }
 
     /**

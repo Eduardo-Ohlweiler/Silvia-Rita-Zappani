@@ -1,5 +1,6 @@
 package com.nutri.hospitalar.pediatria.mapper;
 
+import com.nutri.hospitalar.pediatria.calculo.ResultadoPediatrico;
 import com.nutri.hospitalar.pediatria.dtos.AvaliacaoPediatricaListaDto;
 import com.nutri.hospitalar.pediatria.dtos.AvaliacaoPediatricaResponseDto;
 import com.nutri.hospitalar.pediatria.entity.AvaliacaoPediatrica;
@@ -13,7 +14,13 @@ public final class AvaliacaoPediatricaMapper {
 
     private AvaliacaoPediatricaMapper() {}
 
-    public static AvaliacaoPediatricaResponseDto toResponse(AvaliacaoPediatrica a) {
+    /**
+     * @param motivos cálculo sobre as entradas gravadas, do qual só os motivos
+     *                de ausência são aproveitados — todo número sai de {@code a}.
+     *                Ver {@link ResultadoPediatricoMapper#toResponse(AvaliacaoPediatrica, ResultadoPediatrico)}
+     */
+    public static AvaliacaoPediatricaResponseDto toResponse(AvaliacaoPediatrica a,
+                                                            ResultadoPediatrico motivos) {
         return new AvaliacaoPediatricaResponseDto(
                 a.getId(),
 
@@ -37,7 +44,7 @@ public final class AvaliacaoPediatricaMapper {
                 a.getVolumeMl(),
                 a.getFrequenciaHoras(),
 
-                ResultadoPediatricoMapper.toResponse(a),
+                ResultadoPediatricoMapper.toResponse(a, motivos),
 
                 a.getObservacao(),
                 a.getCreatedAt(),

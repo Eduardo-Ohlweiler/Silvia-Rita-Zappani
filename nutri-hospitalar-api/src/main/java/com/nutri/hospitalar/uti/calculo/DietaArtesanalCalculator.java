@@ -45,7 +45,18 @@ public final class DietaArtesanalCalculator {
     /** ml de água por medida da base ({@code TNE SA!B15}). */
     private static final BigDecimal AGUA_POR_MEDIDA_BASE = new BigDecimal("28.5");
 
-    /** ml de água fixos, e por medida de carboidrato. */
+    /**
+     * ml de água fixos, e por medida de carboidrato — as duas de
+     * {@code TNE SA!B15}, a mesma célula de {@link #AGUA_POR_MEDIDA_BASE}.
+     *
+     * <p>São <b>parâmetros de preparo, não constantes fisiológicas</b>: dizem
+     * quanta água a receita leva para o pó dissolver e a dieta correr na sonda,
+     * e vêm da prática que a planilha registra. Não há literatura por trás e não
+     * deveria haver — água de diluição depende do produto e do calibre da sonda.
+     *
+     * <p>Ficam nomeadas, e não cravadas na conta, exatamente porque são o que
+     * um serviço com outro protocolo mudaria primeiro.
+     */
     private static final BigDecimal AGUA_FIXA = new BigDecimal("100");
     private static final BigDecimal AGUA_POR_MEDIDA_CARBOIDRATO = new BigDecimal("100");
 

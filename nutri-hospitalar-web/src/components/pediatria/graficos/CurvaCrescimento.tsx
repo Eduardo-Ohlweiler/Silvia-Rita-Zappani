@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import type { CurvaOmsPonto, FaixaOms, PontoEvolutivo } from '@/types/pediatria'
 import { formatarNumero } from '@/utils/format'
-import { EIXO, GRADE, GraficoVazio, TituloGrafico, TooltipCartao } from './chrome'
+import { EIXO, GRADE, GraficoVazio, TituloGrafico, TooltipCartao } from '@/components/graficos/chrome'
 
 /** Qual medida a curva desenha. */
 export type Medida = 'peso' | 'estatura' | 'imc'

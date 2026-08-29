@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar } from '@/assets/icons'
-import { TButton, TCombo, TEntry, TPage, TPanel, TTextArea } from '@/components/common'
+import {
+  TBotaoImprimir,
+  TButton,
+  TCombo,
+  TEntry,
+  TPage,
+  TPanel,
+  TTextArea,
+} from '@/components/common'
 import { CalculoUti } from '@/components/uti/CalculoUti'
 import {
   ENTRADAS_UTI_VAZIAS,
@@ -10,6 +18,7 @@ import {
   paraRequisicao,
   type EntradasUti,
 } from '@/components/uti/entradas'
+import { DocumentoAvaliacaoUti } from '@/components/uti/impressao/DocumentoAvaliacaoUti'
 import { PessoaRapidaModal } from '@/components/pessoa/PessoaRapidaModal'
 import { handleApiError } from '@/services/api'
 import { catalogoService } from '@/services/catalogoService'
@@ -54,6 +63,8 @@ export function AvaliacaoUtiForm() {
   const [modalAberto, setModalAberto] = useState(false)
 
   const [resultadoSalvo, setResultadoSalvo] = useState<ResultadoUti | null>(null)
+  /** O resultado que está na tela agora — salvo ou recém-calculado. */
+  const [resultado, setResultado] = useState<ResultadoUti | null>(null)
   const [formulaRemovida, setFormulaRemovida] = useState(false)
   const [carregando, setCarregando] = useState(editando)
   const [salvando, setSalvando] = useState(false)
@@ -176,6 +187,20 @@ export function AvaliacaoUtiForm() {
     <TPage
       title={editando ? 'Editar avaliação' : 'Nova avaliação de terapia nutricional'}
       subtitle="Os resultados são calculados no servidor e gravados junto com as entradas — inclusive a origem de cada valor."
+      actions={resultado && <TBotaoImprimir />}
+      // O papel é o prontuário, não este formulário — ver `Folha`.
+      documento={
+        resultado && (
+          <DocumentoAvaliacaoUti
+            entradas={paraRequisicao(entradas)}
+            resultado={resultado}
+            paciente={pacienteRotulo || undefined}
+            profissional={profissionalRotulo || undefined}
+            data={dataAvaliacao}
+            observacao={observacao}
+          />
+        )
+      }
     >
       <div className="flex flex-col gap-5">
         {/* Identificação fica FORA das abas: não é entrada de cálculo. */}
@@ -249,6 +274,7 @@ export function AvaliacaoUtiForm() {
           entradas={entradas}
           onChange={setEntradas}
           resultadoInicial={resultadoSalvo}
+          onResultado={setResultado}
           abaExtra={{
             id: 'observacoes',
             rotulo: 'Observações',

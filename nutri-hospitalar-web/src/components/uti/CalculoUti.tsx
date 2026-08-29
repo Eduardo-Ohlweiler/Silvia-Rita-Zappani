@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   TEntry,
   TPanel,
@@ -48,6 +48,14 @@ interface Props {
   resultadoInicial?: ResultadoUti | null
   /** Conteúdo de uma aba extra, ao fim. A avaliação usa para as observações. */
   abaExtra?: { id: string; rotulo: string; conteudo: React.ReactNode }
+  /**
+   * Espelha o resultado corrente para quem está em volta.
+   *
+   * Existe por causa da **impressão**: o documento é um prontuário montado a
+   * partir do resultado, e o resultado nasce aqui dentro. Sem este espelho a
+   * calculadora imprimiria as entradas e nenhum número.
+   */
+  onResultado?: (resultado: ResultadoUti | null) => void
 }
 
 const ABA_ANTROPOMETRIA = 'antropometria'
@@ -71,11 +79,25 @@ const ABA_HIDRATACAO = 'hidratacao'
  * com 500 ms de debounce e o resultado volta pronto, já com a origem de cada
  * valor por escrito.
  */
-export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: Props) {
+export function CalculoUti({
+  entradas,
+  onChange,
+  resultadoInicial,
+  abaExtra,
+  onResultado,
+}: Props) {
   const [aba, setAba] = useState(ABA_ANTROPOMETRIA)
   const [formulas, setFormulas] = useState<FormulaEnteralSelect[]>([])
   const [resultado, setResultado] = useState<ResultadoUti | null>(resultadoInicial ?? null)
   const [recalculando, setRecalculando] = useState(false)
+
+  /**
+   * Enquanto true, a tela está mostrando o que o BANCO gravou e ninguém mexeu.
+   * `useRef` e não `useState`: isto não pinta nada, só decide se o efeito de
+   * recálculo desiste — e como ref não entra na lista de dependências, o efeito
+   * continua disparando só quando as entradas mudam.
+   */
+  const mostrandoOGravado = useRef(false)
 
   const entradasDebounce = useDebounce(JSON.stringify(entradas), 500)
 
@@ -83,8 +105,16 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
     formulaEnteralService.select().then(setFormulas).catch(handleApiError)
   }, [])
 
+  // Espelha para fora, sem virar fonte da verdade: quem calcula continua sendo
+  // o efeito de debounce abaixo.
+  useEffect(() => {
+    onResultado?.(resultado)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultado])
+
   useEffect(() => {
     setResultado(resultadoInicial ?? null)
+    if (resultadoInicial) mostrandoOGravado.current = true
   }, [resultadoInicial])
 
   useEffect(() => {
@@ -94,6 +124,14 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
       setResultado(null)
       return
     }
+
+    // ABRIR AVALIAÇÃO SALVA NÃO RECALCULA. Sem esta guarda, o debounce dispara
+    // 500 ms depois de o registro carregar e substitui os números GRAVADOS
+    // pelos que o código de hoje produz — em silêncio, sem salvar. Some no dia
+    // a dia, porque os dois batem; aparece no dia em que o cálculo muda, e ele
+    // mudou (obesidade pela ASPEN 2016). Um prontuário de seis meses atrás
+    // passaria a exibir outra dose.
+    if (mostrandoOGravado.current) return
 
     // Resposta fora de ordem sobrescreveria um resultado mais novo por um mais
     // velho — a flag descarta o que chegou tarde.
@@ -118,6 +156,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
   }, [entradasDebounce])
 
   function alterar<K extends keyof EntradasUti>(campo: K, valor: EntradasUti[K]) {
+    mostrandoOGravado.current = false
     onChange({ ...entradas, [campo]: valor })
   }
 
@@ -169,7 +208,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
 
       <TPanel>
         {/* ───────────────────────── Antropometria ───────────────────── */}
-        <TTabPanel id={ABA_ANTROPOMETRIA} ativa={aba}>
+        <TTabPanel id={ABA_ANTROPOMETRIA} ativa={aba} rotulo="Antropometria">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <TSelect
               label="Sexo"
@@ -189,15 +228,15 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
             <TEntry
               label="Idade"
               suffix="anos"
-              inputMode="numeric"
+              mascara="inteiro"
               value={entradas.idadeAnos}
               onChange={(e) => alterar('idadeAnos', e.target.value)}
             />
             <TEntry
               label="Altura"
               suffix="cm"
-              inputMode="decimal"
-              placeholder="Ex.: 168,5"
+              mascara="decimal"
+              placeholder="Ex.: 168,50"
               ajuda="Em branco, estimamos pela altura do joelho."
               value={entradas.alturaCm}
               onChange={(e) => alterar('alturaCm', e.target.value)}
@@ -206,8 +245,8 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
             <TEntry
               label="Peso atual"
               suffix="kg"
-              inputMode="decimal"
-              placeholder="Ex.: 68,4"
+              mascara="decimal"
+              placeholder="Ex.: 68,40"
               ajuda="Em branco, estimamos pelas circunferências."
               value={entradas.pesoAtualKg}
               onChange={(e) => alterar('pesoAtualKg', e.target.value)}
@@ -215,32 +254,32 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
             <TEntry
               label="Altura do joelho"
               suffix="cm"
-              inputMode="decimal"
-              placeholder="Ex.: 53,5"
+              mascara="decimal"
+              placeholder="Ex.: 53,50"
               value={entradas.alturaJoelhoCm}
               onChange={(e) => alterar('alturaJoelhoCm', e.target.value)}
             />
             <TEntry
               label="Circunferência do braço"
               suffix="cm"
-              inputMode="decimal"
-              placeholder="Ex.: 25,5"
+              mascara="decimal"
+              placeholder="Ex.: 25,50"
               value={entradas.circBracoCm}
               onChange={(e) => alterar('circBracoCm', e.target.value)}
             />
             <TEntry
               label="Circunferência da panturrilha"
               suffix="cm"
-              inputMode="decimal"
-              placeholder="Ex.: 34,5"
+              mascara="decimal"
+              placeholder="Ex.: 34,50"
               value={entradas.circPanturrilhaCm}
               onChange={(e) => alterar('circPanturrilhaCm', e.target.value)}
             />
             <TEntry
               label="Circunferência abdominal"
               suffix="cm"
-              inputMode="decimal"
-              placeholder="Ex.: 90,5"
+              mascara="decimal"
+              placeholder="Ex.: 90,50"
               value={entradas.circAbdominalCm}
               onChange={(e) => alterar('circAbdominalCm', e.target.value)}
             />
@@ -248,8 +287,8 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
             <TEntry
               label="Peso habitual"
               suffix="kg"
-              inputMode="decimal"
-              placeholder="Ex.: 72,5"
+              mascara="decimal"
+              placeholder="Ex.: 72,50"
               value={entradas.pesoUsualKg}
               onChange={(e) => alterar('pesoUsualKg', e.target.value)}
             />
@@ -463,7 +502,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
         </TTabPanel>
 
         {/* ───────────────────────── Necessidades ────────────────────── */}
-        <TTabPanel id={ABA_NECESSIDADES} ativa={aba}>
+        <TTabPanel id={ABA_NECESSIDADES} ativa={aba} rotulo="Necessidades">
           {dependencias(
             <>
               <TResult
@@ -517,8 +556,8 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
             <TEntry
               label="Alvo calórico"
               suffix="kcal/kg"
-              inputMode="decimal"
-              placeholder="Ex.: 22,5"
+              mascara="decimal"
+              placeholder="Ex.: 22,50"
               ajuda="Preenchido, vence a faixa da fase."
               value={entradas.kcalPorKgAlvo}
               onChange={(e) => alterar('kcalPorKgAlvo', e.target.value)}
@@ -526,8 +565,8 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
             <TEntry
               label="Alvo proteico"
               suffix="g/kg"
-              inputMode="decimal"
-              placeholder="Ex.: 1,3"
+              mascara="decimal"
+              placeholder="Ex.: 1,30"
               value={entradas.proteinaPorKgAlvo}
               onChange={(e) => alterar('proteinaPorKgAlvo', e.target.value)}
             />
@@ -602,7 +641,7 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
         </TTabPanel>
 
         {/* ───────────────────────── Dieta enteral ───────────────────── */}
-        <TTabPanel id={ABA_DIETA} ativa={aba}>
+        <TTabPanel id={ABA_DIETA} ativa={aba} rotulo="Dieta enteral">
           {dependencias(
             <>
               <TResult
@@ -652,15 +691,15 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
             <TEntry
               label={entradas.modoInfusao === 'INTERMITENTE' ? 'Volume por horário' : 'Vazão'}
               suffix={entradas.modoInfusao === 'INTERMITENTE' ? 'ml' : 'ml/h'}
-              inputMode="decimal"
-              placeholder={entradas.modoInfusao === 'INTERMITENTE' ? 'Ex.: 133,5' : 'Ex.: 62,5'}
+              mascara="decimal"
+              placeholder={entradas.modoInfusao === 'INTERMITENTE' ? 'Ex.: 133,50' : 'Ex.: 62,50'}
               value={entradas.volumePorTempo}
               onChange={(e) => alterar('volumePorTempo', e.target.value)}
             />
             <TEntry
               label={entradas.modoInfusao === 'INTERMITENTE' ? 'Horários por dia' : 'Horas de infusão'}
               suffix={entradas.modoInfusao === 'INTERMITENTE' ? 'horários' : 'h'}
-              inputMode="decimal"
+              mascara="decimal"
               ajuda={entradas.modoInfusao === 'CONTINUA' ? 'UTI: 22 h/dia' : undefined}
               value={entradas.tempo}
               onChange={(e) => alterar('tempo', e.target.value)}
@@ -774,13 +813,18 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               linhas={dieta?.progressao ?? []}
               chaveDe={(d) => d.dia}
               recalculando={recalculando}
-              vazio="Escolha a fórmula e informe o tempo para ver a progressão."
+              // Na avaliação salva a tabela não foi gravada, e dizer "escolha a
+              // fórmula" ali seria mentira: ela está escolhida.
+              vazio={
+                dieta?.motivoProgressao ??
+                'Escolha a fórmula e informe o tempo para ver a progressão.'
+              }
             />
           </div>
         </TTabPanel>
 
         {/* ───────────────────────── Hidratação ──────────────────────── */}
-        <TTabPanel id={ABA_HIDRATACAO} ativa={aba}>
+        <TTabPanel id={ABA_HIDRATACAO} ativa={aba} rotulo="Hidratação">
           {dependencias(
             <>
               <TResult
@@ -816,8 +860,8 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
             <TEntry
               label="Volume de dieta"
               suffix="ml/dia"
-              inputMode="decimal"
-              placeholder="Ex.: 1600"
+              mascara="decimal"
+              placeholder="Ex.: 1.600,00"
               ajuda="Só se você não preencheu a aba da dieta. O da dieta tem prioridade."
               value={entradas.volumeDietaManualMl}
               onChange={(e) => alterar('volumeDietaManualMl', e.target.value)}
@@ -866,13 +910,16 @@ export function CalculoUti({ entradas, onChange, resultadoInicial, abaExtra }: P
               linhas={hidra?.distribuicaoIdeal ?? []}
               chaveDe={(f) => f.vezesAoDia}
               recalculando={recalculando}
-              vazio="Informe o peso e a dieta para calcular a água extra."
+              vazio={
+                hidra?.motivoDistribuicao ??
+                'Informe o peso e a dieta para calcular a água extra.'
+              }
             />
           </div>
         </TTabPanel>
 
         {abaExtra && (
-          <TTabPanel id={abaExtra.id} ativa={aba}>
+          <TTabPanel id={abaExtra.id} ativa={aba} rotulo={abaExtra.rotulo}>
             {abaExtra.conteudo}
           </TTabPanel>
         )}

@@ -12,25 +12,38 @@ import java.util.List;
 /**
  * Converte a avaliação gravada de volta na forma que a tela conhece.
  *
- * <p>O ponto delicado é o {@code resultado}: ele é <b>reconstruído das colunas
- * gravadas</b>, não recalculado. Um mapper que chamasse o calculador aqui faria
- * exatamente o que o registro clínico não pode fazer — mudar de valor quando a
- * régua muda.
+ * <p>O ponto delicado é o {@code resultado}: <b>todo número é reconstruído das
+ * colunas gravadas</b>, nunca recalculado. Um mapper que tirasse número do
+ * calculador faria exatamente o que o registro clínico não pode fazer — mudar
+ * de valor quando a régua muda.
+ *
+ * <p><b>Os motivos são a exceção, e não são número.</b> Eles explicam por que
+ * uma coluna está vazia, e isso é função das <b>entradas</b>, que estão
+ * gravadas na própria avaliação. Antes vinham todos nulos, e uma avaliação sem
+ * circunferência do braço reabria com o bloco em branco e sem uma palavra — o
+ * traço mudo que {@link ResultadoUti} existe para não produzir. Hoje
+ * {@link #toResultado(AvaliacaoUti, ResultadoUti)} recebe um cálculo feito
+ * sobre as entradas gravadas e colhe dele <b>apenas as frases</b>.
  *
  * <p>Duas coisas ficam de fora da reconstrução, e é deliberado:
  * a <b>progressão da dieta</b> e a <b>distribuição da água</b> são tabelas
  * derivadas de valores que já estão gravados, e guardá-las linha a linha seria
- * duplicar dado sem ganho. A tela as mostra vazias na avaliação salva, com o
- * motivo — quem quiser vê-las abre a calculadora com as mesmas entradas.
+ * duplicar dado sem ganho. Elas voltam vazias com {@link #TABELA_NAO_GRAVADA}
+ * no motivo <b>próprio de cada tabela</b> — e não no motivo do bloco, onde a
+ * frase acabava colada a números que existem.
  */
 public final class AvaliacaoUtiMapper {
 
     private AvaliacaoUtiMapper() {}
 
-    private static final String TABELA_NAO_GRAVADA =
+    static final String TABELA_NAO_GRAVADA =
             "Tabela derivada — não faz parte do registro. Reproduza na calculadora se precisar.";
 
-    public static AvaliacaoUtiResponseDto toResponse(AvaliacaoUti a) {
+    /**
+     * @param motivos cálculo refeito sobre as entradas gravadas, do qual só as
+     *                frases de ausência são aproveitadas
+     */
+    public static AvaliacaoUtiResponseDto toResponse(AvaliacaoUti a, ResultadoUti motivos) {
         return new AvaliacaoUtiResponseDto(
                 a.getId(),
                 a.getPaciente().getId(),
@@ -39,7 +52,7 @@ public final class AvaliacaoUtiMapper {
                 a.getProfissional() == null ? null : a.getProfissional().getNome(),
                 a.getDataAvaliacao(),
                 toEntradas(a),
-                toResultado(a),
+                toResultado(a, motivos),
                 // A FK é ON DELETE SET NULL: nome gravado sem FK significa que a
                 // fórmula saiu do catálogo depois desta avaliação.
                 a.getFormulaEnteral() == null && a.getFormulaNome() != null,
@@ -65,31 +78,51 @@ public final class AvaliacaoUtiMapper {
                 a.getVolumeDietaManualMl());
     }
 
-    /** Os resultados, exatamente como foram gravados. */
-    public static ResultadoUti toResultado(AvaliacaoUti a) {
+    /**
+     * Os resultados: <b>números do banco, motivos do recálculo</b>.
+     *
+     * <p><b>De {@code motivos} sai apenas texto derivado das entradas</b> — as
+     * frases de ausência e o rótulo de {@code volumeTotalDescricao}, que diz
+     * como o volume foi obtido ("62 ml/h por 22 h") e também vinha mudo. Nunca
+     * um número: se um escapar por aqui, a avaliação passa a mudar sozinha
+     * quando o catálogo ou a régua mudarem, que é precisamente o que este
+     * mapper existe para impedir.
+     *
+     * <p>{@code ajustePeloImcRelevante} é o outro caso de fronteira e vem de lá
+     * de propósito: é um {@code boolean} de <b>apresentação</b> — decide se a
+     * tela mostra o aviso do ajuste de CB e CP pelo IMC — e depende só das
+     * entradas, que estão gravadas.
+     */
+    public static ResultadoUti toResultado(AvaliacaoUti a, ResultadoUti motivos) {
+        ResultadoUti.Antropometria mAntro = motivos.antropometria();
+        ResultadoUti.Necessidades mNec = motivos.necessidades();
+        ResultadoUti.Dieta mDieta = motivos.dieta();
+        ResultadoUti.Hidratacao mHidra = motivos.hidratacao();
+
         return new ResultadoUti(
                 new ResultadoUti.Antropometria(
                         a.getAlturaEstimadaCm(), a.getPesoChumleaKg(),
-                        a.getPesoJungKg(), a.getPesoRabitoKg(), null,
+                        a.getPesoJungKg(), a.getPesoRabitoKg(), mAntro.motivoEstimativas(),
 
                         a.getPesoTrabalhoKg(), a.getPesoTrabalhoOrigem(),
-                        a.getAlturaUsadaCm(), a.getAlturaUsadaOrigem(), null,
+                        a.getAlturaUsadaCm(), a.getAlturaUsadaOrigem(),
+                        mAntro.motivoPesoDeTrabalho(),
 
                         a.getImc(),
                         classificacao(a.getClassifImcOms(), a.getClassifImcOmsTom()),
                         classificacao(a.getClassifImcOpas(), a.getClassifImcOpasTom()),
-                        null,
+                        mAntro.motivoImc(),
 
                         a.getPesoIdealKg(), a.getPesoIdealImc25Kg(),
                         a.getPesoAjustadoKg(), a.getPesoAmputacaoKg(),
 
                         a.getPercPerdaPeso(),
                         classificacao(a.getClassifPerdaPeso(), a.getClassifPerdaPesoTom()),
-                        null,
+                        mAntro.motivoPerdaPeso(),
 
                         a.getP50CircBracoCm(), a.getAdequacaoCircBracoPerc(),
                         classificacao(a.getClassifAdequacaoCb(), a.getClassifAdequacaoCbTom()),
-                        null,
+                        mAntro.motivoAdequacaoCircBraco(),
 
                         a.getCircBracoAjustadaCm(),
                         classificacao(a.getClassifMassaBraco(), a.getClassifMassaBracoTom()),
@@ -97,8 +130,10 @@ public final class AvaliacaoUtiMapper {
                         classificacao(a.getClassifDeplecaoCp(), a.getClassifDeplecaoCpTom()),
                         a.getPopulacaoReferencia() == null
                                 ? null : a.getPopulacaoReferencia().getDescricao(),
-                        false,
-                        null),
+                        // Se o ajuste pelo IMC era relevante depende só das
+                        // entradas — e elas estão gravadas.
+                        mAntro.ajustePeloImcRelevante(),
+                        mAntro.motivoDeplecao()),
 
                 new ResultadoUti.Necessidades(
                         a.getEnergiaMinima(), a.getEnergiaMaxima(),
@@ -106,11 +141,11 @@ public final class AvaliacaoUtiMapper {
                         a.getMetaEnergetica(), a.getMetaEnergeticaOrigem(),
                         a.getMetaProteica(), a.getMetaProteicaOrigem(),
                         a.getProteinaTerapiaRenal(),
-                        Boolean.TRUE.equals(a.getObeso()), a.getBaseDoPeso(), null),
+                        Boolean.TRUE.equals(a.getObeso()), a.getBaseDoPeso(), mNec.motivo()),
 
                 new ResultadoUti.Dieta(
                         a.getFormulaNome(), a.getFormulaDensidadeKcalMl(), a.getFormulaProteinaGL(),
-                        a.getVolumeTotalMl(), null,
+                        a.getVolumeTotalMl(), mDieta.volumeTotalDescricao(),
                         a.getCaloriasOfertadas(), a.getProteinaOfertada(),
                         a.getCaloriasPorQuilo(), a.getProteinaPorQuilo(),
                         a.getPercentualDoVct(), a.getPercentualDaProteina(),
@@ -119,7 +154,10 @@ public final class AvaliacaoUtiMapper {
                         a.getVolumePleno(), a.getProteinaNoVolumePleno(),
                         a.getProteinaSuplementar(),
                         a.getModoInfusao() == null ? null : a.getModoInfusao().getRotuloVolume(),
-                        List.of(), TABELA_NAO_GRAVADA),
+                        // A tabela derivada explica a si mesma; o bloco
+                        // explica o bloco. Antes era uma frase só, e ela
+                        // aparecia ao lado de números que existiam.
+                        List.of(), TABELA_NAO_GRAVADA, mDieta.motivo()),
 
                 new ResultadoUti.Hidratacao(
                         a.getHidratacaoNecessidadeMinima(), a.getHidratacaoNecessidadeIdeal(),
@@ -128,7 +166,7 @@ public final class AvaliacaoUtiMapper {
                                 ? a.getVolumeTotalMl() : a.getVolumeDietaManualMl(),
                         a.getHidratacaoAguaNaDieta(),
                         a.getHidratacaoAguaExtraMinima(), a.getHidratacaoAguaExtraIdeal(),
-                        List.of(), List.of(), TABELA_NAO_GRAVADA));
+                        List.of(), List.of(), TABELA_NAO_GRAVADA, mHidra.motivo()));
     }
 
     /**

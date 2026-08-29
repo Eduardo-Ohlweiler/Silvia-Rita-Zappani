@@ -145,3 +145,77 @@ export function paraNumero(valor?: string | null): number | undefined {
   const numero = Number(limpo)
   return Number.isNaN(numero) ? undefined : numero
 }
+
+/**
+ * Máscara numérica de **centavos**: os dígitos entram pela direita e as casas
+ * decimais são fixas. Digitar `7` `2` `5` `0` com duas casas dá `72,50`.
+ *
+ * É a mecânica do eroERP (`numerodecimal2`), que é o hábito da casa — digita-se
+ * só dígito e a vírgula se posiciona sozinha, sem caçar tecla de pontuação.
+ *
+ * **Vazio entra, vazio sai — e essa é a diferença que importa.** No eroERP,
+ * `parseInt(digitos || "0") / 100` transforma "apaguei tudo" em `0,00`: um campo
+ * opcional que o usuário limpou é enviado como **zero, não como ausente**. Isso
+ * quebraria a invariante deste sistema, onde ausência carrega o motivo e um peso
+ * em branco faz o cálculo dizer "informe o peso" em vez de devolver número. Lá o
+ * defeito é visível a olho nu: existe um campo rotulado "vazio = sugerir" que a
+ * máscara torna impossível de deixar vazio.
+ *
+ * @param casas    casas decimais fixas. `0` dá inteiro puro (PA, idade)
+ * @param comSinal aceita `-` à frente. Só o balanço hídrico precisa — e é
+ *                 justamente o que o eroERP não sabia fazer, porque a máscara
+ *                 decimal de lá come o sinal no `replace(/\D/g, '')`
+ */
+export function mascararDecimal(valor: string, casas = 2, comSinal = false): string {
+  const negativo = comSinal && valor.trimStart().startsWith('-')
+  const digitos = valor.replace(/\D/g, '')
+
+  if (digitos === '') return negativo ? '-' : ''
+
+  const sinal = negativo ? '-' : ''
+  if (casas === 0) return sinal + String(Number(digitos))
+
+  // `Number` e não `parseInt`: acima de 15 dígitos o parseInt do eroERP
+  // ultrapassa MAX_SAFE_INTEGER e perde precisão em silêncio.
+  const numero = Number(digitos) / 10 ** casas
+  return (
+    sinal +
+    numero.toLocaleString('pt-BR', {
+      minimumFractionDigits: casas,
+      maximumFractionDigits: casas,
+    })
+  )
+}
+
+/**
+ * Número do servidor no formato que a máscara produz — é o que repovoa o campo
+ * ao abrir um registro salvo.
+ *
+ * Sem isto, `72.5` voltaria como `"72,5"` (uma casa) e a primeira tecla digitada
+ * o releria como os dígitos `725`, virando **`7,25`**. O campo tem de reabrir
+ * exatamente como a máscara o teria escrito.
+ */
+export function textoDaMascara(valor?: number | null, casas = 2): string {
+  if (valor === null || valor === undefined || Number.isNaN(valor)) return ''
+  return formatarNumero(valor, casas, casas)
+}
+
+/**
+ * Texto colado, relido como número e reformatado pela máscara.
+ *
+ * Sem isto, colar `"70"` num campo de duas casas dá **`0,70`**, porque o texto
+ * passa pelo mesmo acumulador de dígitos — o eroERP erra assim, sem avisar, e
+ * copiar valor de planilha é exatamente o que a nutricionista faz. Aqui o texto
+ * passa antes por {@link paraNumero}, que já desambigua vírgula e ponto.
+ */
+export function mascararColado(texto: string, casas = 2, comSinal = false): string {
+  const numero = paraNumero(texto)
+  if (numero === undefined) return mascararDecimal(texto, casas, comSinal)
+
+  const arredondado = comSinal ? numero : Math.abs(numero)
+  return mascararDecimal(
+    (arredondado < 0 ? '-' : '') + Math.abs(arredondado).toFixed(casas).replace('.', ''),
+    casas,
+    comSinal,
+  )
+}

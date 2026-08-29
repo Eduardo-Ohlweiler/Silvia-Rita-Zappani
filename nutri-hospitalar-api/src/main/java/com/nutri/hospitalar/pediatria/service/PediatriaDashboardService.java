@@ -48,6 +48,10 @@ import java.util.stream.Collectors;
  * contar e ordenar o que já foi calculado e gravado. Recalcular seria refazer
  * um prontuário fechado — ver {@link AvaliacaoPediatricaService}.
  *
+ * <p>A única chamada ao calculador é {@link CalculoPediatricoService#motivosDe},
+ * e dela se aproveita <b>só o texto</b> que explica um campo vazio. Número
+ * nenhum vem de lá.
+ *
  * <p>Médias ignoram avaliação sem o valor: a média de IMC não conta quem não
  * tinha estatura. Contar como zero faria a clínica parecer pior do que é.
  */
@@ -71,6 +75,7 @@ public class PediatriaDashboardService {
     private final AvaliacaoPediatricaRepository avaliacaoRepository;
     private final PercentilOmsRepository percentilOmsRepository;
     private final PessoaRepository pessoaRepository;
+    private final CalculoPediatricoService calculoService;
     private final SecurityUtils securityUtils;
 
     // ─── Curva de referência ─────────────────────────────────────────────
@@ -128,7 +133,9 @@ public class PediatriaDashboardService {
                 avaliacoes.stream().map(AvaliacaoPediatrica::getDataAvaliacao)
                         .min(LocalDate::compareTo).orElse(null),
                 ultima != null ? ultima.getDataAvaliacao() : null,
-                ultima != null ? AvaliacaoPediatricaMapper.toResponse(ultima) : null,
+                ultima != null
+                        ? AvaliacaoPediatricaMapper.toResponse(ultima, calculoService.motivosDe(ultima))
+                        : null,
                 evolucao(avaliacoes),
                 historicoFormulas(avaliacoes));
     }

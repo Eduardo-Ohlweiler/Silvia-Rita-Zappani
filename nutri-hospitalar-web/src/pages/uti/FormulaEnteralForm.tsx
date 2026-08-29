@@ -8,7 +8,7 @@ import { TButton, TEntry, TPage, TPanel, TSelect } from '@/components/common'
 import { handleApiError } from '@/services/api'
 import { formulaEnteralService } from '@/services/utiService'
 import { CATEGORIAS_ENTERAIS, type CategoriaFormulaEnteral } from '@/types/uti'
-import { formatarNumero, paraNumero } from '@/utils/format'
+import { formatarNumero, paraNumero, textoDaMascara } from '@/utils/format'
 
 /**
  * O campo continua string no formulário e a conversão acontece no envio — sem
@@ -71,7 +71,9 @@ function opcional(valor: string): number | undefined {
 }
 
 function texto(valor: number | undefined | null): string {
-  return valor == null ? '' : String(valor).replace('.', ',')
+  // Três casas, que é o que estes DTOs aceitam: reabrir um cadastro com menos
+  // casas do que o gravado faria a máscara truncar o rótulo em silêncio.
+  return textoDaMascara(valor, 3)
 }
 
 export function FormulaEnteralForm() {
@@ -138,7 +140,7 @@ export function FormulaEnteralForm() {
           fibrasGL: texto(f.fibrasGL),
           potassioMgL: texto(f.potassioMgL),
           osmolaridadeMosmL: texto(f.osmolaridadeMosmL),
-          aguaLivrePerc: texto(f.aguaLivrePerc),
+          aguaLivrePerc: textoDaMascara(f.aguaLivrePerc, 2),
           ativo: String(f.ativo),
         }),
       )
@@ -231,7 +233,8 @@ export function FormulaEnteralForm() {
             <TEntry
               label="Densidade"
               suffix="kcal / ml"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 1,5"
               error={errors.densidadeKcalMl?.message}
               {...register('densidadeKcalMl')}
@@ -239,7 +242,8 @@ export function FormulaEnteralForm() {
             <TEntry
               label="Proteína"
               suffix="g / L"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 92"
               error={errors.proteinaGL?.message}
               {...register('proteinaGL')}
@@ -247,7 +251,8 @@ export function FormulaEnteralForm() {
             <TEntry
               label="Carboidrato"
               suffix="g / L"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 131"
               error={errors.choGL?.message}
               {...register('choGL')}
@@ -255,7 +260,8 @@ export function FormulaEnteralForm() {
             <TEntry
               label="Lipídio"
               suffix="g / L"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 70"
               error={errors.lipGL?.message}
               {...register('lipGL')}
@@ -306,7 +312,8 @@ export function FormulaEnteralForm() {
             <TEntry
               label="Fibras"
               suffix="g / L"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 15"
               error={errors.fibrasGL?.message}
               {...register('fibrasGL')}
@@ -314,7 +321,8 @@ export function FormulaEnteralForm() {
             <TEntry
               label="Potássio"
               suffix="mg / L"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 1250"
               error={errors.potassioMgL?.message}
               {...register('potassioMgL')}
@@ -322,7 +330,8 @@ export function FormulaEnteralForm() {
             <TEntry
               label="Osmolaridade"
               suffix="mOsm / L"
-              inputMode="decimal"
+              mascara="decimal"
+              casas={3}
               placeholder="Ex.: 300"
               error={errors.osmolaridadeMosmL?.message}
               {...register('osmolaridadeMosmL')}
@@ -330,7 +339,8 @@ export function FormulaEnteralForm() {
             <TEntry
               label="Água livre"
               suffix="%"
-              inputMode="decimal"
+              /* Duas casas: o DTO deste campo é @Digits(fraction=2). */
+              mascara="decimal"
               placeholder="Ex.: 76"
               ajuda="Do rótulo. Em branco, o cálculo estima pela densidade e informa que estimou."
               error={errors.aguaLivrePerc?.message}

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,6 +51,24 @@ public interface RegistroDiarioUtiRepository extends JpaRepository<RegistroDiari
     Optional<UUID> findIdDaAvaliacaoVigente(@Param("tenantId") UUID tenantId,
                                             @Param("pessoaId") UUID pessoaId,
                                             @Param("data") LocalDate data);
+
+    /**
+     * Os dias que alimentam os painéis — sem paginação e em <b>ordem
+     * cronológica crescente</b>, que é o eixo X dos gráficos. A lista da tela
+     * ordena ao contrário porque lá o dia de hoje é o que importa primeiro.
+     */
+    @Query(value = """
+            SELECT r.* FROM registro_diario_uti r
+            WHERE r.tenant_id = CAST(:tenantId AS uuid)
+              AND (CAST(:pessoaId AS uuid) IS NULL OR r.pessoa_id = CAST(:pessoaId AS uuid))
+              AND (CAST(:de  AS date) IS NULL OR r.data >= CAST(:de  AS date))
+              AND (CAST(:ate AS date) IS NULL OR r.data <= CAST(:ate AS date))
+            ORDER BY r.data
+            """, nativeQuery = true)
+    List<RegistroDiarioUti> findParaPainel(@Param("tenantId") UUID tenantId,
+                                           @Param("pessoaId") UUID pessoaId,
+                                           @Param("de") LocalDate de,
+                                           @Param("ate") LocalDate ate);
 
     @Query(value = """
             SELECT r.* FROM registro_diario_uti r

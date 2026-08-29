@@ -39,9 +39,13 @@ public final class HidratacaoCalculator {
      * que não coincide com os números redondos da planilha justamente porque ela
      * aproxima por faixa.
      *
-     * <p>Além disso a tabela só tem quatro densidades exatas, e 12 dos produtos
-     * do catálogo têm densidade intermediária (1,12 · 1,14 · 1,21 · 1,24 · 1,3 ·
-     * 1,31 · 1,33) — sem linha nenhuma. Ver {@code docs/10} §5.1.
+     * <p>Além disso a tabela só tem quatro densidades exatas. Das <b>53</b>
+     * fórmulas do catálogo, 44 caem numa delas (1,0 · 1,2 · 1,5 · 2,0) e as
+     * outras <b>9 têm densidade intermediária</b> — oito valores distintos:
+     * 1,12 · 1,14 · 1,21 · 1,23 · 1,24 (duas fórmulas) · 1,3 · 1,31 · 1,33.
+     * Nenhuma delas tem linha aqui, e é por isso que a ausência é devolvida com
+     * motivo em vez de um degrau escolhido por aproximação.
+     * Ver {@code docs/10} §5.1.
      */
     private static final Map<String, String> PERC_AGUA_POR_DENSIDADE = Map.of(
             "1.0", "85",

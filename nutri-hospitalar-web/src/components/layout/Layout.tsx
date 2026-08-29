@@ -16,9 +16,9 @@ export function Layout() {
       <Sidebar aberta={menuAberto} onFechar={() => setMenuAberto(false)} />
 
       {/* Deslocado pela sidebar só a partir de lg, onde ela é fixa */}
-      <div className="lg:pl-sidebar">
+      <div className="conteudo-da-aplicacao lg:pl-sidebar">
         {sessao?.impersonating && (
-          <div className="flex items-center justify-center gap-2 bg-warning-bg px-4 py-2 text-center text-caption text-warning">
+          <div className="nao-imprime flex items-center justify-center gap-2 bg-warning-bg px-4 py-2 text-center text-caption text-warning">
             <IconAlerta className="size-4 shrink-0" />
             <span>
               Você está navegando como o tenant{' '}
@@ -27,7 +27,7 @@ export function Layout() {
           </div>
         )}
 
-        <header className="sticky top-0 z-20 flex h-header items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
+        <header className="nao-imprime sticky top-0 z-20 flex h-header items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
           <button
             type="button"
             onClick={() => setMenuAberto(true)}
@@ -66,12 +66,15 @@ export function Layout() {
 
         {/* Seletor de tenant abaixo do header no mobile, onde não cabe ao lado */}
         {sessao?.role === 'SUPERADMIN' && (
-          <div className="border-b border-line bg-surface px-4 py-2 lg:hidden">
+          <div className="nao-imprime border-b border-line bg-surface px-4 py-2 lg:hidden">
             <TenantSwitcher />
           </div>
         )}
 
         <main className="mx-auto w-full max-w-350 p-4 sm:p-6">
+          {/* Nada de cabeçalho de papel aqui: quem carrega marca, cliente e
+              data é a própria `Folha` de cada documento. Um cabeçalho global
+              apareceria por cima dela, duplicado. */}
           <Outlet />
         </main>
       </div>

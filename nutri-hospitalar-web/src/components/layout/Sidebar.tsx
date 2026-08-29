@@ -33,32 +33,18 @@ const GRUPOS: Grupo[] = [
     itens: [{ para: '/app', rotulo: 'Dashboard', Icone: IconDashboard }],
   },
   {
+    // Os três catálogos moram juntos, e não dentro do módulo que os consome.
+    // São telas de cadastro, mexidas uma vez por produto; deixá-las no grupo
+    // clínico empurrava a Terapia nutricional para nove itens e afundava o que
+    // se usa todo dia. Ver o comentário sobre o tamanho do menu, abaixo.
     titulo: 'Cadastros',
-    itens: [{ para: '/app/pessoas', rotulo: 'Pessoas', Icone: IconPaciente }],
-  },
-  {
-    titulo: 'Pediatria',
     itens: [
-      { para: '/app/pediatria/painel-paciente', rotulo: 'Painel do paciente', Icone: IconPediatria },
-      { para: '/app/pediatria/dashboard', rotulo: 'Pediatria em números', Icone: IconDashboard },
-      { para: '/app/pediatria/calculadora', rotulo: 'Calculadora', Icone: IconPediatria },
-      { para: '/app/pediatria/avaliacoes', rotulo: 'Avaliações', Icone: IconPediatria },
+      { para: '/app/pessoas', rotulo: 'Pessoas', Icone: IconPaciente },
       {
         para: '/app/pediatria/formulas-lacteas',
         rotulo: 'Fórmulas lácteas',
         Icone: IconPediatria,
       },
-    ],
-  },
-  {
-    // Fatia 6 em construção: por ora só os catálogos. O cálculo, a avaliação e
-    // os painéis entram aqui conforme as fatias fecham.
-    titulo: 'Terapia nutricional',
-    itens: [
-      { para: '/app/uti/calculadora', rotulo: 'Calculadora', Icone: IconTerapiaNutricional },
-      { para: '/app/uti/avaliacoes', rotulo: 'Avaliações', Icone: IconTerapiaNutricional },
-      { para: '/app/uti/acompanhamento', rotulo: 'Acompanhamento diário', Icone: IconTerapiaNutricional },
-      { para: '/app/uti/ferramentas', rotulo: 'Ferramentas clínicas', Icone: IconTerapiaNutricional },
       {
         para: '/app/uti/formulas-enterais',
         rotulo: 'Fórmulas enterais',
@@ -69,6 +55,34 @@ const GRUPOS: Grupo[] = [
         rotulo: 'Suplementos e módulos',
         Icone: IconTerapiaNutricional,
       },
+    ],
+  },
+  {
+    titulo: 'Pediatria',
+    itens: [
+      { para: '/app/pediatria/painel-paciente', rotulo: 'Painel do paciente', Icone: IconPediatria },
+      { para: '/app/pediatria/dashboard', rotulo: 'Pediatria em números', Icone: IconDashboard },
+      { para: '/app/pediatria/calculadora', rotulo: 'Calculadora', Icone: IconPediatria },
+      { para: '/app/pediatria/avaliacoes', rotulo: 'Avaliações', Icone: IconPediatria },
+    ],
+  },
+  {
+    // A ordem é a do uso: painel para saber onde o paciente está, calculadora e
+    // avaliação para prescrever, acompanhamento para o dia a dia, ferramentas
+    // para a conta avulsa.
+    titulo: 'Terapia nutricional',
+    itens: [
+      { para: '/app/uti/painel-paciente', rotulo: 'Painel do paciente', Icone: IconTerapiaNutricional },
+      {
+        para: '/app/uti/painel-acompanhamento',
+        rotulo: 'Painel de acompanhamento',
+        Icone: IconTerapiaNutricional,
+      },
+      { para: '/app/uti/painel', rotulo: 'UTI em números', Icone: IconDashboard },
+      { para: '/app/uti/calculadora', rotulo: 'Calculadora', Icone: IconTerapiaNutricional },
+      { para: '/app/uti/avaliacoes', rotulo: 'Avaliações', Icone: IconTerapiaNutricional },
+      { para: '/app/uti/acompanhamento', rotulo: 'Acompanhamento diário', Icone: IconTerapiaNutricional },
+      { para: '/app/uti/ferramentas', rotulo: 'Ferramentas clínicas', Icone: IconTerapiaNutricional },
     ],
   },
   {

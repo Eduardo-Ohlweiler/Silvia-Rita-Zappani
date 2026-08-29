@@ -387,6 +387,7 @@ public final class AvaliacaoUtiCalculator {
                 modo.getRotuloVolume(),
 
                 progressao,
+                null,
                 peso == null ? SEM_PESO : null);
     }
 
@@ -404,7 +405,9 @@ public final class AvaliacaoUtiCalculator {
                 null, null, null, null, null, null, null, null,
                 null, null, null, null,
                 null, null, null, null,
-                List.of(), motivo);
+                // A tabela não tem motivo próprio aqui: ela falta pela mesma
+                // razão que o bloco todo, e repetir a frase seria ruído.
+                List.of(), null, motivo);
     }
 
     // ─── Aba 4 — Hidratação ─────────────────────────────────────────────
@@ -413,7 +416,7 @@ public final class AvaliacaoUtiCalculator {
                                                       PesoDeTrabalho peso, ResultadoUti.Dieta dieta) {
         if (peso == null)
             return new ResultadoUti.Hidratacao(null, null, null, null, null, null,
-                    null, null, List.of(), List.of(), SEM_PESO);
+                    null, null, List.of(), List.of(), null, SEM_PESO);
 
         BigDecimal minima = HidratacaoCalculator.necessidadeMinima(peso);
         BigDecimal ideal = HidratacaoCalculator.necessidadeIdeal(peso);
@@ -444,7 +447,7 @@ public final class AvaliacaoUtiCalculator {
                 arredondar(volumeMl), arredondar(naDieta),
                 arredondar(extraMinima), arredondar(extraIdeal),
                 fracoes(extraMinima), fracoes(extraIdeal),
-                motivo);
+                null, motivo);
     }
 
     private static List<ResultadoUti.FracaoAgua> fracoes(BigDecimal aguaExtra) {

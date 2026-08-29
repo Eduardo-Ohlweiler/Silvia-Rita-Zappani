@@ -7,6 +7,7 @@ import com.nutri.hospitalar.exceptions.NotFoundException;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
 import com.nutri.hospitalar.uti.calculo.Classificacao;
+import com.nutri.hospitalar.uti.calculo.FormulaEnteralResolvida;
 import com.nutri.hospitalar.uti.calculo.ResultadoUti;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiCreateDto;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiFiltrosDto;
@@ -76,10 +77,31 @@ public class AvaliacaoUtiService {
                 .map(AvaliacaoUtiService::toLista);
     }
 
-    /** Abrir uma avaliação salva <b>não recalcula</b>. */
+    /**
+     * Abrir uma avaliação salva <b>não recalcula</b>: todo número da resposta
+     * sai das colunas gravadas.
+     *
+     * <p>O cálculo que roda aqui não contradiz isso — dele se aproveitam só as
+     * frases que explicam um campo vazio. Sem ele, uma avaliação sem
+     * circunferência do braço reabria com o bloco em branco e sem uma palavra.
+     * Ver {@link AvaliacaoUtiMapper#toResultado}.
+     */
     @Transactional(readOnly = true)
     public AvaliacaoUtiResponseDto findById(UUID id) {
-        return AvaliacaoUtiMapper.toResponse(buscar(id));
+        return paraResposta(buscar(id));
+    }
+
+    /**
+     * Monta a resposta de uma avaliação já carregada — números do banco, frases
+     * do recálculo.
+     *
+     * <p>Pública porque o painel do paciente também mostra a última avaliação
+     * inteira, e montá-la lá por fora reintroduziria o traço mudo só naquela
+     * tela.
+     */
+    @Transactional(readOnly = true)
+    public AvaliacaoUtiResponseDto paraResposta(AvaliacaoUti avaliacao) {
+        return AvaliacaoUtiMapper.toResponse(avaliacao, motivosDe(avaliacao));
     }
 
     @Transactional
@@ -88,12 +110,12 @@ public class AvaliacaoUtiService {
         avaliacao.setTenant(securityUtils.getTenantReference());
         avaliacao.setCreatedBy(securityUtils.getUsuarioLogado());
 
-        aplicar(avaliacao, dto.pacienteId(), dto.profissionalId(), dto.dataAvaliacao(),
-                dto.calculo(), dto.observacao());
+        ResultadoUti r = aplicar(avaliacao, dto.pacienteId(), dto.profissionalId(),
+                dto.dataAvaliacao(), dto.calculo(), dto.observacao());
 
         AvaliacaoUti salva = avaliacaoUtiRepository.save(avaliacao);
         log.info("Avaliação de UTI criada id={}", salva.getId());
-        return AvaliacaoUtiMapper.toResponse(salva);
+        return AvaliacaoUtiMapper.toResponse(salva, r);
     }
 
     @Transactional
@@ -101,11 +123,11 @@ public class AvaliacaoUtiService {
         AvaliacaoUti avaliacao = buscar(id);
         avaliacao.setUpdatedBy(securityUtils.getUsuarioLogado());
 
-        aplicar(avaliacao, dto.pacienteId(), dto.profissionalId(), dto.dataAvaliacao(),
-                dto.calculo(), dto.observacao());
+        ResultadoUti r = aplicar(avaliacao, dto.pacienteId(), dto.profissionalId(),
+                dto.dataAvaliacao(), dto.calculo(), dto.observacao());
 
         log.info("Avaliação de UTI alterada id={}", id);
-        return AvaliacaoUtiMapper.toResponse(avaliacaoUtiRepository.save(avaliacao));
+        return AvaliacaoUtiMapper.toResponse(avaliacaoUtiRepository.save(avaliacao), r);
     }
 
     /**
@@ -143,9 +165,13 @@ public class AvaliacaoUtiService {
      * a tela nunca mostra um número diferente do que o banco guarda. Há teste
      * que compara os dois caminhos com o mesmo corpo.
      */
-    private void aplicar(AvaliacaoUti a, UUID pacienteId, UUID profissionalId,
-                         java.time.LocalDate data, CalculoUtiRequestDto calculo,
-                         String observacao) {
+    /**
+     * @return o cálculo recém-feito — a resposta o usa só pelo texto de
+     *         ausência; os números ela lê da entidade já gravada
+     */
+    private ResultadoUti aplicar(AvaliacaoUti a, UUID pacienteId, UUID profissionalId,
+                                 java.time.LocalDate data, CalculoUtiRequestDto calculo,
+                                 String observacao) {
 
         a.setPaciente(buscarPessoa(pacienteId, "Paciente não encontrado"));
         a.setProfissional(profissionalId == null ? null
@@ -155,7 +181,32 @@ public class AvaliacaoUtiService {
 
         gravarEntradas(a, calculo);
         gravarRetratoDaFormula(a, calculo.formulaEnteralId());
-        gravarResultados(a, calculoUtiService.calcular(calculo));
+
+        ResultadoUti r = calculoUtiService.calcular(calculo);
+        gravarResultados(a, r);
+        return r;
+    }
+
+    /**
+     * Refaz o cálculo sobre as <b>entradas gravadas</b>, para colher dele só as
+     * frases de ausência.
+     *
+     * <p>Usa o <b>retrato</b> da fórmula, não o catálogo de hoje: a fórmula pode
+     * ter mudado, ou saído dele, e o motivo tem de explicar a avaliação como ela
+     * foi feita.
+     */
+    private ResultadoUti motivosDe(AvaliacaoUti a) {
+        return calculoUtiService.calcular(
+                AvaliacaoUtiMapper.toEntradas(a), retratoDaFormula(a));
+    }
+
+    /** O que ficou gravado da fórmula, na forma que o calculador consome. */
+    private static FormulaEnteralResolvida retratoDaFormula(AvaliacaoUti a) {
+        if (a.getFormulaNome() == null) return null;
+        return new FormulaEnteralResolvida(
+                a.getFormulaNome(), a.getFormulaDensidadeKcalMl(), a.getFormulaProteinaGL(),
+                a.getFormulaChoGL(), a.getFormulaLipGL(), a.getFormulaFibrasGL(),
+                a.getFormulaPotassioMgL(), a.getFormulaAguaLivrePerc());
     }
 
     private void gravarEntradas(AvaliacaoUti a, CalculoUtiRequestDto c) {

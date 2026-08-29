@@ -19,21 +19,68 @@ public final class FerramentaClinicaCalculator {
 
     private FerramentaClinicaCalculator() {}
 
-    /** Miligramas de noradrenalina por ampola. */
+    /**
+     * Miligramas de noradrenalina por ampola.
+     *
+     * <p><b>Apresentação brasileira:</b> hemitartarato de noradrenalina 2 mg/ml
+     * em ampola de 4 ml — 8 mg de sal, equivalentes a <b>4 mg de noradrenalina
+     * base</b>, que é o que a dose em mcg/kg/min mede. É a apresentação que a
+     * planilha assume ({@code Cálculos!C3}) e a que a ANVISA registra no país.
+     * Ampola de outra concentração muda esta constante, e por isso ela é
+     * nomeada em vez de cravada na conta.
+     */
     private static final BigDecimal MG_POR_AMPOLA = new BigDecimal("4");
 
     private static final BigDecimal SEGUNDOS_POR_MINUTO_EM_HORA = new BigDecimal("60");
 
-    /** Nitrogênio por grama de proteína: 1 g de N para cada 6,25 g de PTN. */
+    /**
+     * Nitrogênio por grama de proteína: 1 g de N para cada 6,25 g de PTN.
+     *
+     * <p>É o inverso do <b>fator de Jones</b> geral (6,25 = 1 / 0,16): a
+     * proteína contém em média 16 % de nitrogênio. Constante clássica da
+     * bioquímica nutricional, usada no balanço nitrogenado desde Kjeldahl.
+     */
     private static final BigDecimal PTN_POR_NITROGENIO = new BigDecimal("6.25");
 
-    /** Fator de conversão da ureia urinária em nitrogênio. */
+    /**
+     * Fator de conversão da <b>ureia</b> urinária em nitrogênio ureico.
+     *
+     * <p>Massa molar da ureia 60,06 g/mol contra 28,01 g de nitrogênio (dois
+     * átomos de N por molécula): 60,06 / 28,01 = <b>2,14</b>. Ou seja, é
+     * estequiometria, não estimativa — dividir a ureia por 2,14 devolve o
+     * nitrogênio contido nela.
+     *
+     * <p><b>Cuidado com a unidade do exame.</b> Este fator vale para ureia; se
+     * o laboratório reportar <i>nitrogênio ureico</i> (BUN/NUU), o valor já
+     * está convertido e dividir de novo subestimaria a excreção.
+     */
     private static final BigDecimal UREIA_PARA_NITROGENIO = new BigDecimal("2.14");
 
-    /** Perdas insensíveis — pele, fezes, secreções. O "+4" da planilha. */
+    /**
+     * Perdas insensíveis — pele, fezes, secreções. O "+4" da planilha
+     * ({@code Cálculos!C12}).
+     *
+     * <p>Constante empírica consagrada no cálculo de balanço nitrogenado a
+     * partir da ureia urinária de 24 h. A literatura usa 2 a 4 g de N/dia; 4 é
+     * a escolha conservadora — superestima a perda e, com isso, <b>não deixa um
+     * balanço negativo passar por positivo</b>, que é o erro que importa evitar
+     * aqui.
+     */
     private static final BigDecimal PERDAS_INSENSIVEIS = new BigDecimal("4");
 
-    /** Densidade calórica da emulsão lipídica do propofol a 1 %. */
+    /**
+     * Densidade calórica da emulsão lipídica do propofol a 1 %.
+     *
+     * <p>O veículo é uma emulsão de óleo de soja a <b>10 % (100 mg/ml)</b>, o
+     * mesmo tipo das emulsões lipídicas parenterais. 0,1 g de lipídio por ml ×
+     * 9 kcal/g = 0,9 kcal/ml de gordura, mais glicerol e fosfolipídio de ovo, o
+     * que fecha em <b>1,1 kcal/ml</b> — o número que a bula e a planilha
+     * ({@code Cálculos!B18}) usam.
+     *
+     * <p>Propofol a <b>2 %</b> tem o dobro do fármaco mas <b>a mesma emulsão</b>,
+     * logo as mesmas 1,1 kcal/ml. É a concentração do fármaco que muda, não a
+     * do veículo — trocar esta constante por 2,2 seria erro.
+     */
     private static final BigDecimal KCAL_POR_ML_PROPOFOL = new BigDecimal("1.1");
 
     /** Horas de infusão do propofol quando o profissional não informa outra. */
