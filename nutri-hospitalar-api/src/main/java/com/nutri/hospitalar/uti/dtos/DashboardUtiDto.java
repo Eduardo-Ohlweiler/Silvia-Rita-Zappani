@@ -53,10 +53,28 @@ public record DashboardUtiDto(
         List<ContagemDto> porTerapiaRenal,
         List<ContagemDto> porModoInfusao,
 
+        /**
+         * Faixa etária do adulto, em degraus com ordem — por isso vai em coluna
+         * com rampa ordinal, e não em barra de cor única.
+         *
+         * <p>O corte em <b>60 anos</b> não é arbitrário: é onde passa a valer a
+         * classificação de IMC da OPAS 2002, que usa outros pontos que a da OMS.
+         * Uma UTI com metade dos pacientes acima de 60 lê o IMC médio de outro
+         * jeito.
+         */
+        List<ContagemDto> porFaixaEtaria,
+
         List<PacienteRankingDto> pacientesMaisAvaliados
 ) {
 
-    public record PontoPeriodoDto(String periodo, long avaliacoes, long dias) {}
+    /**
+     * @param adesaoMedia média do percentual recebido nos dias daquele mês, ou
+     *                    {@code null} quando o mês não teve dia com prescrição.
+     *                    Nulo e zero são coisas diferentes aqui: zero seria um
+     *                    mês em que ninguém recebeu nada
+     */
+    public record PontoPeriodoDto(String periodo, long avaliacoes, long dias,
+                                  BigDecimal adesaoMedia) {}
 
     /**
      * Distribuição por classificação clínica.

@@ -1,4 +1,5 @@
 import {
+  Area,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -59,17 +60,68 @@ export function PesoNoTempo({ evolucao }: { evolucao: PontoAvaliacaoUti[] }) {
     )
   }
 
+  const ultimo = dados[dados.length - 1]
+
+  // O domínio precisa abraçar as metas, senão a linha de referência sai do
+  // quadro e o gráfico volta a ser um ponto solto.
+  const relevantes = [
+    ...dados.map((p) => p.pesoTrabalhoKg as number),
+    ultimo?.pesoIdealKg,
+    ultimo?.pesoIdealImc25Kg,
+  ].filter((v): v is number => v != null)
+  const piso = Math.floor(Math.min(...relevantes) - 2)
+  const teto = Math.ceil(Math.max(...relevantes) + 2)
+
   return (
     <div>
-      <TituloGrafico referencia="O peso que a prescrição usou — atual, estimado ou ajustado, conforme a avaliação">
+      <TituloGrafico referencia="O peso que a prescrição usou — atual, estimado ou ajustado — contra as metas de peso da própria avaliação.">
         Peso de trabalho
       </TituloGrafico>
 
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={280}>
         <ComposedChart data={evolucao} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
           <CartesianGrid {...GRADE} />
           <XAxis dataKey="dataAvaliacao" {...EIXO} tickFormatter={(v: string) => formatarData(v)} />
-          <YAxis {...EIXO} width={52} domain={['auto', 'auto']} unit=" kg" />
+          <YAxis {...EIXO} width={52} domain={[piso, teto]} unit=" kg" />
+
+          {/* Peso ideal e peso para IMC 25 delimitam onde o peso deveria estar
+              — é o que salva o gráfico do paciente com UMA avaliação: um ponto
+              solto num eixo automático não diz se 68 kg é muito ou pouco para
+              aquela altura.
+
+              São `ReferenceLine` horizontais, e não séries. Linha tracejada
+              ligando um ponto só não desenha linha: desenha dois tracinhos
+              soltos no meio do quadro, que foi o que apareceu na primeira
+              versão. As metas derivam da altura, que não muda na internação,
+              então a da última avaliação vale para o gráfico inteiro. */}
+          {ultimo?.pesoIdealKg != null && (
+            <ReferenceLine
+              y={ultimo.pesoIdealKg}
+              stroke="var(--viz-serie-3)"
+              strokeWidth={1.5}
+              strokeDasharray="5 4"
+              label={{
+                value: `ideal ${formatarNumero(ultimo.pesoIdealKg, 1)} kg`,
+                position: 'insideTopLeft',
+                fill: 'var(--txt-muted)',
+                fontSize: 11,
+              }}
+            />
+          )}
+          {ultimo?.pesoIdealImc25Kg != null && (
+            <ReferenceLine
+              y={ultimo.pesoIdealImc25Kg}
+              stroke="var(--viz-serie-2)"
+              strokeWidth={1.5}
+              strokeDasharray="2 4"
+              label={{
+                value: `IMC 25 · ${formatarNumero(ultimo.pesoIdealImc25Kg, 1)} kg`,
+                position: 'insideBottomLeft',
+                fill: 'var(--txt-muted)',
+                fontSize: 11,
+              }}
+            />
+          )}
 
           <Line
             type="monotone"
@@ -100,9 +152,24 @@ export function PesoNoTempo({ evolucao }: { evolucao: PontoAvaliacaoUti[] }) {
                           : '—',
                     },
                     {
+                      rotulo: 'Peso ideal',
+                      cor: 'var(--viz-serie-3)',
+                      valor: p.pesoIdealKg != null ? `${formatarNumero(p.pesoIdealKg, 2)} kg` : '—',
+                    },
+                    {
+                      rotulo: 'Peso para IMC 25',
+                      cor: 'var(--viz-serie-2)',
+                      valor:
+                        p.pesoIdealImc25Kg != null
+                          ? `${formatarNumero(p.pesoIdealImc25Kg, 2)} kg`
+                          : '—',
+                    },
+                    {
                       rotulo: 'Perda de peso',
                       valor:
-                        p.percPerdaPeso != null ? `${formatarNumero(p.percPerdaPeso, 2)}%` : '—',
+                        p.percPerdaPeso != null
+                          ? `${formatarNumero(p.percPerdaPeso, 2)}% · ${p.classifPerdaPeso ?? ''}`
+                          : '—',
                     },
                   ]}
                 />
@@ -374,6 +441,10 @@ export function AdequacaoCbNoTempo({ evolucao }: { evolucao: PontoAvaliacaoUti[]
     )
   }
 
+  const perc = dados.map((p) => p.adequacaoCircBracoPerc as number)
+  const pisoCb = Math.min(60, Math.floor(Math.min(...perc) - 5))
+  const tetoCb = Math.max(130, Math.ceil(Math.max(...perc) + 5))
+
   return (
     <div>
       <TituloGrafico referencia="Percentual do P50 de referência. Cortes em 90 % e 110 % delimitam a eutrofia; a avaliação traz a classificação nas seis faixas.">
@@ -384,11 +455,32 @@ export function AdequacaoCbNoTempo({ evolucao }: { evolucao: PontoAvaliacaoUti[]
         <ComposedChart data={evolucao} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
           <CartesianGrid {...GRADE} />
           <XAxis dataKey="dataAvaliacao" {...EIXO} tickFormatter={(v: string) => formatarData(v)} />
-          <YAxis {...EIXO} width={48} tickFormatter={(v: number) => `${formatarNumero(v, 0)}%`} />
+          {/* O domínio TEM de conter 90 e 110: com escala automática de 0 a 80,
+              as faixas que dão sentido ao número ficavam fora do quadro e o
+              gráfico voltava a ser um ponto solto. */}
+          <YAxis
+            {...EIXO}
+            width={48}
+            domain={[pisoCb, tetoCb]}
+            tickFormatter={(v: number) => `${formatarNumero(v, 0)}%`}
+          />
 
-          <ReferenceArea y1={0} y2={90} fill="var(--viz-ordinal-3)" fillOpacity={0.18} stroke="none" />
+          <ReferenceArea y1={pisoCb} y2={90} fill="var(--viz-ordinal-3)" fillOpacity={0.18} stroke="none" />
           <ReferenceArea y1={90} y2={110} fill="var(--viz-ordinal-1)" fillOpacity={0.18} stroke="none" />
-          <ReferenceArea y1={110} y2={200} fill="var(--viz-ordinal-2)" fillOpacity={0.18} stroke="none" />
+          <ReferenceArea y1={110} y2={tetoCb} fill="var(--viz-ordinal-2)" fillOpacity={0.18} stroke="none" />
+          {[90, 110].map((corte) => (
+            <ReferenceLine
+              key={corte}
+              y={corte}
+              stroke="var(--line-strong)"
+              label={{
+                value: `${corte} %`,
+                position: 'left',
+                fill: 'var(--txt-muted)',
+                fontSize: 11,
+              }}
+            />
+          ))}
 
           <Line
             type="monotone"
@@ -428,4 +520,142 @@ export function AdequacaoCbNoTempo({ evolucao }: { evolucao: PontoAvaliacaoUti[]
       </ResponsiveContainer>
     </div>
   )
+}
+
+/**
+ * O que a dieta entrega **por quilo**, contra a faixa recomendada do dia.
+ *
+ * É a leitura que o intensivista faz de cabeça — "está em 20 kcal/kg" — e a
+ * única em que a faixa de referência muda a cada avaliação, porque ela é
+ * calculada sobre o peso e a fase daquele dia. Por isso a faixa é desenhada
+ * como área que acompanha o eixo X, e não como banda plana.
+ */
+export function OfertaPorQuilo({ evolucao }: { evolucao: PontoAvaliacaoUti[] }) {
+  const dados = evolucao
+    .filter((p) => p.pesoTrabalhoKg)
+    .map((p) => ({
+      ...p,
+      // A faixa vem em kcal/dia; por quilo é ela dividida pelo peso do dia.
+      kcalMinPorKg: porQuilo(p.energiaMinima, p.pesoTrabalhoKg),
+      kcalMaxPorKg: porQuilo(p.energiaMaxima, p.pesoTrabalhoKg),
+      // `Area` empilha: a segunda série desenha a ALTURA da faixa, não o topo.
+      kcalFaixa: diferenca(p.energiaMaxima, p.energiaMinima, p.pesoTrabalhoKg),
+    }))
+
+  if (dados.every((p) => p.caloriasPorQuilo == null)) {
+    return (
+      <div>
+        <TituloGrafico>Energia ofertada por quilo</TituloGrafico>
+        <GraficoVazio>
+          Nenhuma avaliação com dieta prescrita e peso definido no período.
+        </GraficoVazio>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <TituloGrafico referencia="A faixa ao fundo é a recomendação daquela avaliação, dividida pelo peso do dia — ela se move quando o peso ou a fase mudam.">
+        Energia ofertada por quilo
+      </TituloGrafico>
+
+      <ResponsiveContainer width="100%" height={260}>
+        <ComposedChart data={dados} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+          <CartesianGrid {...GRADE} />
+          <XAxis dataKey="dataAvaliacao" {...EIXO} tickFormatter={(v: string) => formatarData(v)} />
+          <YAxis {...EIXO} width={52} unit=" kcal" />
+
+          {/* Duas áreas empilhadas: a de baixo é transparente e serve de base;
+              a de cima é a faixa. É o mesmo truque da curva da OMS, e existe
+              porque a faixa VARIA com o x — banda plana não serviria. */}
+          <Area
+            type="monotone"
+            dataKey="kcalMinPorKg"
+            stackId="faixa"
+            stroke="none"
+            fill="none"
+            isAnimationActive={false}
+            legendType="none"
+          />
+          <Area
+            type="monotone"
+            dataKey="kcalFaixa"
+            stackId="faixa"
+            name="Faixa recomendada"
+            stroke="none"
+            fill="var(--viz-faixa-interna)"
+            fillOpacity={0.45}
+            isAnimationActive={false}
+          />
+
+          <Line
+            type="monotone"
+            dataKey="caloriasPorQuilo"
+            name="Ofertado"
+            stroke="var(--viz-serie-1)"
+            strokeWidth={2}
+            connectNulls
+            isAnimationActive={false}
+            dot={{ r: 4, fill: 'var(--viz-serie-1)', stroke: 'var(--surface)', strokeWidth: 2 }}
+          />
+
+          <Tooltip
+            cursor={{ stroke: 'var(--line-strong)', strokeWidth: 1 }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null
+              const p = payload[0].payload as PontoAvaliacaoUti & {
+                kcalMinPorKg?: number
+                kcalMaxPorKg?: number
+              }
+              return (
+                <TooltipCartao
+                  titulo={dataCurta(p)}
+                  linhas={[
+                    {
+                      rotulo: 'Ofertado',
+                      cor: 'var(--viz-serie-1)',
+                      valor:
+                        p.caloriasPorQuilo != null
+                          ? `${formatarNumero(p.caloriasPorQuilo, 1)} kcal/kg`
+                          : '—',
+                    },
+                    {
+                      rotulo: 'Recomendado',
+                      cor: 'var(--viz-faixa-interna)',
+                      valor:
+                        p.kcalMinPorKg != null && p.kcalMaxPorKg != null
+                          ? `${formatarNumero(p.kcalMinPorKg, 1)} a ${formatarNumero(p.kcalMaxPorKg, 1)} kcal/kg`
+                          : '—',
+                    },
+                    { rotulo: 'Fase', valor: p.fase ?? '—' },
+                    ...(p.obeso
+                      ? [{ rotulo: 'Obesidade', valor: 'correção da ASPEN aplicada' }]
+                      : []),
+                  ]}
+                />
+              )
+            }}
+          />
+          <Legend
+            verticalAlign="top"
+            align="right"
+            wrapperStyle={{ fontSize: 12, color: 'var(--txt-secondary)', paddingBottom: 8 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function porQuilo(valor?: number | null, peso?: number | null): number | undefined {
+  return valor != null && peso ? valor / peso : undefined
+}
+
+function diferenca(
+  maximo?: number | null,
+  minimo?: number | null,
+  peso?: number | null,
+): number | undefined {
+  if (maximo == null || minimo == null || !peso) return undefined
+  return (maximo - minimo) / peso
 }

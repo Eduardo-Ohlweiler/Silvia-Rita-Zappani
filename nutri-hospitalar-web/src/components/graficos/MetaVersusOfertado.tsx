@@ -34,6 +34,7 @@ export function MetaVersusOfertado<T extends object>({
   rotuloMeta = 'Prescrito',
   rotuloOfertado = 'Recebido',
   rotuloX,
+  formatarX,
   altura = 260,
   vazio,
 }: {
@@ -48,6 +49,11 @@ export function MetaVersusOfertado<T extends object>({
   rotuloMeta?: string
   rotuloOfertado?: string
   rotuloX?: (ponto: T) => string
+  /**
+   * Como escrever o x no **eixo**. Sem isto ele mostra o valor cru — e uma data
+   * ISO (`2026-08-22`) é ilegível e ocupa o dobro do espaço.
+   */
+  formatarX?: (valor: string) => string
   altura?: number
   vazio?: string
 }) {
@@ -69,7 +75,11 @@ export function MetaVersusOfertado<T extends object>({
       <ResponsiveContainer width="100%" height={altura}>
         <ComposedChart data={dados} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
           <CartesianGrid {...GRADE} />
-          <XAxis dataKey={chaveDoPonto<T>(chaveX)} {...EIXO} />
+          <XAxis
+            dataKey={chaveDoPonto<T>(chaveX)}
+            {...EIXO}
+            tickFormatter={(v: string) => (formatarX ? formatarX(v) : v)}
+          />
           <YAxis {...EIXO} width={56} />
 
           <Bar
@@ -151,12 +161,18 @@ export function AdesaoNoTempo<T extends object>({
   chaveX,
   chaveAdesao,
   rotuloX,
+  formatarX,
   altura = 240,
 }: {
   dados: T[]
   chaveX: keyof T & string
   chaveAdesao: keyof T & string
   rotuloX?: (ponto: T) => string
+  /**
+   * Como escrever o x no **eixo**. Sem isto ele mostra o valor cru — e uma data
+   * ISO (`2026-08-22`) é ilegível e ocupa o dobro do espaço.
+   */
+  formatarX?: (valor: string) => string
   altura?: number
 }) {
   const comValor = dados.filter((p) => p[chaveAdesao] != null)
@@ -181,7 +197,11 @@ export function AdesaoNoTempo<T extends object>({
       <ResponsiveContainer width="100%" height={altura}>
         <ComposedChart data={dados} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
           <CartesianGrid {...GRADE} />
-          <XAxis dataKey={chaveDoPonto<T>(chaveX)} {...EIXO} />
+          <XAxis
+            dataKey={chaveDoPonto<T>(chaveX)}
+            {...EIXO}
+            tickFormatter={(v: string) => (formatarX ? formatarX(v) : v)}
+          />
           {/* Sem domain fixo: adesão acima de 100 % é dado, não ruído a cortar. */}
           <YAxis {...EIXO} width={48} tickFormatter={(v: number) => `${formatarNumero(v, 0)}%`} />
 

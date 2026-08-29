@@ -687,6 +687,27 @@ escuro encosta na superfície.
 A faixa "acima de 60 meses" fica **fora da rampa**, em cinza de texto: ela está
 fora do alcance das curvas da OMS, e a cor deve dizer isso.
 
+### 10.4.1 A rampa ordinal foi verificada, não suposta
+
+O validador de paleta categórica **reprova** esta rampa — e está certo em
+reprovar, porque está aplicando o teste errado. Rampa ordinal não é paleta
+categórica: os degraus vizinhos são do mesmo matiz **de propósito**, e o que os
+separa é a luminosidade. O teste correto é **monotonicidade**:
+
+| Tema | Luminosidade dos 5 degraus | Monotônica |
+|---|---|---|
+| Claro | 0,448 · 0,239 · 0,145 · 0,080 · 0,038 | sim, decrescente |
+| Escuro | 0,108 · 0,239 · 0,369 · 0,537 · 0,743 | sim, crescente |
+
+É por isso que a rampa continua legível em preto e branco e em fotocópia. O
+degrau claro comprime nos dois últimos passos (0,065 e 0,042), o que é normal
+numa rampa clara→escura e é por isso que **cinco é o teto** e o rótulo direto é
+obrigatório.
+
+A paleta **categórica**, essa sim, passa nos dois temas com folga: pior par
+adjacente ΔE 9,2 sob deuteranopia e 27,6 em visão normal, no claro; 9,4 e 26,5
+no escuro.
+
 ### 10.5 Formas que este sistema não usa
 
 - **Dois eixos Y no mesmo gráfico.** O alinhamento entre as duas escalas é
@@ -694,6 +715,12 @@ fora do alcance das curvas da OMS, e a cor deve dizer isso.
   gráficos.
 - **Pizza para comparar valores próximos**, ou de duas fatias. Distribuição de
   sexo é cartão de indicador; classificação é barra empilhada.
+
+  A rosca **é** usada onde ela é honesta: parte contra o todo, de **três a seis**
+  fatias de tamanhos distintos — terapia renal substitutiva é o caso. Por isso
+  `RoscaDeComposicao` **se recusa a desenhar** com menos de três segmentos e cai
+  numa barra de proporção; é o que acontece com fase da terapia e modo de
+  infusão, que têm duas opções cada.
 - **Rampa de valor em categoria sem ordem.** Colorir fórmula láctea por
   quantidade duplica o que o comprimento da barra já diz. Categoria nominal =
   uma cor só para todas as barras.

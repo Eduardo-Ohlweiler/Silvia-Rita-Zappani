@@ -220,7 +220,32 @@ class UtiDashboardTest extends AbstractIntegrationTest {
                             .value("Paciente do Painel"))
                     .andExpect(jsonPath("$.pacientesMaisAvaliados[0].dias").value(1))
                     // Série mensal contínua, terminando no mês corrente
-                    .andExpect(jsonPath("$.porPeriodo").isArray());
+                    .andExpect(jsonPath("$.porPeriodo").isArray())
+                    // O paciente tem 59 anos: cai na terceira faixa, e as quatro
+                    // aparecem mesmo zeradas — coluna que some faz parecer que
+                    // aquela idade não existe na UTI
+                    .andExpect(jsonPath("$.porFaixaEtaria.length()").value(4))
+                    .andExpect(jsonPath("$.porFaixaEtaria[0].rotulo").value("18 a 39 anos"))
+                    .andExpect(jsonPath("$.porFaixaEtaria[0].quantidade").value(0))
+                    .andExpect(jsonPath("$.porFaixaEtaria[1].rotulo").value("40 a 59 anos"))
+                    .andExpect(jsonPath("$.porFaixaEtaria[1].quantidade").value(1));
+        }
+
+        @Test
+        @DisplayName("a adesão do mês é ausente quando não houve dia medido, e não zero")
+        void adesaoMensalAusenteNaoEZero() throws Exception {
+            UUID avaliacao = criarAvaliacao(hoje.minusDays(3), "68");
+            criarDia(avaliacao, hoje.minusDays(2), "1364", "1800");
+
+            mockMvc.perform(get("/uti/dashboard")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                    .andExpect(status().isOk())
+                    // O mês corrente tem o dia: 1364 de 1364 prescritos
+                    .andExpect(jsonPath("$.porPeriodo[-1:].adesaoMedia").value(100.0))
+                    // Zero ali seria um mês em que ninguém recebeu nada. Como a
+                    // série é contínua e começa antes, os meses anteriores
+                    // existem com avaliacoes=0 e SEM adesão.
+                    .andExpect(jsonPath("$.porPeriodo[-1:].dias").value(1));
         }
 
         @Test

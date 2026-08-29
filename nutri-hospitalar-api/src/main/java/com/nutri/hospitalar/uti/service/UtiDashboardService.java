@@ -86,6 +86,17 @@ public class UtiDashboardService {
 
     private static final BigDecimal CEM = new BigDecimal("100");
 
+    /**
+     * Faixas etárias do adulto, em degraus.
+     *
+     * <p>O corte em <b>60 anos</b> é o que importa clinicamente: dali em diante
+     * vale a classificação de IMC da OPAS 2002, com outros pontos de corte que a
+     * da OMS. Os demais são os degraus usuais de descrição de casuística.
+     */
+    private static final int[] FAIXA_LIMITES = {40, 60, 80};
+    private static final String[] FAIXA_ROTULOS = {
+            "18 a 39 anos", "40 a 59 anos", "60 a 79 anos", "80 anos ou mais"};
+
     /** O rótulo de eutrofia gravado pelo classificador de IMC da OMS. */
     private static final String EUTROFIA = "Eutrofia";
 
@@ -161,7 +172,13 @@ public class UtiDashboardService {
                 a.getClassifImcOms(), a.getClassifImcOmsTom(),
                 a.getPercPerdaPeso(), a.getClassifPerdaPeso(), a.getClassifPerdaPesoTom(),
                 a.getAdequacaoCircBracoPerc(), a.getClassifAdequacaoCb(), a.getClassifAdequacaoCbTom(),
+                a.getPesoIdealKg(), a.getPesoIdealImc25Kg(), a.getPesoAjustadoKg(),
+                a.getEnergiaMinima(), a.getEnergiaMaxima(),
+                a.getProteinaMinima(), a.getProteinaMaxima(),
                 a.getMetaEnergetica(), a.getMetaProteica(),
+                a.getFormulaNome(),
+                a.getFase() == null ? null : a.getFase().getDescricao(),
+                Boolean.TRUE.equals(a.getObeso()),
                 a.getVolumeTotalMl(), a.getCaloriasOfertadas(), a.getProteinaOfertada(),
                 a.getCaloriasPorQuilo(), a.getProteinaPorQuilo(),
                 a.getPercentualDoVct(), a.getPercentualDaProteina());
@@ -276,7 +293,7 @@ public class UtiDashboardService {
                 percentualEutrofia(avaliacoes),
                 avaliacoes.stream().filter(a -> Boolean.TRUE.equals(a.getObeso())).count(),
 
-                serieMensal(avaliacoes, registros),
+                serieMensal(avaliacoes, registros, desde),
 
                 distribuicao(avaliacoes, AvaliacaoUti::getClassifImcOms,
                         AvaliacaoUti::getClassifImcOmsTom),
@@ -292,6 +309,8 @@ public class UtiDashboardService {
                         ? "Não informada" : a.getTerapiaRenal().getDescricao()),
                 contar(avaliacoes, a -> a.getModoInfusao() == null
                         ? "Não informado" : a.getModoInfusao().getDescricao()),
+
+                faixasEtarias(avaliacoes),
 
                 ranking(avaliacoes, registros));
     }
@@ -315,9 +334,16 @@ public class UtiDashboardService {
                 .divide(BigDecimal.valueOf(classificadas.size()), 1, RoundingMode.HALF_UP);
     }
 
-    /** Série contínua: mês sem movimento aparece com zero, senão o gráfico mente. */
+    /**
+     * Série contínua: mês sem movimento aparece com zero, senão o gráfico mente.
+     *
+     * <p>A <b>adesão</b> vai junto e é a exceção da regra do zero: mês sem dia
+     * com prescrição volta {@code null}, não 0 %. Zero ali seria um mês em que
+     * ninguém recebeu nada — e a linha desceria ao chão dizendo isso.
+     */
     private List<PontoPeriodoDto> serieMensal(List<AvaliacaoUti> avaliacoes,
-                                              List<RegistroDiarioUti> registros) {
+                                              List<RegistroDiarioUti> registros,
+                                              LocalDate desde) {
         Map<YearMonth, Long> porMes = avaliacoes.stream()
                 .collect(Collectors.groupingBy(a -> YearMonth.from(a.getDataAvaliacao()),
                         Collectors.counting()));
@@ -325,19 +351,38 @@ public class UtiDashboardService {
                 .collect(Collectors.groupingBy(r -> YearMonth.from(r.getData()),
                         Collectors.counting()));
 
+        Map<YearMonth, List<RegistroDiarioUtiResponseDto>> respostasPorMes = registros.stream()
+                .collect(Collectors.groupingBy(r -> YearMonth.from(r.getData()),
+                        Collectors.mapping(RegistroDiarioUtiMapper::toResponse,
+                                Collectors.toList())));
+
         YearMonth fim = YearMonth.now();
         YearMonth teto = fim.minusMonths(MESES_NA_SERIE - 1L);
 
-        YearMonth inicio = porMes.keySet().stream()
-                .min(YearMonth::compareTo)
-                .orElse(teto);
+        /*
+         * A série cobre a JANELA PEDIDA, não os meses que por acaso têm dado.
+         *
+         * Começar no mês da primeira avaliação parece economia de espaço e é
+         * distorção: com três avaliações no mesmo mês, o gráfico de "último ano"
+         * saía com um ponto solto no meio do branco, sugerindo que não havia
+         * mais nada a mostrar. Havia — onze meses de zero, que é informação.
+         *
+         * Sem janela (`dias = 0`, desde sempre), o início continua sendo o
+         * primeiro mês com movimento: aí não existe janela para respeitar.
+         */
+        YearMonth inicio = desde != null
+                ? YearMonth.from(desde)
+                : porMes.keySet().stream().min(YearMonth::compareTo).orElse(teto);
         if (inicio.isBefore(teto)) inicio = teto;
+        if (inicio.isAfter(fim)) inicio = fim;
 
         List<PontoPeriodoDto> serie = new ArrayList<>();
         for (YearMonth m = inicio; !m.isAfter(fim); m = m.plusMonths(1)) {
             serie.add(new PontoPeriodoDto(m.atDay(1).format(MES),
                     porMes.getOrDefault(m, 0L),
-                    diasPorMes.getOrDefault(m, 0L)));
+                    diasPorMes.getOrDefault(m, 0L),
+                    media(respostasPorMes.getOrDefault(m, List.of()),
+                            RegistroDiarioUtiResponseDto::percentualRecebido, 1)));
         }
         return serie;
     }
@@ -366,6 +411,36 @@ public class UtiDashboardService {
 
         long sem = avaliacoes.stream().filter(a -> rotulo.apply(a) == null).count();
         if (sem > 0) saida.add(new ContagemRotuladaDto("Não classificado", null, sem));
+
+        return List.copyOf(saida);
+    }
+
+    /**
+     * As quatro faixas <b>sempre aparecem</b>, mesmo zeradas: uma coluna que some
+     * faz parecer que aquela idade não existe na UTI, quando ela só não teve
+     * avaliação no período.
+     *
+     * <p>A avaliação sem idade informada vira uma quinta barra, fora da rampa —
+     * não é um degrau da escala, é a ausência dela.
+     */
+    private List<ContagemDto> faixasEtarias(List<AvaliacaoUti> avaliacoes) {
+        long[] contagem = new long[FAIXA_ROTULOS.length];
+        long semIdade = 0;
+
+        for (AvaliacaoUti a : avaliacoes) {
+            if (a.getIdadeAnos() == null) { semIdade++; continue; }
+
+            int indice = FAIXA_LIMITES.length;
+            for (int i = 0; i < FAIXA_LIMITES.length; i++) {
+                if (a.getIdadeAnos() < FAIXA_LIMITES[i]) { indice = i; break; }
+            }
+            contagem[indice]++;
+        }
+
+        List<ContagemDto> saida = new ArrayList<>();
+        for (int i = 0; i < FAIXA_ROTULOS.length; i++)
+            saida.add(new ContagemDto(FAIXA_ROTULOS[i], contagem[i]));
+        if (semIdade > 0) saida.add(new ContagemDto("Idade não informada", semIdade));
 
         return List.copyOf(saida);
     }

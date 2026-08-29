@@ -32,6 +32,7 @@ export function VolumeNoTempo({ dias }: { dias: DiaPlotado[] }) {
       unidade="ml"
       referencia="Quando o dia não traz prescrito próprio, a referência é o volume da avaliação vigente."
       rotuloX={rotuloDia}
+      formatarX={formatarData}
       vazio="Nenhum dia com volume informado no período."
     />
   )
@@ -76,6 +77,7 @@ export function LaboratorioNoTempo({ dias }: { dias: DiaPlotado[] }) {
           referencia={REFERENCIAS[chave]}
           casas={REFERENCIAS[chave].max < 10 ? 2 : 0}
           rotuloX={rotuloDia}
+          formatarX={formatarData}
         />
       ))}
     </div>
@@ -105,6 +107,7 @@ export function DiureseNoTempo({ dias }: { dias: DiaPlotado[] }) {
       }}
       casas={2}
       rotuloX={rotuloDia}
+      formatarX={formatarData}
       altura={240}
       vazio="Nenhum dia com diurese informada — e ela precisa também do peso da avaliação vinculada."
     />
@@ -130,6 +133,7 @@ export function PressaoNoTempo({ dias }: { dias: DiaPlotado[] }) {
       }}
       casas={0}
       rotuloX={rotuloDia}
+      formatarX={formatarData}
       altura={240}
       vazio="Nenhum dia com sistólica e diastólica informadas — a PAM precisa das duas."
     />
@@ -147,6 +151,7 @@ export function BalancoNoTempo({ dias }: { dias: DiaPlotado[] }) {
       unidade="ml"
       referencia="Saldo de 24 h. Positivo é retenção, negativo é perda — nenhum dos dois é bom ou ruim por si."
       rotuloX={rotuloDia}
+      formatarX={formatarData}
     />
   )
 }

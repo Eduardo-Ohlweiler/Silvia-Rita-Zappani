@@ -17,6 +17,7 @@ import {
   AdequacaoCbNoTempo,
   ImcComFaixas,
   MetasNoTempo,
+  OfertaPorQuilo,
   PesoNoTempo,
 } from '@/components/uti/graficos/GraficosPaciente'
 import { DocumentoPainelPaciente } from '@/components/uti/impressao/DocumentoPainelPaciente'
@@ -159,20 +160,60 @@ export function PainelPacienteUti() {
             <div className={carregando ? 'opacity-50 transition-opacity' : undefined}>
               {/* ─── Resumo ───────────────────────────────────────── */}
               <TTabPanel id="resumo" ativa={aba}>
-                <TPanel>
-                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
-                    <Indicador rotulo="Idade atual" valor={anos(dados.idadeAnosAtual)} />
-                    <Indicador rotulo="Avaliações" valor={String(dados.totalAvaliacoes)} />
-                    <Indicador rotulo="1ª avaliação" valor={formatarData(dados.primeiraAvaliacao)} />
-                    <Indicador rotulo="Última" valor={formatarData(dados.ultimaAvaliacao)} />
-                    <Indicador
-                      rotulo="Dias registrados"
-                      valor={String(dados.totalDiasRegistrados)}
-                    />
-                  </div>
+                {/* Cartão por indicador, com a nota do que ele significa — é o
+                    padrão de `PediatriaDashboard`. Oito números apertados numa
+                    linha viram tabela; em cartão cada um respira e ganha a
+                    ressalva que o torna legível sem consultar o documento. */}
+                <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Kpi rotulo="Idade" valor={anos(dados.idadeAnosAtual)} nota="hoje" />
+                  <Kpi
+                    rotulo="Avaliações"
+                    valor={String(dados.totalAvaliacoes)}
+                    nota={
+                      dados.primeiraAvaliacao
+                        ? `desde ${formatarData(dados.primeiraAvaliacao)}`
+                        : 'no período'
+                    }
+                  />
+                  <Kpi
+                    rotulo="Peso de trabalho"
+                    valor={num(antropometria?.pesoDeTrabalhoKg, 'kg', 2)}
+                    nota={antropometria?.pesoDeTrabalhoOrigem ?? 'sem peso definido'}
+                  />
+                  <Kpi
+                    rotulo="IMC"
+                    valor={num(antropometria?.imc, '', 2)}
+                    nota={antropometria?.classificacaoImcOms?.rotulo ?? 'sem peso ou altura'}
+                  />
+                  <Kpi
+                    rotulo="Meta energética"
+                    valor={num(necessidades?.metaEnergetica, 'kcal/dia', 0)}
+                    nota={necessidades?.metaEnergeticaOrigem ?? 'não calculada'}
+                  />
+                  <Kpi
+                    rotulo="Meta proteica"
+                    valor={num(necessidades?.metaProteica, 'g/dia', 1)}
+                    nota={necessidades?.metaProteicaOrigem ?? 'não calculada'}
+                  />
+                  <Kpi
+                    rotulo="Energia por quilo"
+                    valor={num(ultima?.resultado.dieta.caloriasPorQuilo, 'kcal/kg', 1)}
+                    nota="o que a dieta prescrita entrega"
+                  />
+                  <Kpi
+                    rotulo="Dias registrados"
+                    valor={String(dados.totalDiasRegistrados)}
+                    nota={
+                      dados.ultimoDia
+                        ? `último em ${formatarData(dados.ultimoDia)}`
+                        : 'nenhum acompanhamento'
+                    }
+                  />
+                </div>
 
+                <TPanel>
                   {dados.totalDiasRegistrados > 0 && (
-                    <div className="mt-4">
+                    <div className="mb-4">
                       <TButton
                         variant="secondary"
                         onClick={() =>
@@ -243,6 +284,55 @@ export function PainelPacienteUti() {
               {/* ─── Antropometria ────────────────────────────────── */}
               <TTabPanel id="antropometria" ativa={aba}>
                 <div className="flex flex-col gap-4">
+                  {/* As três estimativas ao lado do peso adotado. Não é gráfico:
+                      são quatro números de um instante só, e barra de quatro
+                      categorias sem série no tempo é decoração. */}
+                  {antropometria && (
+                    <TPanel title="De onde saiu o peso e a altura">
+                      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                        <Indicador
+                          rotulo="Adotado"
+                          valor={num(antropometria.pesoDeTrabalhoKg, 'kg', 2)}
+                        />
+                        <Indicador
+                          rotulo="Chumlea"
+                          valor={num(antropometria.pesoChumleaKg, 'kg', 2)}
+                        />
+                        <Indicador rotulo="Jung" valor={num(antropometria.pesoJungKg, 'kg', 2)} />
+                        <Indicador
+                          rotulo="Rabito"
+                          valor={num(antropometria.pesoRabitoKg, 'kg', 2)}
+                        />
+                      </div>
+                      <p className="mt-3 text-caption text-txt-muted">
+                        {antropometria.pesoDeTrabalhoOrigem
+                          ? `O cálculo usou: ${antropometria.pesoDeTrabalhoOrigem}.`
+                          : (antropometria.motivoPesoDeTrabalho ?? '')}
+                        {antropometria.motivoEstimativas
+                          ? ` ${antropometria.motivoEstimativas}.`
+                          : ''}
+                      </p>
+                      <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                        <Indicador
+                          rotulo="Altura usada"
+                          valor={num(antropometria.alturaUsadaCm, 'cm', 1)}
+                        />
+                        <Indicador
+                          rotulo="Peso ideal"
+                          valor={num(antropometria.pesoIdealKg, 'kg', 2)}
+                        />
+                        <Indicador
+                          rotulo="Peso ajustado"
+                          valor={num(antropometria.pesoAjustadoKg, 'kg', 2)}
+                        />
+                        <Indicador
+                          rotulo="Corrigido por amputação"
+                          valor={num(antropometria.pesoCorrigidoAmputacaoKg, 'kg', 2)}
+                        />
+                      </div>
+                    </TPanel>
+                  )}
+
                   <TPanel>
                     <PesoNoTempo evolucao={dados.evolucao} />
                   </TPanel>
@@ -257,9 +347,14 @@ export function PainelPacienteUti() {
 
               {/* ─── Metas e oferta ───────────────────────────────── */}
               <TTabPanel id="metas" ativa={aba}>
-                <TPanel>
-                  <MetasNoTempo evolucao={dados.evolucao} />
-                </TPanel>
+                <div className="flex flex-col gap-4">
+                  <TPanel>
+                    <OfertaPorQuilo evolucao={dados.evolucao} />
+                  </TPanel>
+                  <TPanel>
+                    <MetasNoTempo evolucao={dados.evolucao} />
+                  </TPanel>
+                </div>
               </TTabPanel>
 
               {/* ─── Histórico ────────────────────────────────────── */}
@@ -353,6 +448,24 @@ export function PainelPacienteUti() {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Um indicador em cartão, com a nota que o torna legível.
+ *
+ * A nota não é enfeite: "68 kg" sozinho não diz se veio da balança ou de uma
+ * equação de estimativa, e essa diferença muda a confiança na prescrição.
+ */
+function Kpi({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: string }) {
+  return (
+    <TPanel>
+      <div className="flex flex-col gap-1">
+        <span className="text-caption text-txt-secondary">{rotulo}</span>
+        <span className="text-display font-semibold text-txt">{valor}</span>
+        {nota && <span className="text-caption text-txt-muted">{nota}</span>}
+      </div>
+    </TPanel>
+  )
+}
 
 function Classificacao({ rotulo, c }: { rotulo: string; c?: ClassificacaoUti | null }) {
   return (

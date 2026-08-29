@@ -37,6 +37,7 @@ export function BarrasComZero<T extends object>({
   unidade,
   casas = 0,
   rotuloX,
+  formatarX,
   altura = 240,
   vazio,
 }: {
@@ -48,6 +49,11 @@ export function BarrasComZero<T extends object>({
   unidade: string
   casas?: number
   rotuloX?: (ponto: T) => string
+  /**
+   * Como escrever o x no **eixo**. Sem isto ele mostra o valor cru — e uma data
+   * ISO (`2026-08-22`) é ilegível e ocupa o dobro do espaço.
+   */
+  formatarX?: (valor: string) => string
   altura?: number
   vazio?: string
 }) {
@@ -69,7 +75,11 @@ export function BarrasComZero<T extends object>({
       <ResponsiveContainer width="100%" height={altura}>
         <ComposedChart data={dados} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
           <CartesianGrid {...GRADE} />
-          <XAxis dataKey={chaveDoPonto<T>(chaveX)} {...EIXO} />
+          <XAxis
+            dataKey={chaveDoPonto<T>(chaveX)}
+            {...EIXO}
+            tickFormatter={(v: string) => (formatarX ? formatarX(v) : v)}
+          />
           <YAxis {...EIXO} width={56} />
 
           <ReferenceLine y={0} stroke="var(--line-strong)" strokeWidth={1.5} />

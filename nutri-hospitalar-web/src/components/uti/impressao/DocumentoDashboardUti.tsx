@@ -107,7 +107,10 @@ export function DocumentoDashboardUti({
         <LinhasDeValor linhas={medias} />
       </Secao>
 
-      <Secao titulo="Movimento por mês" nota="Mês sem movimento aparece com zero.">
+      <Secao
+        titulo="Movimento por mês"
+        nota="Mês sem movimento aparece com zero. A adesão é a exceção: mês sem dia medido vem em branco, porque zero ali seria um mês em que ninguém recebeu nada."
+      >
         <TabelaDoc
           linhas={dados.porPeriodo}
           chaveDe={(p) => p.periodo}
@@ -115,8 +118,16 @@ export function DocumentoDashboardUti({
             { titulo: 'Mês', celula: (p) => p.periodo },
             { titulo: 'Avaliações', numerica: true, celula: (p) => String(p.avaliacoes) },
             { titulo: 'Dias registrados', numerica: true, celula: (p) => String(p.dias) },
+            { titulo: 'Adesão média', numerica: true, celula: (p) => n(p.adesaoMedia, 1, '%') },
           ]}
         />
+      </Secao>
+
+      <Secao
+        titulo="Faixa etária"
+        nota="A partir de 60 anos vale a classificação de IMC da OPAS 2002, com outros cortes que a da OMS."
+      >
+        <Distribuicao linhas={dados.porFaixaEtaria} />
       </Secao>
 
       <Secao

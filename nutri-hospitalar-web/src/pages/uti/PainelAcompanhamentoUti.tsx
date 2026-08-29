@@ -146,38 +146,61 @@ export function PainelAcompanhamentoUti() {
             <div className={carregando ? 'opacity-50 transition-opacity' : undefined}>
               {/* ─── Resumo ───────────────────────────────────────── */}
               <TTabPanel id="resumo" ativa={aba}>
+                {/* Cartão por indicador, com a nota do que ele significa. A
+                    nota é onde mora a ressalva clínica — sem ela, "adesão 62 %"
+                    lido no dia 2 vira um julgamento que a ESPEN desautoriza. */}
+                <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <Kpi
+                    rotulo="Dias registrados"
+                    valor={String(dados.totalDias)}
+                    nota={
+                      dados.diasSemAvaliacao > 0
+                        ? `${dados.diasSemAvaliacao} sem avaliação vinculada`
+                        : 'todos com avaliação vinculada'
+                    }
+                  />
+                  <Kpi
+                    rotulo="Adesão média"
+                    valor={num(dados.adesaoMedia, '%', 1)}
+                    nota="não é nota — a meta é progressiva na 1ª semana"
+                  />
+                  <Kpi
+                    rotulo="Energia recebida"
+                    valor={num(dados.caloriasPorQuiloMedia, 'kcal/kg', 1)}
+                    nota="média dos dias com peso definido"
+                  />
+                  <Kpi
+                    rotulo="Proteína recebida"
+                    valor={num(dados.proteinaPorQuiloMedia, 'g/kg', 2)}
+                    nota="média dos dias com peso definido"
+                  />
+                  <Kpi
+                    rotulo="Balanço acumulado"
+                    valor={num(dados.balancoAcumuladoMl, 'ml', 0)}
+                    nota="soma dos saldos de 24 h"
+                  />
+                  <Kpi
+                    rotulo="Diurese média"
+                    valor={num(dados.diureseMediaMlKgHora, 'ml/kg/h', 2)}
+                    nota="oligúria abaixo de 0,5 (KDIGO)"
+                  />
+                  <Kpi
+                    rotulo="Ingestão oral"
+                    valor={num(dados.ingestaoOralMedia, '%', 1)}
+                    nota="aceitação média das refeições"
+                  />
+                  <Kpi
+                    rotulo="Volume prescrito"
+                    valor={num(dados.volumePrescritoNaAvaliacao, 'ml/dia', 0)}
+                    nota={
+                      dados.ultimaAvaliacao
+                        ? `avaliação de ${formatarData(dados.ultimaAvaliacao)}`
+                        : 'sem avaliação de referência'
+                    }
+                  />
+                </div>
+
                 <TPanel>
-                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                    <Indicador rotulo="Dias registrados" valor={String(dados.totalDias)} />
-                    <Indicador rotulo="Adesão média" valor={num(dados.adesaoMedia, '%', 1)} />
-                    <Indicador
-                      rotulo="Energia média"
-                      valor={num(dados.caloriasPorQuiloMedia, 'kcal/kg', 1)}
-                    />
-                    <Indicador
-                      rotulo="Proteína média"
-                      valor={num(dados.proteinaPorQuiloMedia, 'g/kg', 2)}
-                    />
-                    <Indicador
-                      rotulo="Balanço acumulado"
-                      valor={num(dados.balancoAcumuladoMl, 'ml', 0)}
-                    />
-                    <Indicador
-                      rotulo="Diurese média"
-                      valor={num(dados.diureseMediaMlKgHora, 'ml/kg/h', 2)}
-                    />
-                    <Indicador
-                      rotulo="Ingestão oral média"
-                      valor={num(dados.ingestaoOralMedia, '%', 1)}
-                    />
-                    <Indicador
-                      rotulo="Dias sem avaliação"
-                      valor={String(dados.diasSemAvaliacao)}
-                    />
-                  </div>
-
-                  <hr className="my-5 border-line" />
-
                   <h3 className="mb-3 text-h3 font-medium text-txt">
                     Prescrição de referência{' '}
                     <span className="text-caption font-normal text-txt-muted">
@@ -311,6 +334,19 @@ export function PainelAcompanhamentoUti() {
         )}
       </div>
     </TPage>
+  )
+}
+
+/** Indicador em cartão, com a nota que o torna legível sem consultar o doc. */
+function Kpi({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: string }) {
+  return (
+    <TPanel>
+      <div className="flex flex-col gap-1">
+        <span className="text-caption text-txt-secondary">{rotulo}</span>
+        <span className="text-display font-semibold text-txt">{valor}</span>
+        {nota && <span className="text-caption text-txt-muted">{nota}</span>}
+      </div>
+    </TPanel>
   )
 }
 

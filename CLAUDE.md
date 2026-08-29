@@ -91,7 +91,7 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | 4 — Atendimento | pendente |
 | 7 a 9 — Catálogos · Acompanhamento · audit_log | pendentes |
 
-**271 testes** no total, contra o banco `nutridb_test`.
+**272 testes** no total, contra o banco `nutridb_test`.
 
 **Bloqueio resolvido.** As fatias de cálculo dependiam de uma especificação
 numérica das fórmulas — com célula de origem, referência bibliográfica, unidade e
@@ -280,6 +280,28 @@ Hoje cada tela imprimível monta uma `Folha` e a passa à `TPage` pela prop
 veio do `geradorPdf.ts` do eroERP; a ferramenta, não — jsPDF seria uma segunda
 montagem dos mesmos números, e a do papel envelheceria calada.
 
+**Gráfico com faixa de referência precisa do domínio, não só da faixa.**
+Os nove exames do acompanhamento desenhavam `ReferenceArea` com a faixa certa e
+`domain={['auto','auto']}` no eixo — e **nenhuma faixa aparecia**. O recharts
+fecha a escala nos dados: um potássio que oscilou entre 4,0 e 4,4 rende um eixo
+de 4,0 a 4,4, e a banda de 3,5 a 5,0 fica inteira fora do quadro. O gráfico sai
+bonito e sem a única coisa que o justifica — a régua contra a qual o número é
+lido. O domínio tem de conter os limites da referência, com folga, e ser
+arredondado na precisão do valor: sem isso o eixo herda o lixo de ponto
+flutuante (a PCR saiu com piso `0,999998`).
+
+**Linha tracejada ligando um ponto só não desenha linha.**
+As metas de peso do painel do paciente eram duas séries tracejadas. Com uma
+avaliação — que é o caso comum de quem acabou de internar — saíam **dois
+tracinhos soltos** no meio do quadro. Valor que não varia com o x é
+`ReferenceLine` horizontal, não série: aí ele atravessa o gráfico e ganha
+rótulo, e o peso passa a ser lido entre o ideal e o teto de IMC 25.
+
+**Série temporal cobre a janela pedida, não os meses que têm dado.**
+O gráfico mensal começava no mês da primeira avaliação. Com três avaliações no
+mesmo mês, "último ano" saía com um ponto no meio do branco, sugerindo que não
+havia mais nada a mostrar. Havia: onze meses de zero, que é informação.
+
 **`break-inside: avoid` numa caixa mais alta que a página esvazia a página.**
 As seções da folha impressa tinham `break-inside: avoid`, e a tabela de 18 dias
 de acompanhamento é mais alta que um A4. Uma caixa que não cabe em página
@@ -353,7 +375,7 @@ query com `CAST`.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 271 testes contra nutridb_test
+./run-dev.sh test         # 272 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

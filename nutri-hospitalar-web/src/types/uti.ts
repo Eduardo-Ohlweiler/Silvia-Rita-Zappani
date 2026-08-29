@@ -797,8 +797,27 @@ export interface PontoAvaliacaoUti {
   classifAdequacaoCb?: string
   classifAdequacaoCbTom?: TomResultado
 
+  /**
+   * As metas de peso da própria avaliação — é o que dá contexto ao gráfico.
+   * Sem elas um paciente com uma avaliação só vira um ponto solto num eixo
+   * automático: tecnicamente correto e clinicamente mudo.
+   */
+  pesoIdealKg?: number
+  pesoIdealImc25Kg?: number
+  pesoAjustadoKg?: number
+
+  /** A faixa recomendada, que vira o fundo do gráfico de oferta. */
+  energiaMinima?: number
+  energiaMaxima?: number
+  proteinaMinima?: number
+  proteinaMaxima?: number
+
   metaEnergetica?: number
   metaProteica?: number
+
+  formulaNome?: string
+  fase?: string
+  obeso: boolean
 
   volumeTotalMl?: number
   caloriasOfertadas?: number
@@ -867,6 +886,12 @@ export interface PontoPeriodoUti {
   periodo: string
   avaliacoes: number
   dias: number
+  /**
+   * Média do percentual recebido nos dias do mês. **Ausente**, e não zero,
+   * quando o mês não teve dia com prescrição — zero seria um mês em que
+   * ninguém recebeu nada, e a linha desceria ao chão dizendo isso.
+   */
+  adesaoMedia?: number
 }
 
 /** `tom` nulo = a fatia "não classificado", que não é categoria clínica. */
@@ -915,6 +940,8 @@ export interface DashboardUti {
   porFase: ContagemUti[]
   porTerapiaRenal: ContagemUti[]
   porModoInfusao: ContagemUti[]
+  /** Degraus com ordem — coluna com rampa ordinal, nunca cor por quantidade. */
+  porFaixaEtaria: ContagemUti[]
 
   pacientesMaisAvaliados: PacienteRankingUti[]
 }

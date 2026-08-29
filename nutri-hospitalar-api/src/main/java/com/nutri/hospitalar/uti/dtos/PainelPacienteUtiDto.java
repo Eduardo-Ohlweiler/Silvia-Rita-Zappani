@@ -75,8 +75,29 @@ public record PainelPacienteUtiDto(
             String classifAdequacaoCb,
             String classifAdequacaoCbTom,
 
+            /**
+             * As metas de peso da própria avaliação, para o gráfico ter contra
+             * o que desenhar o peso. Sem elas, um paciente com uma avaliação só
+             * vira um ponto solto num eixo automático — tecnicamente correto e
+             * clinicamente mudo.
+             */
+            BigDecimal pesoIdealKg,
+            BigDecimal pesoIdealImc25Kg,
+            BigDecimal pesoAjustadoKg,
+
+            /** A faixa recomendada, que é o fundo do gráfico de oferta. */
+            BigDecimal energiaMinima,
+            BigDecimal energiaMaxima,
+            BigDecimal proteinaMinima,
+            BigDecimal proteinaMaxima,
+
             BigDecimal metaEnergetica,
             BigDecimal metaProteica,
+
+            /** Contexto da prescrição daquele dia — vira rótulo no tooltip. */
+            String formulaNome,
+            String fase,
+            boolean obeso,
 
             BigDecimal volumeTotalMl,
             BigDecimal caloriasOfertadas,

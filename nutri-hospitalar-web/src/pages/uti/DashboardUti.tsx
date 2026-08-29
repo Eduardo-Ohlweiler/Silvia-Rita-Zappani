@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TBotaoImprimir, TPage, TPanel, TSelect } from '@/components/common'
-import { Indicador, TituloGrafico } from '@/components/graficos/chrome'
 import {
+  TBotaoImprimir,
+  TPage,
+  TPanel,
+  TSelect,
+  type OpcaoSelect,
+} from '@/components/common'
+import { TituloGrafico } from '@/components/graficos/chrome'
+import {
+  AdesaoPorPeriodo,
+  AvaliacoesPorPeriodo,
   BarrasNominaisUti,
-  DistribuicaoPorTom,
-  MovimentoPorPeriodo,
+  ClassificacoesEmpilhadas,
+  ColunasFaixaEtaria,
+  LinhaDeConduta,
 } from '@/components/uti/graficos/GraficosGerenciaisUti'
 import { DocumentoDashboardUti } from '@/components/uti/impressao/DocumentoDashboardUti'
 import { useAuth } from '@/hooks/useAuth'
 import { handleApiError } from '@/services/api'
-import { utiPainelService } from '@/services/utiService'
+import { formulaEnteralService, utiPainelService } from '@/services/utiService'
 import type { DashboardUti as Dashboard } from '@/types/uti'
 import { formatarNumero } from '@/utils/format'
 
@@ -36,18 +45,27 @@ export function DashboardUti() {
   const { sessao } = useAuth()
 
   const [dias, setDias] = useState('365')
+  const [formulaEnteralId, setFormulaEnteralId] = useState('')
+  const [formulas, setFormulas] = useState<OpcaoSelect[]>([])
   const [dados, setDados] = useState<Dashboard>()
   const [carregando, setCarregando] = useState(false)
+
+  useEffect(() => {
+    formulaEnteralService
+      .select()
+      .then((fs) => setFormulas(fs.map((f) => ({ valor: f.id, rotulo: f.nome }))))
+      .catch(handleApiError)
+  }, [])
 
   const carregar = useCallback(() => {
     setCarregando(true)
     utiPainelService
-      .dashboard({ dias: Number(dias) })
+      .dashboard({ dias: Number(dias), formulaEnteralId: formulaEnteralId || undefined })
       .then(setDados)
       .catch(handleApiError)
       .finally(() => setCarregando(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessao?.tenantId, dias])
+  }, [sessao?.tenantId, dias, formulaEnteralId])
 
   useEffect(carregar, [carregar])
 
@@ -68,12 +86,19 @@ export function DashboardUti() {
       <div className="flex flex-col gap-4">
         {/* Filtro é interface: some no papel (docs/05 §8). */}
         <TPanel className="nao-imprime">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <TSelect
               label="Período"
               opcoes={PERIODOS}
               value={dias}
               onChange={(e) => setDias(e.target.value)}
+            />
+            <TSelect
+              label="Fórmula enteral"
+              vazio="Todas"
+              opcoes={formulas}
+              value={formulaEnteralId}
+              onChange={(e) => setFormulaEnteralId(e.target.value)}
             />
           </div>
         </TPanel>
@@ -84,76 +109,111 @@ export function DashboardUti() {
           </TPanel>
         ) : (
           <div className={`flex flex-col gap-4 ${carregando ? 'opacity-50 transition-opacity' : ''}`}>
-            <TPanel>
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                <Indicador rotulo="Avaliações" valor={String(dados.totalAvaliacoes)} />
-                <Indicador rotulo="Pacientes" valor={String(dados.totalPacientes)} />
-                <Indicador rotulo="No mês corrente" valor={String(dados.avaliacoesMes)} />
-                <Indicador rotulo="Dias registrados" valor={String(dados.totalDiasRegistrados)} />
-              </div>
+            {/* Um cartão por indicador, com a nota do que ele significa —
+                o padrão de `PediatriaDashboard`. A nota carrega a ressalva que
+                de outra forma viraria rodapé em letra miúda que ninguém lê. */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Kpi rotulo="Avaliações" valor={String(dados.totalAvaliacoes)} nota="no período" />
+              <Kpi rotulo="Pacientes" valor={String(dados.totalPacientes)} nota="acompanhados" />
+              <Kpi
+                rotulo="Avaliações no mês"
+                valor={String(dados.avaliacoesMes)}
+                nota="mês corrente"
+              />
+              <Kpi
+                rotulo="Dias de acompanhamento"
+                valor={String(dados.totalDiasRegistrados)}
+                nota="registros diários"
+              />
+              <Kpi rotulo="Idade média" valor={num(dados.idadeMediaAnos, 'anos', 1)} />
+              <Kpi
+                rotulo="Peso médio"
+                valor={num(dados.pesoTrabalhoMedio, 'kg', 2)}
+                nota="peso de trabalho"
+              />
+              <Kpi
+                rotulo="IMC médio"
+                valor={num(dados.imcMedio, '', 2)}
+                nota="entre quem tem altura"
+              />
+              <Kpi
+                rotulo="Em eutrofia"
+                valor={num(dados.percEutrofia, '%', 1)}
+                nota="das avaliações classificadas"
+              />
+              <Kpi
+                rotulo="Meta energética"
+                valor={num(dados.metaEnergeticaMedia, 'kcal', 0)}
+                nota="média por dia"
+              />
+              <Kpi
+                rotulo="Meta proteica"
+                valor={num(dados.metaProteicaMedia, 'g', 1)}
+                nota="média por dia"
+              />
+              <Kpi
+                rotulo="Energia prescrita"
+                valor={num(dados.kcalPorQuiloMedio, 'kcal/kg', 1)}
+                nota="o que a dieta entrega"
+              />
+              <Kpi
+                rotulo="Adesão média"
+                valor={num(dados.adesaoMedia, '%', 1)}
+                nota="não é nota — a meta é progressiva na 1ª semana"
+              />
+            </div>
 
-              <hr className="my-5 border-line" />
-
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                <Indicador rotulo="Idade média" valor={num(dados.idadeMediaAnos, 'anos', 1)} />
-                <Indicador rotulo="Peso médio" valor={num(dados.pesoTrabalhoMedio, 'kg', 2)} />
-                <Indicador rotulo="IMC médio" valor={num(dados.imcMedio, '', 2)} />
-                <Indicador rotulo="Em eutrofia" valor={num(dados.percEutrofia, '%', 1)} />
-                <Indicador
-                  rotulo="Meta energética média"
-                  valor={num(dados.metaEnergeticaMedia, 'kcal/dia', 0)}
-                />
-                <Indicador
-                  rotulo="Meta proteica média"
-                  valor={num(dados.metaProteicaMedia, 'g/dia', 1)}
-                />
-                <Indicador rotulo="Energia ofertada" valor={num(dados.kcalPorQuiloMedio, 'kcal/kg', 1)} />
-                <Indicador rotulo="Adesão média" valor={num(dados.adesaoMedia, '%', 1)} />
-              </div>
-
-              <p className="mt-5 text-caption text-txt-muted">
-                As médias ignoram a avaliação em que o valor não existe — quem não tinha altura
-                não entra na média de IMC. O percentual em eutrofia é sobre as avaliações{' '}
-                <b>classificadas</b>: não classificado não é sinônimo de inadequado.
-                {dados.avaliacoesObesidade > 0 && (
-                  <>
-                    {' '}
+            {dados.avaliacoesObesidade > 0 && (
+              <TPanel>
+                <p className="text-caption text-txt-secondary">
+                  <b>
                     {dados.avaliacoesObesidade === 1
                       ? 'Uma avaliação aplicou'
-                      : `${dados.avaliacoesObesidade} avaliações aplicaram`}{' '}
-                    a correção de obesidade da ASPEN/SCCM 2016, que muda a base do peso.
-                  </>
-                )}
-              </p>
-            </TPanel>
+                      : `${dados.avaliacoesObesidade} avaliações aplicaram`}
+                  </b>{' '}
+                  a correção de obesidade da ASPEN/SCCM 2016 — nelas a energia sai de 11 a 14
+                  kcal/kg de peso <b>atual</b> (IMC 30 a 50) ou de 22 a 25 kcal/kg de peso{' '}
+                  <b>ideal</b> (IMC acima de 50), e a fase da terapia não se aplica. Isso puxa a
+                  média de energia por quilo para baixo, e é conduta, não desvio.
+                </p>
+              </TPanel>
+            )}
 
+            {/* Largura inteira, como na pediatria: o gráfico do tempo é o
+                que dá escala à página, e meia largura o espreme. */}
             <TPanel>
-              <TituloGrafico referencia="Mês sem movimento aparece com zero — encurtar o intervalo insinuaria atividade que não houve.">
-                Movimento por mês
+              <TituloGrafico referencia="Mês sem avaliação aparece com zero — encurtar o intervalo insinuaria atividade que não houve.">
+                Avaliações por mês
               </TituloGrafico>
-              <MovimentoPorPeriodo dados={dados.porPeriodo} />
+              <AvaliacoesPorPeriodo dados={dados.porPeriodo} />
             </TPanel>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            {/* As três réguas sobre a mesma casuística, num quadro só. Três
+                cartões estreitos com duas barrinhas cada não deixam comparar. */}
+            <TPanel>
+              <TituloGrafico referencia="A mesma casuística lida por três réguas: IMC pela OMS 1997, circunferência do braço por Blackburn e Thornton (1979), perda de peso por Blackburn (1977).">
+                Estado nutricional
+              </TituloGrafico>
+              <ClassificacoesEmpilhadas
+                imc={dados.classifImcOms}
+                circBraco={dados.classifAdequacaoCb}
+                perdaPeso={dados.classifPerdaPeso}
+              />
+            </TPanel>
+
+            <div className="grid gap-4 xl:grid-cols-2">
               <TPanel>
-                <TituloGrafico referencia="Classificação da OMS 1997, como foi gravada em cada avaliação.">
-                  Estado nutricional por IMC
+                <TituloGrafico referencia="A linha salta o mês sem dia medido em vez de emendar por cima — emendar inventaria uma adesão que ninguém mediu.">
+                  Adesão média por mês
                 </TituloGrafico>
-                <DistribuicaoPorTom dados={dados.classifImcOms} />
+                <AdesaoPorPeriodo dados={dados.porPeriodo} />
               </TPanel>
 
               <TPanel>
-                <TituloGrafico referencia="Adequação da circunferência do braço, em seis faixas (docs/10 §2.8).">
-                  Adequação da circunferência do braço
+                <TituloGrafico referencia="A partir de 60 anos vale a classificação de IMC da OPAS 2002, com outros cortes que a da OMS.">
+                  Faixa etária
                 </TituloGrafico>
-                <DistribuicaoPorTom dados={dados.classifAdequacaoCb} />
-              </TPanel>
-
-              <TPanel>
-                <TituloGrafico referencia="Perda de peso no intervalo declarado, contra o corte de significância.">
-                  Perda de peso
-                </TituloGrafico>
-                <DistribuicaoPorTom dados={dados.classifPerdaPeso} />
+                <ColunasFaixaEtaria dados={dados.porFaixaEtaria} />
               </TPanel>
 
               <TPanel>
@@ -163,66 +223,79 @@ export function DashboardUti() {
                 <BarrasNominaisUti dados={dados.porFormula} />
               </TPanel>
 
+              {/* Três distribuições curtas num painel só. Cada uma vira frase
+                  quando tem uma categoria só — barra de 100 % não informa. */}
               <TPanel>
-                <TituloGrafico>Fase da terapia</TituloGrafico>
-                <BarrasNominaisUti dados={dados.porFase} />
-              </TPanel>
-
-              <TPanel>
-                <TituloGrafico referencia="A terapia renal substitui a meta proteica por 1,8 ou 2,0 g/kg.">
-                  Terapia renal substitutiva
-                </TituloGrafico>
-                <BarrasNominaisUti dados={dados.porTerapiaRenal} />
-              </TPanel>
-
-              <TPanel>
-                <TituloGrafico>Modo de infusão</TituloGrafico>
-                <BarrasNominaisUti dados={dados.porModoInfusao} />
+                <TituloGrafico>Conduta prescrita</TituloGrafico>
+                <div className="divide-y divide-line">
+                  <LinhaDeConduta titulo="Fase da terapia" dados={dados.porFase} />
+                  <LinhaDeConduta
+                    titulo="Terapia renal substitutiva"
+                    dados={dados.porTerapiaRenal}
+                    nota="Substitui a meta proteica por 1,8 g/kg na hemodiálise intermitente e 2,0 na contínua."
+                  />
+                  <LinhaDeConduta
+                    titulo="Modo de infusão"
+                    dados={dados.porModoInfusao}
+                    nota="Contínua em ml/h por um número de horas; intermitente em ml por horário."
+                  />
+                </div>
               </TPanel>
             </div>
 
+            {/* Ranking é lista, não gráfico: dez nomes viram dez cores à toa. */}
             <TPanel title="Pacientes mais avaliados">
               {dados.pacientesMaisAvaliados.length === 0 ? (
                 <p className="py-4 text-body text-txt-secondary">
                   Nenhuma avaliação no período escolhido.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[420px] text-body">
-                    <thead>
-                      <tr className="border-b border-line text-caption text-txt-secondary">
-                        <th className="py-2 text-left font-normal">Paciente</th>
-                        <th className="py-2 text-right font-normal">Avaliações</th>
-                        <th className="py-2 text-right font-normal">Dias</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dados.pacientesMaisAvaliados.map((p) => (
-                        <tr key={p.pacienteId} className="border-b border-line last:border-0">
-                          <td className="py-2">
-                            <button
-                              type="button"
-                              className="text-primary hover:underline"
-                              onClick={() =>
-                                navigate(`/app/uti/painel-paciente?pacienteId=${p.pacienteId}`)
-                              }
-                            >
-                              {p.pacienteNome}
-                            </button>
-                          </td>
-                          <td className="numeric py-2 text-right">{p.avaliacoes}</td>
-                          <td className="numeric py-2 text-right">{p.dias}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ol className="flex flex-col divide-y divide-line">
+                  {dados.pacientesMaisAvaliados.map((p, i) => (
+                    <li key={p.pacienteId} className="flex items-baseline gap-3 py-2">
+                      <span className="numeric w-5 text-caption text-txt-muted">{i + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/app/uti/painel-paciente?pacienteId=${p.pacienteId}`)
+                        }
+                        className="truncate text-left text-body text-primary hover:underline"
+                      >
+                        {p.pacienteNome}
+                      </button>
+                      <span className="ml-auto shrink-0 text-caption text-txt-secondary">
+                        <span className="numeric">{p.avaliacoes}</span>{' '}
+                        {p.avaliacoes === 1 ? 'avaliação' : 'avaliações'}
+                        {p.dias > 0 && (
+                          <>
+                            {' · '}
+                            <span className="numeric">{p.dias}</span>{' '}
+                            {p.dias === 1 ? 'dia' : 'dias'}
+                          </>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
               )}
             </TPanel>
           </div>
         )}
       </div>
     </TPage>
+  )
+}
+
+/** Indicador em cartão, com a nota que o torna legível sem consultar o doc. */
+function Kpi({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: string }) {
+  return (
+    <TPanel>
+      <div className="flex flex-col gap-1">
+        <span className="text-caption text-txt-secondary">{rotulo}</span>
+        <span className="text-display font-semibold text-txt">{valor}</span>
+        {nota && <span className="text-caption text-txt-muted">{nota}</span>}
+      </div>
+    </TPanel>
   )
 }
 
