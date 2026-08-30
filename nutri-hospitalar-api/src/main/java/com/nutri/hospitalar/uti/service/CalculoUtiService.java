@@ -5,9 +5,12 @@ import com.nutri.hospitalar.uti.calculo.AntropometriaCalculator;
 import com.nutri.hospitalar.uti.calculo.AvaliacaoUtiCalculator;
 import com.nutri.hospitalar.uti.calculo.EntradaUti;
 import com.nutri.hospitalar.uti.calculo.FormulaEnteralResolvida;
+import com.nutri.hospitalar.uti.calculo.ModuloProteicoResolvido;
 import com.nutri.hospitalar.uti.calculo.ResultadoUti;
 import com.nutri.hospitalar.uti.dtos.CalculoUtiRequestDto;
 import com.nutri.hospitalar.uti.entity.FormulaEnteral;
+import com.nutri.hospitalar.uti.entity.ProdutoNutricional;
+import com.nutri.hospitalar.uti.enums.TipoProdutoNutricional;
 import com.nutri.hospitalar.uti.repository.PercentilCbRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,11 +40,12 @@ import java.math.BigDecimal;
 public class CalculoUtiService {
 
     private final FormulaEnteralService formulaEnteralService;
+    private final ProdutoNutricionalService produtoNutricionalService;
     private final PercentilCbRepository percentilCbRepository;
 
     @Transactional(readOnly = true)
     public ResultadoUti calcular(CalculoUtiRequestDto dto) {
-        return calcular(dto, resolverFormula(dto));
+        return calcular(dto, resolverFormula(dto), resolverModulo(dto));
     }
 
     /**
@@ -53,14 +57,18 @@ public class CalculoUtiService {
      * catálogo continuar igual — a fórmula pode ter mudado, ou saído dele, desde
      * que a dieta foi prescrita. Só quem já tem o retrato na mão chama esta
      * versão; a tela chama a outra.
+     *
+     * <p>O mesmo vale para o <b>módulo proteico</b>: a avaliação guarda o
+     * retrato dele também, e por isso os dois entram juntos.
      */
     @Transactional(readOnly = true)
-    public ResultadoUti calcular(CalculoUtiRequestDto dto, FormulaEnteralResolvida formula) {
+    public ResultadoUti calcular(CalculoUtiRequestDto dto, FormulaEnteralResolvida formula,
+                                 ModuloProteicoResolvido modulo) {
         EntradaUti entrada = paraEntrada(dto);
 
         recusarAmputacaoSobreposta(entrada);
 
-        return AvaliacaoUtiCalculator.calcular(entrada, formula, buscarP50(dto));
+        return AvaliacaoUtiCalculator.calcular(entrada, formula, modulo, buscarP50(dto));
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -95,6 +103,34 @@ public class CalculoUtiService {
                 f.getNome(), f.getDensidadeKcalMl(), f.getProteinaGL(),
                 f.getChoGL(), f.getLipGL(), f.getFibrasGL(),
                 f.getPotassioMgL(), f.getAguaLivrePerc());
+    }
+
+    /**
+     * O módulo proteico do catálogo, já dentro do tenant.
+     *
+     * <p>Como {@code resolverFormula}, usa {@code buscarVisivel} — enxerga o do
+     * cliente e os globais, e devolve 404 para o de outro cliente.
+     *
+     * <p><b>Só {@code MODULO_PROTEICO} entra aqui</b>, e a recusa é explícita.
+     * Um suplemento oral tem medida, proteína e calorias, então o cálculo
+     * <i>funcionaria</i> — e sugeriria três frascos de Nutridrink como se
+     * fossem colheres de pó. Silêncio ali seria o pior desfecho: número
+     * plausível que vira prescrição. É 422 e não 400 porque o corpo está bem
+     * formado; o que não fecha é a escolha clínica.
+     */
+    private ModuloProteicoResolvido resolverModulo(CalculoUtiRequestDto dto) {
+        if (dto.moduloProteicoId() == null) return null;
+
+        ProdutoNutricional p = produtoNutricionalService.buscarVisivel(dto.moduloProteicoId());
+
+        if (p.getTipo() != TipoProdutoNutricional.MODULO_PROTEICO)
+            throw new BusinessException(
+                    ("%s é %s, não um módulo proteico. A sugestão da lacuna só aceita produto "
+                            + "cadastrado como módulo proteico.")
+                            .formatted(p.getNome(), p.getTipo().getDescricao()));
+
+        return new ModuloProteicoResolvido(
+                p.getNome(), p.getMedidaQtd(), p.getProteinaG(), p.getKcal());
     }
 
     /**

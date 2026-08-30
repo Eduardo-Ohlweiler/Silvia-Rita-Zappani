@@ -100,6 +100,18 @@ public record ResultadoUti(
      *                          salva, que não grava tabela derivada. Sem isto o
      *                          motivo da tabela ocupava o {@code motivo} do
      *                          bloco e aparecia colado a números que existem
+     * @param moduloNome        retrato do módulo proteico escolhido
+     * @param moduloMedidas     medidas do módulo por dia — <b>é assim que se
+     *                          prescreve</b>, e por isso vem ao lado das gramas
+     * @param moduloKcal        calorias que o módulo soma ao dia. Saem da
+     *                          composição do produto, nunca recompostas macro a
+     *                          macro — ver {@code docs/10 §4.2}, defeito 10
+     * @param motivoModulo      por que a sugestão não saiu. Campo próprio pela
+     *                          mesma razão de {@code motivoProgressao}: a
+     *                          sugestão falta com o bloco inteiro calculado
+     *                          (meta atingida, ou módulo não escolhido), e
+     *                          ocupar o {@code motivo} do bloco penduraria a
+     *                          frase debaixo de números que existem
      * @param motivo            por que o BLOCO não saiu
      */
     public record Dieta(
@@ -125,6 +137,12 @@ public record ResultadoUti(
             BigDecimal proteinaNoVolumePleno,
             BigDecimal proteinaSuplementar,
             String unidadeDoVolume,
+
+            String moduloNome,
+            BigDecimal moduloGramas,
+            BigDecimal moduloMedidas,
+            BigDecimal moduloKcal,
+            String motivoModulo,
 
             List<DegrauProgressao> progressao,
             String motivoProgressao,

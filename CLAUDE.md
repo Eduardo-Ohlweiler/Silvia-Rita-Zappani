@@ -89,10 +89,31 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **5 — Pediatria** | ✅ pronta · cálculo no servidor, telas em abas, painéis com paleta validada |
 | **6 — Terapia Nutricional (UTI adulto)** | ✅ pronta · especificação [docs/10](docs/10-calculos-uti-adulto.md) · catálogos · cálculo e calculadora · ferramentas clínicas · avaliação · acompanhamento diário · **3 painéis** · **impressão** |
 | **7 — Simetria pediatria ↔ UTI** | ✅ pronta · guarda no cadastro de fórmula láctea · 3 documentos de impressão · exportação nas 10 listas · `CatalogoPediatriaTest` |
+| **8 — Módulo proteico** | ✅ pronta · migration 027 · o cálculo existia desde a fatia 2 e nenhuma tela o alcançava |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
-| 8 a 9 — Acompanhamento · audit_log | pendentes |
+| 9 — `audit_log` | pendente |
 
-**296 testes** no total, contra o banco `nutridb_test`.
+**303 testes** no total, contra o banco `nutridb_test`.
+
+### O que falta, e por quê
+
+**Pediatria e UTI estão completos contra as suas especificações.** Quatro
+varreduras independentes o confirmam, e vale repeti-las antes de dar qualquer
+módulo por fechado: (1) `docs/09` e (2) `docs/10 §13` item a item; (3)
+**calculador órfão** — método público de `calculo/` que ninguém chama, que foi
+como o módulo proteico apareceu depois de duas auditorias; (4) **entrada órfã** —
+campo que a API aceita e nenhuma tela oferece.
+
+O que resta é isto, e **nada disso é buraco nesses dois módulos**:
+
+| Pendência | Natureza | Por que não agora |
+|---|---|---|
+| **`audit_log`** | fatia própria | adiada por decisão. É a tabela que responde *"quem apagou?"*: os três `delete` do sistema são **físicos**, e o `created_by` some com a linha. Invisível no dia a dia; importa no dia em que alguém pergunta |
+| **Recuperação de senha** | fatia própria | depende de escolher o serviço de e-mail — não há `spring-boot-starter-mail` no `pom.xml` |
+| **`agua_livre_perc` nulo nas 53 fórmulas** · **potássio do `Peptimax pó`** | digitação de cadastro | o mecanismo está pronto e a tela tem o campo. O dado vem do rótulo, e inventá-lo por aproximação é a inferência que `docs/10` recusa |
+| **Fonte primária do Chumlea 1988 de 8 ramos** | bibliografia | os números conferem contra a planilha; falta identificar a publicação |
+| **Acompanhamento diário pediátrico** · **ferramentas clínicas pediátricas** (Holliday-Segar, superfície corporal, TIG) · **percentil de CB pediátrico** (Frisancho) | decisão clínica da Silvia | **nenhum está na `Pediatria.xlsx`**, que tem 3 abas contra as 15 da UTI. São funcionalidade nova e exigem fonte auditável — a assimetria entre os módulos é a diferença entre as fontes, não descuido |
+| **Fatia 4 — Atendimento** | redefinir | as duas avaliações já são o contêiner que ela descrevia — detalhe abaixo |
 
 **Bloqueio resolvido.** As fatias de cálculo dependiam de uma especificação
 numérica das fórmulas — com célula de origem, referência bibliográfica, unidade e
@@ -113,12 +134,6 @@ fora de qualquer célula, e por isso nunca foram implementadas no eroERP: o
 **ajuste da circunferência do braço e da panturrilha pelo IMC** antes de comparar
 com o ponto de corte. Rastreadas até a literatura primária em
 [docs/10 §2.9](docs/10-calculos-uti-adulto.md).
-
-Também não implementado, de propósito: **recuperação de senha** (depende de
-definir o serviço de e-mail) e **`audit_log`** de operações de negócio — este
-entra como fatia própria agora que o cadastro de pessoas fechou, e não junto
-dele: auditar CRUD antes de o cadastro estar estável significaria refazer o log
-a cada mudança de campo. Detalhe em [README da API](nutri-hospitalar-api/README.md).
 
 **A fatia 4 (Atendimento) foi ultrapassada pelos fatos.** O `docs/00 §4` a
 descreve como *"a consulta numa data, contêiner do que vem a seguir"* — mas
@@ -383,6 +398,33 @@ produto certo, com a composição de hoje, ao lado de um resultado calculado com
 de ontem, e nada na tela denuncia. A avaliação pediátrica hoje compara retrato
 com catálogo e mostra a faixa dizendo qual das duas explica os números.
 
+**Calculador escrito e testado não é funcionalidade entregue.**
+`DietaEnteralCalculator.moduloProteico` existia desde a fatia 2 — com javadoc, a
+prova aritmética do defeito 10 da planilha e gabarito em teste — e **nenhuma
+linha do sistema o chamava**. O endpoint que o alimentaria existia, o wrapper no
+front existia com o comentário *"alimenta a sugestão de módulo"*, os três
+produtos estavam no catálogo, e a tela dizia *"Proteína ainda em falta: 45 g"*
+sem oferecer nada. Passou por duas auditorias sem aparecer, porque não havia
+`TODO` nem teste vermelho: o método estava **verde e órfão**. Achar isto exigiu
+perguntar *quem chama* cada calculador público, não *o que está marcado como
+pendente*. Vale como varredura periódica: `grep` do nome de cada método público
+de `calculo/`, e ver se algum só aparece na própria declaração e no teste.
+
+**"—" é uma string, e string não é ausência.**
+`formatarNumero(null)` devolve `'—'`. A calculadora de UTI passava
+`formatarNumero(...)` direto em 53 pontos, e o `TResult` — que só testava vazio
+contra `null`, `undefined` e `''` — tratava aquele traço como **valor
+presente**. Resultado: **26 traços mudos na tela e zero motivos escritos**,
+enquanto o servidor calculava cada frase fielmente. Três telas de UTI, 23
+motivos, calados desde sempre. A pediatria escapou por acaso — lá as chamadas
+são guardadas com `x != null ? formatarNumero(x) : undefined`.
+O conserto foi no `TResult`, não nos 53 pontos: o traço virou a constante
+`AUSENTE` em `utils/format.ts`, exportada porque **dois lugares precisam
+concordar sobre ela** — quem a escreve e quem a reconhece. Ponto novo não regride.
+Lição geral: **sentinela de ausência que também é valor de exibição precisa ser
+constante compartilhada**, nunca literal repetido; e nenhuma tela está verificada
+enquanto ninguém a abriu vazia para ver se ela fala.
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -437,7 +479,7 @@ query com `CAST`.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 296 testes contra nutridb_test
+./run-dev.sh test         # 303 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

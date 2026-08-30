@@ -545,7 +545,13 @@ Confere, meta 1800 e 6 horários, a 1,5 kcal/ml: **50 · 100 · 150 · 200** ml/
 ### 4.2 Módulo proteico *(`Contínuo!Q21:V24`)*
 
 Para cobrir a lacuna de proteína. A nota da planilha (`V21`) diz:
-**"iniciar o módulo proteína a partir do 4º dia"**.
+**"iniciar o módulo proteína a partir do 4º dia"** — e ela sai na tela, ao lado
+do número: conduta que fica só no documento perde o *quando*.
+
+Implementado em `DietaEnteralCalculator.moduloProteico`, escolhido no catálogo
+(`GET /produtos-nutricionais/modulos-proteicos`) e gravado com **retrato do
+produto** na avaliação (migration `027`) — editar o módulo no catálogo depois
+não mexe em prescrição já feita.
 
 ```
 gramas_de_produto = lacuna_g × medida_g / ptn_por_medida_g
@@ -764,7 +770,7 @@ arredonda macro, e o fator de Atwater é ele próprio aproximação. O que a fai
 pega são os erros de **ordem de grandeza** — densidade trocada, fator 10 num
 macro, composição por embalagem lançada como litro.
 
-**50 dos 54 produtos fecham**, a maioria dentro de ±3 %. E `Fresubin 2kcal HP`
+**50 dos 54 produtos da planilha fecham** (o catálogo tem 53: um deles é duplicata), a maioria dentro de ±3 %. E `Fresubin 2kcal HP`
 fecha em **exatamente +0,0 %** depois da normalização por litro — prova
 aritmética de que "por litro" é o certo: antes da normalização ele estaria em
 −50 %.
@@ -977,9 +983,25 @@ intermediárias, e arredondamento uma vez na saída com a escala declarada.
    estimaram — e as **9 de densidade intermediária ficam sem cálculo de água**,
    com o motivo na tela. É preenchimento de cadastro, não de código: a tela de
    fórmula enteral tem o campo, e a nutricionista o preenche com o rótulo na mão.
-5. **As abas fora do escopo desta fatia:** `Controle Ingestão` (média de aceitação
-   por refeição), `Prescr x Inf` (prescrito × infundido), `Acomp` e `Paciente`
-   (formulários em branco, 1.087 células sem fórmula) e `Siglário` (35 siglas).
+5. ~~**As abas fora do escopo desta fatia**~~ — **quatro das cinco deixaram de
+   estar fora, e o item ficou velho.** A fatia de acompanhamento diário
+   implementou `Controle Ingestão` (as seis refeições viraram colunas de
+   `RegistroDiarioUti`, com a média derivada na leitura) e `Prescr x Inf`
+   (`vol_prescrito_24h` × `vol_recebido_24h`, com gráfico próprio); `Acomp` e
+   `Paciente` eram **formulários em branco** na planilha — 1.087 células sem
+   fórmula — e viraram os painéis `/uti/painel-acompanhamento` e
+   `/uti/painel-paciente`, com mais conteúdo do que a fonte tinha.
+
+   Resta o **`Siglário`** (35 siglas), e ele não vira tela: virou o glossário de
+   [docs/00 §8](00-PROMPT-MESTRE.md), que é o uso certo — vocabulário para quem
+   escreve o sistema, não consulta para quem prescreve.
+
+6. ~~**O módulo proteico não era alcançável.**~~ **Resolvido.** O cálculo de
+   §4.2 existia desde a fatia 2, testado contra o gabarito, e nenhuma tela o
+   chamava: a dieta dizia "proteína ainda em falta: 45 g" e não oferecia com o
+   que cobrir. Hoje o módulo é escolhido no catálogo, a sugestão sai em medidas,
+   gramas e kcal, e a avaliação guarda o **retrato** do produto — migration
+   `027`.
 
 ---
 

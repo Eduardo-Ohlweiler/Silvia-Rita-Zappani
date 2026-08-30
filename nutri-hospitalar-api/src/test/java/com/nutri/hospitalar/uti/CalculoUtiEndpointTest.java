@@ -2,6 +2,8 @@ package com.nutri.hospitalar.uti;
 
 import com.nutri.hospitalar.AbstractIntegrationTest;
 import com.nutri.hospitalar.uti.entity.FormulaEnteral;
+import com.nutri.hospitalar.uti.entity.ProdutoNutricional;
+import com.nutri.hospitalar.uti.enums.TipoProdutoNutricional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -235,6 +237,158 @@ class CalculoUtiEndpointTest extends AbstractIntegrationTest {
     }
 
     // ─────────────────────────────────────────────────────────────────────
+
+    // ─── Módulo proteico ────────────────────────────────────────────────
+
+    /**
+     * A dieta que deixa lacuna: 500 ml de Peptamen Intense (92 g PTN/L) dão
+     * <b>46 g</b> contra a meta de <b>102 g</b> da fase aguda para 68 kg.
+     *
+     * <p>Lacuna de <b>56 g</b> — é sobre ela que as sugestões abaixo são
+     * conferidas à mão.
+     */
+    private String comLacunaDe56g(UUID formula, String moduloId) {
+        return """
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,
+                 "pesoAtualKg":68,"fase":"AGUDA",
+                 "formulaEnteralId":"%s","modoInfusao":"CONTINUA",
+                 "volumePorTempo":25,"tempo":20%s}
+                """.formatted(formula, moduloId == null ? "" : ",\"moduloProteicoId\":\"" + moduloId + "\"");
+    }
+
+    @Test
+    @DisplayName("o módulo cobre a lacuna, e a conta confere à mão")
+    void moduloCobreALacuna() throws Exception {
+        UUID nutren = produtoGlobal("Nutren Just Protein");
+
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content(comLacunaDe56g(formulaGlobal("Peptamen Intense"), nutren.toString())))
+                .andExpect(status().isOk())
+                // 500 ml × 92 g/L = 46 g contra a meta de 102
+                .andExpect(jsonPath("$.dieta.proteinaOfertada").value(46.0))
+                .andExpect(jsonPath("$.dieta.proteinaSuplementar").value(56.0))
+                // Medida 15 g · 13 g PTN · 52 kcal — 56 × 15 / 13
+                .andExpect(jsonPath("$.dieta.moduloNome").value("Nutren Just Protein"))
+                .andExpect(jsonPath("$.dieta.moduloGramas").value(64.6154))
+                .andExpect(jsonPath("$.dieta.moduloMedidas").value(4.3077))
+                .andExpect(jsonPath("$.dieta.moduloKcal").value(224.0))
+                .andExpect(jsonPath("$.dieta.motivoModulo").doesNotExist());
+    }
+
+    /**
+     * O defeito 10 chegando ao endpoint.
+     *
+     * <p>{@code CalculoUtiTest} já prova a conta isolada; o que se prova aqui é
+     * que ela <b>atravessa</b> a API sem ninguém recompor a caloria pelo
+     * caminho. Para a lacuna de 56 g, a planilha faria
+     * {@code 56×4 + 186,6667×9,66/20 = 314,16} — somando gramas de carboidrato
+     * a um total de kcal. O correto, lendo a composição, é <b>584,64</b>.
+     */
+    @Test
+    @DisplayName("no módulo com carboidrato a kcal sai do rótulo, não recomposta")
+    void moduloComCarboidratoNaoRecompoeKcal() throws Exception {
+        UUID nutridrink = produtoGlobal("Nutridrink Protein");
+
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content(comLacunaDe56g(formulaGlobal("Peptamen Intense"),
+                                nutridrink.toString())))
+                .andExpect(status().isOk())
+                // 56 × 20 / 6 = 186,6667 g = 9,3333 medidas × 62,64
+                .andExpect(jsonPath("$.dieta.moduloGramas").value(186.6667))
+                .andExpect(jsonPath("$.dieta.moduloMedidas").value(9.3333))
+                .andExpect(jsonPath("$.dieta.moduloKcal").value(584.64));
+    }
+
+    @Test
+    @DisplayName("meta proteica atingida: sem sugestão, e dizendo por quê")
+    void semLacunaNaoSugere() throws Exception {
+        UUID nutren = produtoGlobal("Nutren Just Protein");
+
+        // O caso canônico: 1364 ml entregam 125,488 g contra a meta de 102.
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,
+                                 "pesoAtualKg":68,"fase":"AGUDA",
+                                 "formulaEnteralId":"%s","modoInfusao":"CONTINUA",
+                                 "volumePorTempo":62,"tempo":22,"moduloProteicoId":"%s"}
+                                """.formatted(formulaGlobal("Peptamen Intense"), nutren)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dieta.proteinaSuplementar").value(0))
+                .andExpect(jsonPath("$.dieta.moduloKcal").doesNotExist())
+                // Não é convite a suplementar: é boa notícia, e tem de dizer isso
+                .andExpect(jsonPath("$.dieta.motivoModulo").value(containsString("já cobre a meta")));
+    }
+
+    @Test
+    @DisplayName("sem módulo escolhido, a lacuna vem com o convite")
+    void semModuloEscolhido() throws Exception {
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content(comLacunaDe56g(formulaGlobal("Peptamen Intense"), null)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dieta.proteinaSuplementar").value(56.0))
+                .andExpect(jsonPath("$.dieta.moduloNome").doesNotExist())
+                .andExpect(jsonPath("$.dieta.motivoModulo").value(containsString("Escolha um módulo")));
+    }
+
+    /**
+     * Suplemento oral tem medida, proteína e calorias — a conta <b>funcionaria</b>,
+     * e sugeriria frascos de Nutridrink como se fossem colheres de pó. Silêncio
+     * aqui seria número plausível virando prescrição.
+     */
+    @Test
+    @DisplayName("suplemento oral no lugar de módulo é recusado, nomeando o tipo")
+    void suplementoOralNaoEhModulo() throws Exception {
+        UUID suplemento = produtoNutricionalRepository.findAll().stream()
+                .filter(p -> p.getTipo() == TipoProdutoNutricional.SUPLEMENTO_ORAL)
+                .findFirst().orElseThrow().getId();
+
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content(comLacunaDe56g(formulaGlobal("Peptamen Intense"),
+                                suplemento.toString())))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.erro").value(containsString("não um módulo proteico")));
+    }
+
+    @Test
+    @DisplayName("módulo de outro cliente devolve 404")
+    void moduloDeOutroTenant() throws Exception {
+        String corpo = mockMvc.perform(post("/produtos-nutricionais")
+                        .header(AUTHORIZATION, autenticar(adminB.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"nome":"Módulo do B","tipo":"MODULO_PROTEICO",
+                                 "medidaNome":"medida","medidaQtd":15,"kcal":52,"proteinaG":13}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(corpo).get("id").asText();
+
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content(comLacunaDe56g(formulaGlobal("Peptamen Intense"), id)))
+                .andExpect(status().isNotFound());
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+
+    private UUID produtoGlobal(String nome) {
+        return produtoNutricionalRepository.findAll().stream()
+                .filter(p -> p.ehGlobal() && nome.equals(p.getNome()))
+                .findFirst()
+                .map(ProdutoNutricional::getId)
+                .orElseThrow(() -> new AssertionError("produto não semeado: " + nome));
+    }
 
     private UUID formulaGlobal(String nome) {
         return formulaEnteralRepository.findAll().stream()

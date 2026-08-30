@@ -66,13 +66,26 @@ public final class AvaliacaoUtiCalculator {
             "Escolha a fase da terapia, ou informe um alvo em kcal/kg";
     private static final String SEM_DENSIDADE_NA_TABELA =
             "Esta densidade não tem linha na tabela de água. Cadastre a água livre no rótulo da fórmula.";
+    private static final String META_PROTEICA_ATINGIDA =
+            "A dieta já cobre a meta proteica — não há lacuna a suplementar";
+    private static final String SEM_MODULO =
+            "Escolha um módulo proteico para ver quanto dele cobre a lacuna";
+    private static final String MODULO_SEM_COMPOSICAO =
+            "%s não tem medida, proteína ou calorias no cadastro — sem elas não há o que sugerir";
+    private static final String SEM_META_PROTEICA =
+            "Sem meta proteica não há lacuna a medir — escolha a fase da terapia, "
+                    + "ou informe um alvo em g/kg";
 
     /**
      * @param formula fórmula enteral escolhida, ou {@code null}
+     * @param modulo  módulo proteico escolhido para cobrir a lacuna, ou
+     *                {@code null}. Não influencia nenhum outro número: a
+     *                sugestão é leitura da lacuna que a dieta já produziu
      * @param p50CircBracoCm P50 da tabela para o sexo e a idade, ou {@code null}
      *                       quando a idade está fora de 18 a 90,9 anos
      */
     public static ResultadoUti calcular(EntradaUti entrada, FormulaEnteralResolvida formula,
+                                        ModuloProteicoResolvido modulo,
                                         BigDecimal p50CircBracoCm) {
 
         Altura altura = resolverAltura(entrada);
@@ -83,7 +96,8 @@ public final class AvaliacaoUtiCalculator {
 
         Metas metas = necessidades(entrada, peso, imc, altura);
 
-        ResultadoUti.Dieta dieta = dieta(entrada, formula, peso, metas.energetica(), metas.proteica());
+        ResultadoUti.Dieta dieta = dieta(entrada, formula, modulo, peso,
+                metas.energetica(), metas.proteica());
         ResultadoUti.Hidratacao hidratacao = hidratacao(entrada, formula, peso, dieta);
 
         return new ResultadoUti(antropometria, metas.dto(), dieta, hidratacao);
@@ -341,6 +355,7 @@ public final class AvaliacaoUtiCalculator {
     // ─── Aba 3 — Dieta enteral ──────────────────────────────────────────
 
     private static ResultadoUti.Dieta dieta(EntradaUti e, FormulaEnteralResolvida formula,
+                                            ModuloProteicoResolvido modulo,
                                             PesoDeTrabalho peso, MetaEnergetica metaEnergetica,
                                             MetaProteica metaProteica) {
         if (formula == null)
@@ -357,6 +372,15 @@ public final class AvaliacaoUtiCalculator {
 
         BigDecimal volumePleno = DietaEnteralCalculator.volumePleno(
                 metaEnergetica, formula.densidadeKcalMl(), e.tempo());
+
+        // A lacuna já existia e já ia para a tela. O que faltava era o passo
+        // seguinte: com que produto, e quanto dele, ela se cobre.
+        BigDecimal lacuna = DietaEnteralCalculator.proteinaSuplementar(metaProteica, ptn);
+
+        DietaEnteralCalculator.SugestaoModulo sugestao = modulo == null ? null
+                : DietaEnteralCalculator.moduloProteico(
+                        lacuna, modulo.medidaG(),
+                        modulo.proteinaPorMedidaG(), modulo.kcalPorMedida());
 
         List<ResultadoUti.DegrauProgressao> progressao = DietaEnteralCalculator
                 .progressao(metaEnergetica, formula.densidadeKcalMl(), e.tempo())
@@ -383,12 +407,38 @@ public final class AvaliacaoUtiCalculator {
                 arredondar(volumePleno),
                 arredondar(DietaEnteralCalculator.proteinaNoVolumePleno(
                         volumePleno, e.tempo(), formula.proteinaGL())),
-                arredondar(DietaEnteralCalculator.proteinaSuplementar(metaProteica, ptn)),
+                arredondar(lacuna),
                 modo.getRotuloVolume(),
+
+                modulo == null ? null : modulo.nome(),
+                arredondar(sugestao == null ? null : sugestao.gramas()),
+                arredondar(sugestao == null ? null : sugestao.medidas()),
+                arredondar(sugestao == null ? null : sugestao.kcal()),
+                motivoDoModulo(modulo, lacuna, sugestao),
 
                 progressao,
                 null,
                 peso == null ? SEM_PESO : null);
+    }
+
+    /**
+     * Por que não há sugestão de módulo — e são três coisas diferentes.
+     *
+     * <p>Meta atingida é <b>boa notícia</b>, e dizer "escolha um módulo" ali
+     * mandaria suplementar quem já está coberto. Sem módulo escolhido é convite.
+     * Módulo escolhido sem composição é defeito de cadastro, e precisa apontar
+     * para onde se conserta.
+     */
+    private static String motivoDoModulo(ModuloProteicoResolvido modulo, BigDecimal lacuna,
+                                         DietaEnteralCalculator.SugestaoModulo sugestao) {
+        if (sugestao != null) return null;
+        // Sem meta não há lacuna, e sem lacuna não há sugestão — mas o bloco
+        // ficava com três traços mudos e nenhuma palavra, que é exatamente o
+        // que este sistema existe para não fazer.
+        if (lacuna == null) return SEM_META_PROTEICA;
+        if (lacuna.signum() <= 0) return META_PROTEICA_ATINGIDA;
+        if (modulo == null) return SEM_MODULO;
+        return MODULO_SEM_COMPOSICAO.formatted(modulo.nome());
     }
 
     /** Mesma conta da proteína: o catálogo é por litro, então divide por 1000. */
@@ -405,6 +455,9 @@ public final class AvaliacaoUtiCalculator {
                 null, null, null, null, null, null, null, null,
                 null, null, null, null,
                 null, null, null, null,
+                // Nem o módulo: sem dieta não há lacuna, e a sugestão falta
+                // pela mesma razão que o bloco todo.
+                null, null, null, null, null,
                 // A tabela não tem motivo próprio aqui: ela falta pela mesma
                 // razão que o bloco todo, e repetir a frase seria ruído.
                 List.of(), null, motivo);

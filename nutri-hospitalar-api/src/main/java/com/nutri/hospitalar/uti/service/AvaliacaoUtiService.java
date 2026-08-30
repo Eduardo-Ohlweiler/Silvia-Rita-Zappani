@@ -8,6 +8,7 @@ import com.nutri.hospitalar.pessoa.entity.Pessoa;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
 import com.nutri.hospitalar.uti.calculo.Classificacao;
 import com.nutri.hospitalar.uti.calculo.FormulaEnteralResolvida;
+import com.nutri.hospitalar.uti.calculo.ModuloProteicoResolvido;
 import com.nutri.hospitalar.uti.calculo.ResultadoUti;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiCreateDto;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiFiltrosDto;
@@ -17,6 +18,7 @@ import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiUpdateDto;
 import com.nutri.hospitalar.uti.dtos.CalculoUtiRequestDto;
 import com.nutri.hospitalar.uti.entity.AvaliacaoUti;
 import com.nutri.hospitalar.uti.entity.FormulaEnteral;
+import com.nutri.hospitalar.uti.entity.ProdutoNutricional;
 import com.nutri.hospitalar.uti.calculo.NecessidadeCalculator;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
 import com.nutri.hospitalar.uti.mapper.AvaliacaoUtiMapper;
@@ -61,6 +63,7 @@ public class AvaliacaoUtiService {
     private final PessoaRepository pessoaRepository;
     private final CalculoUtiService calculoUtiService;
     private final FormulaEnteralService formulaEnteralService;
+    private final ProdutoNutricionalService produtoNutricionalService;
     private final SecurityUtils securityUtils;
 
     @Transactional(readOnly = true)
@@ -181,6 +184,7 @@ public class AvaliacaoUtiService {
 
         gravarEntradas(a, calculo);
         gravarRetratoDaFormula(a, calculo.formulaEnteralId());
+        gravarRetratoDoModulo(a, calculo.moduloProteicoId());
 
         ResultadoUti r = calculoUtiService.calcular(calculo);
         gravarResultados(a, r);
@@ -197,7 +201,15 @@ public class AvaliacaoUtiService {
      */
     private ResultadoUti motivosDe(AvaliacaoUti a) {
         return calculoUtiService.calcular(
-                AvaliacaoUtiMapper.toEntradas(a), retratoDaFormula(a));
+                AvaliacaoUtiMapper.toEntradas(a), retratoDaFormula(a), retratoDoModulo(a));
+    }
+
+    /** O que ficou gravado do módulo proteico, na forma que o calculador consome. */
+    private static ModuloProteicoResolvido retratoDoModulo(AvaliacaoUti a) {
+        if (a.getModuloNome() == null) return null;
+        return new ModuloProteicoResolvido(
+                a.getModuloNome(), a.getModuloMedidaG(),
+                a.getModuloProteinaPorMedidaG(), a.getModuloKcalPorMedida());
     }
 
     /** O que ficou gravado da fórmula, na forma que o calculador consome. */
@@ -298,6 +310,33 @@ public class AvaliacaoUtiService {
         a.setFormulaAguaLivrePerc(f.getAguaLivrePerc());
     }
 
+    /**
+     * O mesmo para o módulo proteico — e só o que a conta usa.
+     *
+     * <p>Três números bastam porque a sugestão só depende deles: medida,
+     * proteína por medida e <b>kcal por medida como o rótulo declara</b>. Não
+     * há macro aqui de propósito; recompor a caloria macro a macro é o defeito
+     * 10 da planilha, e sem a coluna ele não tem como voltar.
+     */
+    private void gravarRetratoDoModulo(AvaliacaoUti a, UUID moduloId) {
+        if (moduloId == null) {
+            a.setModuloProteico(null);
+            a.setModuloNome(null);
+            a.setModuloMedidaG(null);
+            a.setModuloProteinaPorMedidaG(null);
+            a.setModuloKcalPorMedida(null);
+            return;
+        }
+
+        ProdutoNutricional p = produtoNutricionalService.buscarVisivel(moduloId);
+
+        a.setModuloProteico(p);
+        a.setModuloNome(p.getNome());
+        a.setModuloMedidaG(p.getMedidaQtd());
+        a.setModuloProteinaPorMedidaG(p.getProteinaG());
+        a.setModuloKcalPorMedida(p.getKcal());
+    }
+
     private void gravarResultados(AvaliacaoUti a, ResultadoUti r) {
         var antro = r.antropometria();
         a.setAlturaEstimadaCm(antro.alturaEstimadaCm());
@@ -359,6 +398,9 @@ public class AvaliacaoUtiService {
         a.setVolumePleno(dieta.volumePleno());
         a.setProteinaNoVolumePleno(dieta.proteinaNoVolumePleno());
         a.setProteinaSuplementar(dieta.proteinaSuplementar());
+        a.setModuloGramas(dieta.moduloGramas());
+        a.setModuloMedidas(dieta.moduloMedidas());
+        a.setModuloKcal(dieta.moduloKcal());
 
         var hidra = r.hidratacao();
         a.setHidratacaoNecessidadeMinima(hidra.necessidadeMinima());

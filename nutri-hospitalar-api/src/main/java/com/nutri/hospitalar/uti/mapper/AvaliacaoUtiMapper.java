@@ -75,6 +75,7 @@ public final class AvaliacaoUtiMapper {
                 a.getPosicaoNaFaixa(),
                 a.getFormulaEnteral() == null ? null : a.getFormulaEnteral().getId(),
                 a.getModoInfusao(), a.getVolumePorTempo(), a.getTempo(),
+                a.getModuloProteico() == null ? null : a.getModuloProteico().getId(),
                 a.getVolumeDietaManualMl());
     }
 
@@ -154,6 +155,13 @@ public final class AvaliacaoUtiMapper {
                         a.getVolumePleno(), a.getProteinaNoVolumePleno(),
                         a.getProteinaSuplementar(),
                         a.getModoInfusao() == null ? null : a.getModoInfusao().getRotuloVolume(),
+                        // Nome e números do módulo saem das colunas; só a frase
+                        // que explica a ausência vem do recálculo — e ele roda
+                        // sobre o RETRATO do módulo, não sobre o catálogo, senão
+                        // explicaria uma sugestão que não é aquela.
+                        a.getModuloNome(), a.getModuloGramas(),
+                        a.getModuloMedidas(), a.getModuloKcal(),
+                        mDieta.motivoModulo(),
                         // A tabela derivada explica a si mesma; o bloco
                         // explica o bloco. Antes era uma frase só, e ela
                         // aparecia ao lado de números que existiam.

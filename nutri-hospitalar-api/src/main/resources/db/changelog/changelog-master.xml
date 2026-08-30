@@ -40,5 +40,6 @@
     <include file="db/changelog/changes/024-create-registro-diario-uti.xml"/>
     <include file="db/changelog/changes/025-avaliacao-uti-posicao-na-faixa.xml"/>
     <include file="db/changelog/changes/026-insumos-artesanais-por-papel.xml"/>
+    <include file="db/changelog/changes/027-avaliacao-uti-modulo-proteico.xml"/>
 
 </databaseChangeLog>

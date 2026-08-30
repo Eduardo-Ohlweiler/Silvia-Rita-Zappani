@@ -39,7 +39,7 @@ import java.util.UUID;
  * já fazia. Aqui a conta é outra: a fórmula enteral declara os três macros e
  * fecha por Atwater; a láctea declara só energia e proteína, e não há o que
  * fechar. As duas guardas de {@link #validarPlausibilidade} substituem esse
- * fechamento — ver {@code docs/09 §3.1}.
+ * fechamento — ver {@code docs/09 §7.1}.
  */
 @Service
 @RequiredArgsConstructor

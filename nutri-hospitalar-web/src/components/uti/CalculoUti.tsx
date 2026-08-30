@@ -18,7 +18,11 @@ import {
 } from '@/components/uti/entradas'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
-import { calculoUtiService, formulaEnteralService } from '@/services/utiService'
+import {
+  calculoUtiService,
+  formulaEnteralService,
+  produtoNutricionalService,
+} from '@/services/utiService'
 import {
   OPCOES_ETNIA,
   OPCOES_FASE,
@@ -31,9 +35,11 @@ import {
   OPCOES_SEXO,
   OPCOES_TERAPIA_RENAL,
   rotuloFormulaEnteral,
+  rotuloProduto,
   type DegrauProgressao,
   type FormulaEnteralSelect,
   type FracaoAgua,
+  type ProdutoNutricionalSelect,
   type ResultadoUti,
 } from '@/types/uti'
 import { formatarNumero } from '@/utils/format'
@@ -88,6 +94,7 @@ export function CalculoUti({
 }: Props) {
   const [aba, setAba] = useState(ABA_ANTROPOMETRIA)
   const [formulas, setFormulas] = useState<FormulaEnteralSelect[]>([])
+  const [modulos, setModulos] = useState<ProdutoNutricionalSelect[]>([])
   const [resultado, setResultado] = useState<ResultadoUti | null>(resultadoInicial ?? null)
   const [recalculando, setRecalculando] = useState(false)
 
@@ -103,6 +110,9 @@ export function CalculoUti({
 
   useEffect(() => {
     formulaEnteralService.select().then(setFormulas).catch(handleApiError)
+    // Do catálogo, não de lista fixa: o hospital cadastra o módulo dele e ele
+    // aparece aqui no mesmo dia.
+    produtoNutricionalService.modulosProteicos().then(setModulos).catch(handleApiError)
   }, [])
 
   // Espelha para fora, sem virar fonte da verdade: quem calcula continua sendo
@@ -704,6 +714,20 @@ export function CalculoUti({
               value={entradas.tempo}
               onChange={(e) => alterar('tempo', e.target.value)}
             />
+            {/*
+              O módulo é escolha independente da fórmula: quem tem lacuna
+              escolhe, quem não tem deixa em branco e o resultado explica que
+              não há o que suplementar.
+            */}
+            <TSelect
+              label="Módulo proteico"
+              vazio="Nenhum"
+              className="lg:col-span-2"
+              ajuda="Para cobrir a proteína que a dieta não alcança"
+              opcoes={modulos.map((m) => ({ valor: m.id, rotulo: rotuloProduto(m) }))}
+              value={entradas.moduloProteicoId}
+              onChange={(e) => alterar('moduloProteicoId', e.target.value)}
+            />
           </div>
 
           <hr className="my-5 border-line" />
@@ -759,6 +783,43 @@ export function CalculoUti({
                 valor={formatarNumero(dieta?.proteinaSuplementar)}
                 unidade="g/dia"
                 referencia="zero quando a meta é atingida"
+                recalculando={recalculando}
+              />
+            </TResultGroup>
+
+            {/*
+              A lacuna acima dizia o tamanho do problema e parava ali. Aqui está
+              o passo que faltava: com que produto, e quanto dele.
+            */}
+            <TResultGroup
+              titulo={
+                dieta?.moduloNome
+                  ? `Módulo proteico — ${dieta.moduloNome}`
+                  : 'Módulo proteico'
+              }
+              colunas={3}
+            >
+              <TResult
+                label="Medidas por dia"
+                valor={formatarNumero(dieta?.moduloMedidas)}
+                unidade="medidas"
+                /* A nota da própria planilha (`Contínuo!V21`). É conduta: sai da
+                   tela e a prescrição perde o quando. */
+                referencia="iniciar o módulo a partir do 4º dia"
+                motivoAusencia={dieta?.motivoModulo}
+                recalculando={recalculando}
+              />
+              <TResult
+                label="Quantidade"
+                valor={formatarNumero(dieta?.moduloGramas)}
+                unidade="g/dia"
+                recalculando={recalculando}
+              />
+              <TResult
+                label="Calorias que o módulo soma"
+                valor={formatarNumero(dieta?.moduloKcal)}
+                unidade="kcal/dia"
+                referencia="do rótulo do produto — entram no total do dia"
                 recalculando={recalculando}
               />
             </TResultGroup>

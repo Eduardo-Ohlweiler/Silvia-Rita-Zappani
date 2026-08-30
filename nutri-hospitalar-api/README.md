@@ -58,7 +58,7 @@ O `.env` está no `.gitignore`. Nenhum segredo vai para o repositório.
 
 ```bash
 ./run-dev.sh            # sobe a API em http://localhost:8080
-./run-dev.sh test       # roda os 90 testes
+./run-dev.sh test       # roda os 303 testes
 ./run-dev.sh package    # gera o jar
 ```
 
@@ -80,7 +80,9 @@ schema a cada execução. **Não usamos H2**: sem `unaccent`, com tratamento
 diferente de `NULL` em constraint única e aceitando JPQL que o Postgres rejeita,
 ele daria falsa confiança exatamente onde dói.
 
-Cobertura das fatias 1 e 3 — 90 testes:
+**303 testes** no total. A tabela abaixo cobre as fatias 1 e 3; pediatria (68) e
+UTI adulto (144) têm as suas em `pediatria/` e `uti/`, com os gabaritos
+numéricos conferidos contra as planilhas de origem — ver `docs/09` e `docs/10`.
 
 | Classe | O que prova |
 |---|---|
@@ -263,7 +265,7 @@ Coisas que o sistema **não** faz hoje, registradas para não virarem surpresa:
 | Item | Por quê ainda não | Quando |
 |---|---|---|
 | Recuperação de senha | depende de definir o serviço de e-mail (SMTP, Resend, Brevo…) | fatia própria, quando o envio de e-mail for decidido |
-| `audit_log` de operações de negócio | só o `login_log` existe; auditar CRUD só faz sentido quando houver paciente e prescrição | junto da fatia de Paciente |
+| `audit_log` de operações de negócio | só o `login_log` existe. Hoje as entidades gravam `created_by` e `updated_by`, o que responde "quem criou" e "quem alterou por último" — mas **não** "quem apagou": os três `delete` do sistema são físicos, e a autoria some com a linha | fatia própria; adiada por decisão, não por dependência |
 | Confirmação de e-mail | mesma dependência de envio de e-mail. Menos urgente sem autocadastro: quem cria a conta é o superadmin, então o e-mail já foi conferido por uma pessoa | com a recuperação de senha |
 
 Enquanto não há recuperação de senha, o superadmin resolve pelo painel:

@@ -115,12 +115,22 @@ export function formatarTelefone(codigoPais?: string | null, telefone?: string |
  * "649,44", com a mesma chamada. Resultado de cálculo costuma ter escala 4 no
  * banco e nenhuma tela quer ver "723,0000".
  */
+/**
+ * O traço que marca ausência na interface.
+ *
+ * É constante, e exportada, porque **dois lugares precisam concordar sobre
+ * ele**: quem o escreve (`formatarNumero`) e quem o reconhece (`TResult`, para
+ * saber que ali não há valor e o motivo deve aparecer). Enquanto era um literal
+ * repetido, os dois discordavam em silêncio.
+ */
+export const AUSENTE = '—'
+
 export function formatarNumero(
   valor?: number | null,
   maximo = 2,
   minimo = 0,
 ): string {
-  if (valor === null || valor === undefined || Number.isNaN(valor)) return '—'
+  if (valor === null || valor === undefined || Number.isNaN(valor)) return AUSENTE
   return valor.toLocaleString('pt-BR', {
     minimumFractionDigits: minimo,
     maximumFractionDigits: maximo,

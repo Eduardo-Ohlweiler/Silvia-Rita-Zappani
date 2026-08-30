@@ -8,10 +8,10 @@ import {
 } from '@/components/impressao/Folha'
 import { REFERENCIAS, pam, type ChaveReferencia, type Referencia } from '@/components/graficos/referencias'
 import type { RegistroDiarioUtiResponse } from '@/types/uti'
-import { formatarData, formatarNumero } from '@/utils/format'
+import { AUSENTE, formatarData, formatarNumero } from '@/utils/format'
 
 const n = (valor?: number | null, casas = 1, unidade = '') =>
-  valor == null ? '—' : `${formatarNumero(valor, casas, casas)}${unidade ? ` ${unidade}` : ''}`
+  valor == null ? AUSENTE : `${formatarNumero(valor, casas, casas)}${unidade ? ` ${unidade}` : ''}`
 
 /**
  * Um dia de acompanhamento, como **evolução de prontuário**.
@@ -56,7 +56,10 @@ export function DocumentoRegistroDiario({ registro }: { registro: RegistroDiario
     { rotulo: 'Lanche da tarde', valor: n(r.lancheTarde, 0, '%') },
     { rotulo: 'Jantar', valor: n(r.jantar, 0, '%') },
     { rotulo: 'Ceia', valor: n(r.ceia, 0, '%') },
-  ].filter((l) => l.valor !== '—')
+    // Só a refeição que foi registrada. A comparação é contra a constante, e
+    // não contra o literal: sentinela repetida à mão foi o que calou 23 motivos
+    // de ausência na calculadora.
+  ].filter((l) => l.valor !== AUSENTE)
 
   // Só o exame que foi feito. Nove linhas com sete traços não é registro.
   const exames: LinhaValor[] = (Object.keys(REFERENCIAS) as ChaveReferencia[])

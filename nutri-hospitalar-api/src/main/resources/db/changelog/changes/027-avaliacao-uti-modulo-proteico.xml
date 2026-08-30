@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        O módulo proteico escolhido para cobrir a lacuna, com o seu retrato.
+
+        A dieta enteral nem sempre alcança a meta proteica, e a planilha resolve
+        isso em `Contínuo!Q21:V24`: um módulo em pó por cima da fórmula. O
+        cálculo já existia em `DietaEnteralCalculator.moduloProteico` desde a
+        fatia 2, testado contra o gabarito — mas não havia onde guardar a
+        escolha, e por isso nenhuma tela o alcançava.
+
+        AS QUATRO COLUNAS DE RETRATO NÃO SÃO REDUNDÂNCIA. São a mesma decisão
+        que a migration 023 tomou para a fórmula enteral: a composição do
+        produto é copiada para o registro no dia da prescrição, e editar o
+        catálogo depois não mexe em avaliação nenhuma. Guardar só a FK faria a
+        avaliação de março ser reexplicada com o rótulo de outubro — números
+        certos com legenda de outro dia, que é pior do que número errado, porque
+        não se percebe.
+
+        `medida_g` entra porque é ela que converte medidas em gramas na
+        prescrição, e `kcal_por_medida` porque a caloria do módulo SAI DO
+        RÓTULO — nunca recomposta macro a macro. Recompor é o defeito 10 da
+        planilha (`Contínuo!U24` soma gramas de carboidrato a um total de kcal,
+        devolvendo 252,45 onde o correto é 469,8). Sem coluna de macro aqui, o
+        defeito é irrepresentável.
+
+        `ON DELETE SET NULL` como na fórmula: o produto pode sair do catálogo, o
+        retrato fica.
+    -->
+    <changeSet id="027-avaliacao-uti-modulo-proteico" author="eduardo">
+
+        <addColumn tableName="avaliacao_uti">
+            <column name="modulo_proteico_id" type="UUID"/>
+            <column name="modulo_nome" type="VARCHAR(255)"/>
+            <column name="modulo_medida_g" type="NUMERIC(8,3)"/>
+            <column name="modulo_proteina_por_medida_g" type="NUMERIC(8,3)"/>
+            <column name="modulo_kcal_por_medida" type="NUMERIC(10,3)"/>
+
+            <!--
+                E os três derivados, gravados como todo resultado desta tabela.
+
+                Reabrir uma avaliação NÃO recalcula: todo número da resposta sai
+                de coluna, e o recálculo sobre as entradas gravadas serve só para
+                colher as frases de ausência. Deixar a sugestão fora daqui a
+                faria ser a única linha da dieta recomputada na leitura — e
+                bastaria alguém corrigir um arredondamento amanhã para o
+                prontuário de hoje passar a dizer outra coisa.
+            -->
+            <column name="modulo_gramas" type="NUMERIC(12,4)"/>
+            <column name="modulo_medidas" type="NUMERIC(12,4)"/>
+            <column name="modulo_kcal" type="NUMERIC(12,4)"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="avaliacao_uti"
+                                 baseColumnNames="modulo_proteico_id"
+                                 referencedTableName="produto_nutricional"
+                                 referencedColumnNames="id"
+                                 constraintName="fk_avaliacao_uti_modulo_proteico"
+                                 onDelete="SET NULL"/>
+
+        <!--
+            O retrato acompanha a escolha: ou os dois existem, ou nenhum. Uma
+            FK sem nome gravado deixaria a avaliação sem como se explicar; um
+            nome sem FK é legítimo (o produto saiu do catálogo) e por isso não
+            é barrado aqui.
+        -->
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_modulo_retrato
+            CHECK (modulo_proteico_id IS NULL OR modulo_nome IS NOT NULL);
+        </sql>
+
+        <rollback>
+            <sql>ALTER TABLE avaliacao_uti DROP CONSTRAINT ck_avaliacao_uti_modulo_retrato;</sql>
+            <dropForeignKeyConstraint baseTableName="avaliacao_uti"
+                                      constraintName="fk_avaliacao_uti_modulo_proteico"/>
+            <dropColumn tableName="avaliacao_uti" columnName="modulo_kcal"/>
+            <dropColumn tableName="avaliacao_uti" columnName="modulo_medidas"/>
+            <dropColumn tableName="avaliacao_uti" columnName="modulo_gramas"/>
+            <dropColumn tableName="avaliacao_uti" columnName="modulo_kcal_por_medida"/>
+            <dropColumn tableName="avaliacao_uti" columnName="modulo_proteina_por_medida_g"/>
+            <dropColumn tableName="avaliacao_uti" columnName="modulo_medida_g"/>
+            <dropColumn tableName="avaliacao_uti" columnName="modulo_nome"/>
+            <dropColumn tableName="avaliacao_uti" columnName="modulo_proteico_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

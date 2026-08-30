@@ -1,3 +1,4 @@
+import { AUSENTE } from '@/utils/format'
 import type { ReactNode } from 'react'
 
 /** Faixa de classificação da OMS — espelha o enum `FaixaOms` do backend. */
@@ -73,7 +74,21 @@ export function TResult({
   compacto = false,
   className = '',
 }: TResultProps) {
-  const vazio = valor === undefined || valor === null || valor === ''
+  /*
+   * O traço TAMBÉM é ausência, e esta linha é o conserto de um defeito que
+   * calou 23 motivos.
+   *
+   * `formatarNumero(null)` devolve "—" — uma string, e portanto um valor
+   * "presente" para quem só testasse vazio contra null e "". A calculadora de
+   * UTI passava `formatarNumero(...)` direto em 53 lugares e por isso exibia 26
+   * traços SEM UMA PALAVRA, enquanto o servidor calculava cada motivo
+   * fielmente. A pediatria escapou por acaso: lá as chamadas são guardadas com
+   * `x != null ? formatarNumero(x) : undefined`.
+   *
+   * Reconhecer o traço aqui vale mais do que consertar os 53 pontos: um ponto
+   * novo não tem como regredir.
+   */
+  const vazio = valor === undefined || valor === null || valor === '' || valor === AUSENTE
   const cor = classificacao ? corDe(classificacao) : ''
 
   if (compacto) {

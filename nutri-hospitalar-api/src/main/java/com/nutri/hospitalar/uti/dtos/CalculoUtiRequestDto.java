@@ -120,6 +120,15 @@ public record CalculoUtiRequestDto(
         @Digits(integer = 3, fraction = 2, message = "No máximo 2 casas decimais")
         BigDecimal tempo,
 
+        /**
+         * Módulo proteico para cobrir a lacuna, quando há lacuna.
+         *
+         * <p>Não influencia nenhum outro número do cálculo — a sugestão é
+         * leitura da lacuna que a dieta já produziu. Só produto do tipo
+         * {@code MODULO_PROTEICO} é aceito; o service recusa os outros.
+         */
+        UUID moduloProteicoId,
+
         // ─── Hidratação ─────────────────────────────────────────────────
         @DecimalMin(value = "0.0", message = "O volume da dieta não pode ser negativo")
         @Digits(integer = 6, fraction = 3, message = "No máximo 3 casas decimais")

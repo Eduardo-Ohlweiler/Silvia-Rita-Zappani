@@ -144,6 +144,18 @@ public class AvaliacaoUti extends TenantEntity {
     @Column(name = "formula_potassio_mg_l")       private BigDecimal formulaPotassioMgL;
     @Column(name = "formula_agua_livre_perc")     private BigDecimal formulaAguaLivrePerc;
 
+    // ─── Entradas · módulo proteico, com o retrato dele ─────────────────
+    // Mesmo cuidado da fórmula: o produto pode ser editado ou sair do
+    // catálogo, e a avaliação continua tendo com que se explicar.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "modulo_proteico_id")
+    private ProdutoNutricional moduloProteico;
+
+    @Column(name = "modulo_nome", length = 255)      private String moduloNome;
+    @Column(name = "modulo_medida_g")                private BigDecimal moduloMedidaG;
+    @Column(name = "modulo_proteina_por_medida_g")   private BigDecimal moduloProteinaPorMedidaG;
+    @Column(name = "modulo_kcal_por_medida")         private BigDecimal moduloKcalPorMedida;
+
     @Enumerated(EnumType.STRING) @Column(name = "modo_infusao", length = 20)
     private ModoInfusao modoInfusao;
 
@@ -231,6 +243,12 @@ public class AvaliacaoUti extends TenantEntity {
     @Column(name = "volume_pleno")          private BigDecimal volumePleno;
     @Column(name = "proteina_no_volume_pleno") private BigDecimal proteinaNoVolumePleno;
     @Column(name = "proteina_suplementar")  private BigDecimal proteinaSuplementar;
+
+    // A sugestão do módulo, gravada como todo resultado desta tabela — ler não
+    // recalcula, e este é o número que a folha impressa cita.
+    @Column(name = "modulo_gramas")   private BigDecimal moduloGramas;
+    @Column(name = "modulo_medidas")  private BigDecimal moduloMedidas;
+    @Column(name = "modulo_kcal")     private BigDecimal moduloKcal;
 
     // ─── Resultados · hidratação ────────────────────────────────────────
     @Column(name = "hidratacao_necessidade_minima") private BigDecimal hidratacaoNecessidadeMinima;

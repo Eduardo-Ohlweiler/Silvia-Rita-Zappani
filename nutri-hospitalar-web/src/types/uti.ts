@@ -333,6 +333,8 @@ export interface CalculoUtiRequest {
   proteinaPorKgAlvo?: number | null
   posicaoNaFaixa?: PosicaoNaFaixa | null
   formulaEnteralId?: string | null
+  /** Módulo proteico para cobrir a lacuna. Só `MODULO_PROTEICO` é aceito. */
+  moduloProteicoId?: string | null
   modoInfusao?: ModoInfusao | null
   volumePorTempo?: number | null
   tempo?: number | null
@@ -440,6 +442,14 @@ export interface ResultadoDieta {
   volumePleno?: number
   proteinaNoVolumePleno?: number
   proteinaSuplementar?: number
+
+  /** Retrato do módulo escolhido — o nome como estava no dia da prescrição. */
+  moduloNome?: string
+  moduloGramas?: number
+  moduloMedidas?: number
+  moduloKcal?: number
+  /** Por que não há sugestão: meta atingida, módulo não escolhido, ou cadastro incompleto. */
+  motivoModulo?: string
   unidadeDoVolume?: string
   progressao: DegrauProgressao[]
   /**

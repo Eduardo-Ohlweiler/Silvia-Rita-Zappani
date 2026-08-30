@@ -405,6 +405,68 @@ class AvaliacaoUtiTest extends AbstractIntegrationTest {
     // ─────────────────────────────────────────────────────────────────────
 
     /** O caso canônico: 68 kg, 1,68 m, Peptamen Intense a 62 ml/h por 22 h. */
+    /**
+     * O retrato do módulo, e é a razão de ele existir.
+     *
+     * <p>Editar o produto no catálogo depois não pode mexer na avaliação já
+     * feita — nem no número nem no <b>nome</b>. Foi exatamente este defeito que
+     * a pediatria tinha: números certos com legenda de outro dia, que é pior do
+     * que número errado porque não se percebe.
+     */
+    @Test
+    @DisplayName("editar o módulo no catálogo não mexe na avaliação já feita")
+    void retratoDoModuloSobreviveAEdicao() throws Exception {
+        String comoA = autenticar(adminA.getEmail());
+
+        // Um módulo próprio do tenant, para poder editá-lo (os globais não).
+        String corpoModulo = mockMvc.perform(post("/produtos-nutricionais")
+                        .header(AUTHORIZATION, comoA)
+                        .contentType("application/json")
+                        .content("""
+                                {"nome":"Módulo da casa","tipo":"MODULO_PROTEICO",
+                                 "medidaNome":"medida","medidaQtd":15,"kcal":52,"proteinaG":13}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String moduloId = objectMapper.readTree(corpoModulo).get("id").asText();
+
+        // 500 ml de Peptamen dão 46 g contra a meta de 102: lacuna de 56 g.
+        String corpoAvaliacao = mockMvc.perform(post("/uti/avaliacoes")
+                        .header(AUTHORIZATION, comoA)
+                        .contentType("application/json")
+                        .content("""
+                                {"pacienteId":"%s","dataAvaliacao":"%s",
+                                 "calculo":{"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,
+                                            "pesoAtualKg":68,"fase":"AGUDA",
+                                            "formulaEnteralId":"%s","modoInfusao":"CONTINUA",
+                                            "volumePorTempo":25,"tempo":20,
+                                            "moduloProteicoId":"%s"}}
+                                """.formatted(pacienteA.getId(), LocalDate.now(), peptamen, moduloId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.resultado.dieta.moduloNome").value("Módulo da casa"))
+                .andExpect(jsonPath("$.resultado.dieta.moduloKcal").value(224.0))
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(corpoAvaliacao).get("id").asText();
+
+        // O catálogo muda: outro nome e o dobro da proteína por medida.
+        mockMvc.perform(put("/produtos-nutricionais/" + moduloId)
+                        .header(AUTHORIZATION, comoA)
+                        .contentType("application/json")
+                        .content("""
+                                {"nome":"Módulo renomeado","tipo":"MODULO_PROTEICO",
+                                 "medidaNome":"medida","medidaQtd":15,"kcal":104,"proteinaG":26}
+                                """))
+                .andExpect(status().isOk());
+
+        // A avaliação continua exatamente como foi prescrita.
+        mockMvc.perform(get("/uti/avaliacoes/" + id).header(AUTHORIZATION, comoA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultado.dieta.moduloNome").value("Módulo da casa"))
+                .andExpect(jsonPath("$.resultado.dieta.moduloGramas").value(64.6154))
+                .andExpect(jsonPath("$.resultado.dieta.moduloMedidas").value(4.3077))
+                .andExpect(jsonPath("$.resultado.dieta.moduloKcal").value(224.0));
+    }
+
     private String corpo(UUID pacienteId, UUID formulaId) {
         return """
                 {"pacienteId":"%s","dataAvaliacao":"%s",

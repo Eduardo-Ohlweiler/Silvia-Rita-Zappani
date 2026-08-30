@@ -44,6 +44,8 @@ export interface EntradasUti {
   modoInfusao: string
   volumePorTempo: string
   tempo: string
+  /** Cobre a lacuna proteica, quando há lacuna. */
+  moduloProteicoId: string
 
   // ─── Aba 4 · Hidratação ───────────────────────────────────────────
   volumeDietaManualMl: string
@@ -77,6 +79,7 @@ export const ENTRADAS_UTI_VAZIAS: EntradasUti = {
   modoInfusao: 'CONTINUA',
   volumePorTempo: '',
   tempo: '22,00',
+  moduloProteicoId: '',
   volumeDietaManualMl: '',
 }
 
@@ -120,6 +123,7 @@ export function paraEntradas(c: CalculoUtiRequest): EntradasUti {
     modoInfusao: c.modoInfusao ?? 'CONTINUA',
     volumePorTempo: texto(c.volumePorTempo),
     tempo: texto(c.tempo),
+    moduloProteicoId: c.moduloProteicoId ?? '',
     volumeDietaManualMl: texto(c.volumeDietaManualMl),
   }
 }
@@ -152,6 +156,7 @@ export function paraRequisicao(e: EntradasUti): CalculoUtiRequest {
     modoInfusao: (e.modoInfusao as CalculoUtiRequest['modoInfusao']) || null,
     volumePorTempo: paraNumero(e.volumePorTempo) ?? null,
     tempo: paraNumero(e.tempo) ?? null,
+    moduloProteicoId: e.moduloProteicoId || null,
     volumeDietaManualMl: paraNumero(e.volumeDietaManualMl) ?? null,
   }
 }

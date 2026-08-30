@@ -285,6 +285,22 @@ export function DocumentoAvaliacaoUti({
       valor: n(dieta?.proteinaSuplementar, 1, 'g/dia'),
       detalhe: 'Diferença entre a meta e o que a fórmula entrega',
     },
+    /*
+     * A linha que fecha a anterior. Sem ela o papel dizia o tamanho da lacuna e
+     * deixava quem lê descobrir sozinho com o quê cobri-la — e é a cozinha e o
+     * plantão que leem esta folha, não quem prescreveu.
+     */
+    {
+      rotulo: 'Módulo proteico',
+      valor: dieta?.moduloNome ?? '—',
+      detalhe:
+        dieta?.moduloMedidas != null
+          ? `${n(dieta.moduloMedidas, 2)} medidas por dia · ${n(dieta.moduloGramas, 1)} g` +
+            (dieta.moduloKcal != null
+              ? ` · soma ${n(dieta.moduloKcal, 0)} kcal ao dia`
+              : '')
+          : (dieta?.motivoModulo ?? ''),
+    },
   ]
 
   const hidratacao: LinhaValor[] = [
