@@ -235,6 +235,57 @@ Na planilha a fórmula é **texto digitado à mão**, casado por `VLOOKUP` exato
 qualquer diferença de grafia cai no `IFERROR` e zera o cálculo da dieta em
 silêncio. Aqui a fórmula é uma FK escolhida em combo — o erro deixa de existir.
 
+### 7.1 O que o cadastro de fórmula láctea recusa
+
+A fórmula **enteral** declara os três macros e fecha por Atwater — é essa conta
+que denuncia composição por embalagem ou fator 10 (`docs/10 §11`). A fórmula
+**láctea** declara só energia e proteína: não há o que fechar, e por isso ela
+passou muito tempo aceitando qualquer número, num campo que prescreve mamadeira.
+
+Duas guardas substituem o fechamento. **Nenhuma delas é conformidade
+regulatória** — são guardas de erro de digitação, calibradas para que todo
+produto real passe.
+
+**A faixa óbvia estava errada, e a pesquisa a derrubou.** A norma de fórmula
+infantil põe a densidade entre 60 e 70 kcal/100 ml — e essa faixa recusaria
+**três das dez fórmulas que o próprio sistema semeia**: FORTINI (150),
+INFATRINE (100,8) e NEOCATE ADV (100). O catálogo não é de fórmula de partida:
+é de tudo que a criança recebe por via oral ou sonda, e 1,5 kcal/ml é conduta,
+não erro.
+
+| Guarda | Faixa | O que pega | Procedência |
+|---|---|---|---|
+| Densidade energética | **20 a 250 kcal/100 ml** | a composição da **lata de pó** (≈ 500 kcal/100 g) lançada como reconstituída; o fator 10 para baixo; campos trocados | o produto enteral líquido mais denso descrito chega a 2,4 kcal/ml — acima de 1,5 a densidade só sobe engordando muito a fração lipídica, e passado isso não é líquido |
+| Razão proteína/energia | **1,0 a 6,0 g/100 kcal** | o **ponto decimal deslocado** na proteína (um fator 10 cai perto de 21) | Codex Alimentarius **CXS 72-1981** fixa 1,8 a 3,0 para fórmula infantil; a faixa é alargada para caber produto pediátrico especializado, fora do escopo da norma |
+
+**Por que a razão, e não a densidade, é a régua principal:** ela é *invariante de
+escala*. Vale igual para a fórmula de partida a 67 kcal/100 ml e para o
+suplemento a 150. As dez fórmulas semeadas caem **todas** dentro da faixa
+estreita do Codex — de 1,86 (NAN 1) a 2,85 (NEOCATE LCD), **incluindo os três
+hipercalóricos que a faixa de densidade teria reprovado**:
+
+```text
+NAN 1 1,86 · NESTOGENO 1 2,09 · NAN SL 2,16 · FORTINI 2,23
+NAN 2 2,24 · NESTOGENO 2 2,24 · INFATRINE 2,58 · PREGOMIN 2,73
+NEOCATE ADV 2,80 · NEOCATE LCD 2,85
+```
+
+**As duas guardas são necessárias, e nenhuma basta sozinha.** A composição do pó
+tem razão proteica *correta* — só a densidade a pega. O fator 10 na proteína não
+muda a densidade — só a razão o pega.
+
+**Proteína zero passa.** Módulo puro de carboidrato existe em dieta metabólica
+pediátrica; recusá-lo transformaria cadastro legítimo em cadastro impossível —
+o mesmo critério que a fórmula enteral usa com macro ausente.
+
+**A mensagem nomeia a causa provável**, não diz "valor inválido": *"500 kcal por
+100 ml é densidade de pó, não de fórmula pronta … confira se o rótulo lido é o
+da lata"*. Recusa que não ensina manda o usuário conferir dois campos no escuro.
+
+`CatalogoPediatriaTest` trava as duas faixas contra o seed: **se alguém apertar a
+guarda, o próprio catálogo do sistema reprova** — antes de reprovar o cadastro
+da nutricionista.
+
 ---
 
 ## 8. Faixas de validade, reunidas

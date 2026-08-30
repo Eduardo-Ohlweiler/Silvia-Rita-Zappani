@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   TBadge,
+  TBotaoImprimir,
   TButton,
   TCombo,
   TPage,
@@ -11,6 +12,7 @@ import {
   TTabs,
   type Aba,
 } from '@/components/common'
+import { DocumentoPainelPacientePediatrico } from '@/components/pediatria/impressao/DocumentoPainelPacientePediatrico'
 import { CurvaCrescimento } from '@/components/pediatria/graficos/CurvaCrescimento'
 import {
   CoberturaNoTempo,
@@ -23,6 +25,7 @@ import { pediatriaService } from '@/services/pediatriaService'
 import { pessoaService } from '@/services/pessoaService'
 import type { CurvaOmsPonto, FaixaOms, PainelPaciente } from '@/types/pediatria'
 import { formatarData, formatarDocumento, formatarNumero } from '@/utils/format'
+import { idadeEmMesesTexto as idade } from '@/utils/idade'
 
 const TOM_FAIXA: Record<FaixaOms, 'info' | 'sucesso' | 'alerta'> = {
   BAIXA: 'info',
@@ -136,6 +139,8 @@ export function PediatriaPacienteDashboard() {
     <TPage
       title="Painel do paciente"
       subtitle="Onde a criança está hoje e por onde andou."
+      actions={dados && <TBotaoImprimir rotulo="Imprimir histórico" />}
+      documento={dados && <DocumentoPainelPacientePediatrico dados={dados} />}
     >
       <div className="flex flex-col gap-4">
         {/* Uma linha de filtros para tudo o que vem abaixo */}
@@ -429,11 +434,6 @@ function Classificacao({
       )}
     </span>
   )
-}
-
-function idade(meses?: number | null): string {
-  if (meses == null) return '—'
-  return `${meses} ${meses === 1 ? 'mês' : 'meses'}`
 }
 
 function num(valor: number | null | undefined, unidade: string, casas: number): string {

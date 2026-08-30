@@ -15,9 +15,28 @@ export function formatarDataHora(iso?: string | null): string {
   return DATA_HORA.format(new Date(iso))
 }
 
+/**
+ * Data em pt-BR. Ausente vira travessão.
+ *
+ * <b>Um dia inteiro de diferença dependia desta função.</b> `new Date('2026-08-29')`
+ * — data sem hora — é lida pelo JavaScript como **meia-noite UTC**, e o `Intl`
+ * formata no fuso local. Em qualquer fuso a oeste de Greenwich, incluindo o
+ * Brasil inteiro, isso volta o dia anterior: a avaliação de 07/08/2027 saía
+ * impressa como 06/08/2027, em prontuário.
+ *
+ * O conserto é o mesmo idioma que `utils/idade.ts` já usava: montar a data com
+ * `T00:00:00`, que o JavaScript lê como meia-noite **local**. Timestamp completo
+ * (`createdAt`, com hora e fuso) não passa por aqui — ele é um instante real, e
+ * formatá-lo no fuso do leitor é justamente o certo.
+ */
 export function formatarData(iso?: string | null): string {
   if (!iso) return '—'
-  return DATA.format(new Date(iso))
+  return DATA.format(paraDataLocal(iso))
+}
+
+/** `YYYY-MM-DD` é dia do calendário, não instante — vira meia-noite LOCAL. */
+function paraDataLocal(iso: string): Date {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso)
 }
 
 /** Converte `<input type="datetime-local">` para ISO com fuso, ou undefined. */
@@ -218,4 +237,25 @@ export function mascararColado(texto: string, casas = 2, comSinal = false): stri
     casas,
     comSinal,
   )
+}
+
+/**
+ * O rótulo legível de um valor de enum, a partir da lista de opções que a tela
+ * já usa no combo.
+ *
+ * Existe porque o documento impresso vazava o nome cru do enum: a janela de
+ * perda de peso saía como **"janela de um_mes"** no prontuário, em vez de
+ * "1 mês". `UM_MES.toLowerCase()` é `um_mes` — a conversão parecia bastar e não
+ * bastava.
+ *
+ * Devolve `undefined` quando não encontra, e **não** o valor cru: cair no
+ * `SCREAMING_SNAKE_CASE` seria repetir em silêncio o defeito que esta função
+ * existe para impedir. Quem chama decide o que mostrar no lugar.
+ */
+export function rotuloDe<T extends string>(
+  opcoes: readonly { valor: T; rotulo: string }[],
+  valor?: T | null,
+): string | undefined {
+  if (!valor) return undefined
+  return opcoes.find((o) => o.valor === valor)?.rotulo
 }

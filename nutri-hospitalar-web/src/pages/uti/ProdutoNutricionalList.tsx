@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar, IconBloqueado, IconBusca } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TBadge,
   TButton,
   TDataGrid,
@@ -12,7 +13,9 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type ResultadoDaCarga,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
@@ -23,7 +26,8 @@ import {
   type ProdutoNutricionalResponse,
   type TipoProdutoNutricional,
 } from '@/types/uti'
-import { formatarNumero } from '@/utils/format'
+import { formatarNumero, rotuloDe } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 export function ProdutoNutricionalList() {
   const navigate = useNavigate()
@@ -36,6 +40,7 @@ export function ProdutoNutricionalList() {
   const [pagina, setPagina] = useState(0)
   const [dados, setDados] = useState<Page<ProdutoNutricionalResponse>>()
   const [carregando, setCarregando] = useState(true)
+  const [paraImprimir, setParaImprimir] = useState<ResultadoDaCarga<ProdutoNutricionalResponse>>()
 
   const nomeBusca = useDebounce(nome)
 
@@ -73,6 +78,65 @@ export function ProdutoNutricionalList() {
       handleApiError(erro)
     }
   }
+
+  /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<ProdutoNutricionalResponse>> => {
+      const pagina = await produtoNutricionalService.getAll({
+        nome: nomeBusca || undefined,
+        tipo: (tipo || undefined) as TipoProdutoNutricional | undefined,
+        ativo: ativo === '' ? undefined : ativo === 'true',
+        global: origem === '' ? undefined : origem === 'sistema',
+        page: 0,
+        size: limite,
+      })
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [nomeBusca, tipo, ativo, origem],
+  )
+
+  /**
+   * A composição inteira por medida, mais a embalagem.
+   *
+   * <p>A medida vai em duas colunas — nome e quantidade — porque numa planilha
+   * "Colher 5" é texto que não se soma. E a <b>embalagem</b> entra porque é ela
+   * que transforma a receita em pedido de compra: sem a quantidade da lata
+   * fechada não há como calcular embalagens por mês.
+   */
+  const colunasExportadas: ColunaExportavel<ProdutoNutricionalResponse>[] = [
+    { titulo: 'Produto', valor: (p) => p.nome },
+    { titulo: 'Origem', valor: (p) => (p.global ? 'Do sistema' : 'Próprio') },
+    { titulo: 'Tipo', valor: (p) => p.tipoDescricao },
+    { titulo: 'Papel na dieta artesanal', valor: (p) => p.papelDescricao ?? '' },
+    { titulo: 'Medida', valor: (p) => p.medidaNome },
+    { titulo: 'Qtd. da medida', numerica: true, valor: (p) => txt(p.medidaQtd, 2) },
+    { titulo: 'Embalagem', numerica: true, valor: (p) => txt(p.embalagemQtd, 2) },
+    { titulo: 'Kcal / medida', numerica: true, valor: (p) => txt(p.kcal, 2) },
+    { titulo: 'Proteína (g)', numerica: true, valor: (p) => txt(p.proteinaG, 2) },
+    { titulo: 'Carboidrato (g)', numerica: true, valor: (p) => txt(p.choG, 2) },
+    { titulo: 'Açúcar (g)', numerica: true, valor: (p) => txt(p.acucarG, 2) },
+    { titulo: 'Lipídio (g)', numerica: true, valor: (p) => txt(p.lipG, 2) },
+    { titulo: 'Fibras (g)', numerica: true, valor: (p) => txt(p.fibrasG, 2) },
+    { titulo: 'Sódio (mg)', numerica: true, valor: (p) => txt(p.sodioMg, 1) },
+    { titulo: 'Potássio (mg)', numerica: true, valor: (p) => txt(p.potassioMg, 1) },
+    { titulo: 'Fósforo (mg)', numerica: true, valor: (p) => txt(p.fosforoMg, 1) },
+    { titulo: 'Ferro (mg)', numerica: true, valor: (p) => txt(p.ferroMg, 2) },
+    { titulo: 'Osmolaridade (mOsm/L)', numerica: true, valor: (p) => txt(p.osmolaridadeMosmL, 1) },
+    { titulo: 'Situação', valor: (p) => (p.ativo ? 'Ativo' : 'Inativo') },
+  ]
+
+  const filtrosAplicados = [
+    { rotulo: 'Nome', valor: nomeBusca },
+    { rotulo: 'Tipo', valor: rotuloDe(TIPOS_PRODUTO, tipo) ?? '' },
+    {
+      rotulo: 'Origem',
+      valor: origem === 'sistema' ? 'Do sistema' : origem === 'proprias' ? 'Meus produtos' : '',
+    },
+    { rotulo: 'Situação', valor: ativo === 'true' ? 'Ativo' : ativo === 'false' ? 'Inativo' : '' },
+  ]
 
   const colunas: Coluna<ProdutoNutricionalResponse>[] = [
     {
@@ -145,10 +209,42 @@ export function ProdutoNutricionalList() {
       title="Produtos nutricionais"
       subtitle="Suplementos orais, módulos proteicos e insumos de dieta artesanal. Os módulos e os insumos alimentam o cálculo — cadastrar um novo faz efeito na sugestão."
       actions={
-        <TButton onClick={() => navigate('/app/uti/produtos/novo')}>
-          <IconAdicionar className="size-4" />
-          Novo produto
-        </TButton>
+        <>
+          <TAcoesDeExportacao
+            nome="Produtos nutricionais"
+            colunas={colunasExportadas}
+            carregar={carregarTudo}
+            aoCarregarParaImprimir={setParaImprimir}
+          />
+          <TButton onClick={() => navigate('/app/uti/produtos/novo')}>
+            <IconAdicionar className="size-4" />
+            Novo produto
+          </TButton>
+        </>
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Produtos nutricionais"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(p) => p.id}
+            resumo={[
+              { rotulo: 'Produtos', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Do sistema',
+                valor: String(paraImprimir.linhas.filter((p) => p.global).length),
+              },
+              {
+                rotulo: 'Insumos artesanais',
+                valor: String(paraImprimir.linhas.filter((p) => p.papelArtesanal).length),
+              },
+            ]}
+            nota="Composição por medida do próprio produto, não por 100 g — trocar de marca muda a medida. Suplemento oral aceita composição incompleta; o que entra em cálculo, não."
+          />
+        )
       }
     >
       <TPanel>
@@ -235,4 +331,9 @@ export function ProdutoNutricionalList() {
       <TDataGridFooter pagina={dados} onPaginaChange={setPagina} />
     </TPage>
   )
+}
+
+/** Número para célula: vazio continua vazio, e não vira zero. */
+function txt(valor: number | null | undefined, casas: number): string {
+  return valor == null ? '' : formatarNumero(valor, casas, casas)
 }

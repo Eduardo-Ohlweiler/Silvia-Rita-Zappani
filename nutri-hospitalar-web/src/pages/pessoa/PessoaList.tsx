@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar, IconBusca } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TBadge,
   TButton,
   TDataGrid,
@@ -13,7 +14,9 @@ import {
   TSelect,
   type Coluna,
   type OpcaoSelect,
+  type ResultadoDaCarga,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
@@ -21,7 +24,8 @@ import { catalogoService } from '@/services/catalogoService'
 import { pessoaService } from '@/services/pessoaService'
 import type { Page } from '@/types/comum'
 import { OPCOES_TIPO_PESSOA, type PessoaResponse, type TipoPessoa } from '@/types/pessoa'
-import { formatarDocumento, formatarTelefone } from '@/utils/format'
+import { formatarData, formatarDocumento, formatarTelefone, rotuloDe } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 export function PessoaList() {
   const navigate = useNavigate()
@@ -36,6 +40,7 @@ export function PessoaList() {
   const [dados, setDados] = useState<Page<PessoaResponse>>()
   const [tiposCadastro, setTiposCadastro] = useState<OpcaoSelect[]>([])
   const [carregando, setCarregando] = useState(true)
+  const [paraImprimir, setParaImprimir] = useState<ResultadoDaCarga<PessoaResponse>>()
 
   const nomeBusca = useDebounce(nome)
   const documentoBusca = useDebounce(documento)
@@ -68,6 +73,66 @@ export function PessoaList() {
   }, [sessao?.tenantId, nomeBusca, documentoBusca, tipoPessoa, tipoCadastroId, ativo, pagina])
 
   useEffect(carregar, [carregar])
+
+  /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<PessoaResponse>> => {
+      const pagina = await pessoaService.getAll({
+        nome: nomeBusca || undefined,
+        documento: documentoBusca || undefined,
+        tipoPessoa: (tipoPessoa as TipoPessoa) || undefined,
+        tipoCadastroId: tipoCadastroId || undefined,
+        ativo: ativo === '' ? undefined : ativo === 'true',
+        page: 0,
+        size: limite,
+      })
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [nomeBusca, documentoBusca, tipoPessoa, tipoCadastroId, ativo],
+  )
+
+  /**
+   * O cadastro tem listas filhas, e uma célula não comporta lista.
+   *
+   * <p>Telefone, e-mail e endereço saem pelo <b>principal</b> — que é o que a
+   * secretaria usa para ligar —, e o cadastro completo continua na tela do
+   * registro. Exportar todos os telefones de cada pessoa numa célula produziria
+   * planilha que ninguém filtra.
+   *
+   * <p>Os tipos de cadastro, ao contrário, saem <b>todos</b>: uma pessoa que é
+   * paciente <i>e</i> responsável deixaria de aparecer no filtro de responsável
+   * se a exportação escolhesse um só.
+   */
+  const colunasExportadas: ColunaExportavel<PessoaResponse>[] = [
+    { titulo: 'Nome', valor: (p) => p.nome },
+    { titulo: 'Nome fantasia', valor: (p) => p.nomeFantasia ?? '' },
+    { titulo: 'Tipo de pessoa', valor: (p) => rotuloDe(OPCOES_TIPO_PESSOA, p.tipoPessoa) ?? '' },
+    { titulo: 'CPF / CNPJ', valor: (p) => formatarDocumento(p.cpf ?? p.cnpj) },
+    {
+      titulo: 'Nascimento',
+      valor: (p) => (p.dataNascimento ? formatarData(p.dataNascimento) : ''),
+    },
+    { titulo: 'Tipos de cadastro', valor: (p) => p.tiposCadastro.map((t) => t.nome).join(', ') },
+    { titulo: 'Telefone principal', valor: (p) => telefonePrincipal(p) },
+    { titulo: 'E-mail principal', valor: (p) => emailPrincipal(p) },
+    { titulo: 'Cidade', valor: (p) => cidadePrincipal(p) },
+    { titulo: 'Vínculos', numerica: true, valor: (p) => String(p.vinculos.length) },
+    { titulo: 'Situação', valor: (p) => (p.ativo ? 'Ativa' : 'Inativa') },
+  ]
+
+  const filtrosAplicados = [
+    { rotulo: 'Nome', valor: nomeBusca },
+    { rotulo: 'CPF/CNPJ', valor: documentoBusca },
+    { rotulo: 'Tipo de pessoa', valor: rotuloDe(OPCOES_TIPO_PESSOA, tipoPessoa) ?? '' },
+    {
+      rotulo: 'Tipo de cadastro',
+      valor: tiposCadastro.find((t) => t.valor === tipoCadastroId)?.rotulo ?? '',
+    },
+    { rotulo: 'Situação', valor: ativo === 'true' ? 'Ativa' : ativo === 'false' ? 'Inativa' : '' },
+  ]
 
   async function alternarAtivo(pessoa: PessoaResponse) {
     try {
@@ -147,10 +212,42 @@ export function PessoaList() {
       title="Pessoas"
       subtitle="Pacientes, responsáveis, profissionais e fornecedores do seu cliente."
       actions={
-        <TButton onClick={() => navigate('/app/pessoas/nova')}>
-          <IconAdicionar className="size-4" />
-          Nova pessoa
-        </TButton>
+        <>
+          <TAcoesDeExportacao
+            nome="Pessoas"
+            colunas={colunasExportadas}
+            carregar={carregarTudo}
+            aoCarregarParaImprimir={setParaImprimir}
+          />
+          <TButton onClick={() => navigate('/app/pessoas/nova')}>
+            <IconAdicionar className="size-4" />
+            Nova pessoa
+          </TButton>
+        </>
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Pessoas"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(p) => p.id}
+            resumo={[
+              { rotulo: 'Pessoas', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Físicas',
+                valor: String(paraImprimir.linhas.filter((p) => p.tipoPessoa === 'PESSOA_FISICA').length),
+              },
+              {
+                rotulo: 'Ativas',
+                valor: String(paraImprimir.linhas.filter((p) => p.ativo).length),
+              },
+            ]}
+            nota="Telefone, e-mail e cidade saem pelo registro principal de cada pessoa; o cadastro completo fica na tela do registro. Esta folha contém dado pessoal — trate-a como documento do prontuário."
+          />
+        )
       }
     >
       <TPanel>
@@ -238,4 +335,20 @@ export function PessoaList() {
       <TDataGridFooter pagina={dados} onPaginaChange={setPagina} />
     </TPage>
   )
+}
+
+/** O contato que a secretaria usa: o marcado como principal, ou o primeiro. */
+function telefonePrincipal(p: PessoaResponse): string {
+  const t = p.telefones.find((x) => x.principal) ?? p.telefones[0]
+  return t ? formatarTelefone(t.codigoPais, t.numero) : ''
+}
+
+function emailPrincipal(p: PessoaResponse): string {
+  const e = p.emails.find((x) => x.principal) ?? p.emails[0]
+  return e?.email ?? ''
+}
+
+function cidadePrincipal(p: PessoaResponse): string {
+  const e = p.enderecos.find((x) => x.principal) ?? p.enderecos[0]
+  return e ? `${e.cidadeNome}/${e.estadoSigla}` : ''
 }

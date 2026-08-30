@@ -88,10 +88,11 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **3 — Pessoas** | ✅ pronta · porte do eroERP, com endereços (IBGE) e vínculos |
 | **5 — Pediatria** | ✅ pronta · cálculo no servidor, telas em abas, painéis com paleta validada |
 | **6 — Terapia Nutricional (UTI adulto)** | ✅ pronta · especificação [docs/10](docs/10-calculos-uti-adulto.md) · catálogos · cálculo e calculadora · ferramentas clínicas · avaliação · acompanhamento diário · **3 painéis** · **impressão** |
-| 4 — Atendimento | pendente |
-| 7 a 9 — Catálogos · Acompanhamento · audit_log | pendentes |
+| **7 — Simetria pediatria ↔ UTI** | ✅ pronta · guarda no cadastro de fórmula láctea · 3 documentos de impressão · exportação nas 10 listas · `CatalogoPediatriaTest` |
+| 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
+| 8 a 9 — Acompanhamento · audit_log | pendentes |
 
-**272 testes** no total, contra o banco `nutridb_test`.
+**296 testes** no total, contra o banco `nutridb_test`.
 
 **Bloqueio resolvido.** As fatias de cálculo dependiam de uma especificação
 numérica das fórmulas — com célula de origem, referência bibliográfica, unidade e
@@ -118,6 +119,14 @@ definir o serviço de e-mail) e **`audit_log`** de operações de negócio — e
 entra como fatia própria agora que o cadastro de pessoas fechou, e não junto
 dele: auditar CRUD antes de o cadastro estar estável significaria refazer o log
 a cada mudança de campo. Detalhe em [README da API](nutri-hospitalar-api/README.md).
+
+**A fatia 4 (Atendimento) foi ultrapassada pelos fatos.** O `docs/00 §4` a
+descreve como *"a consulta numa data, contêiner do que vem a seguir"* — mas
+`AvaliacaoUti` e `AvaliacaoPediatrica` já têm `paciente`, `profissional` e data,
+e **já são esse contêiner**. Criar a tabela hoje significa migration nas duas,
+refatorar dois módulos que funcionam e reabrir prontuário, sem nada novo na
+tela. Ela só volta a fazer sentido diante de requisito que hoje não existe: mais
+de um tipo de avaliação no mesmo encontro, ou faturamento por atendimento.
 
 ## Modelo de acesso
 
@@ -280,6 +289,18 @@ Hoje cada tela imprimível monta uma `Folha` e a passa à `TPage` pela prop
 veio do `geradorPdf.ts` do eroERP; a ferramenta, não — jsPDF seria uma segunda
 montagem dos mesmos números, e a do papel envelheceria calada.
 
+**`new Date('2026-08-29')` é meia-noite UTC, e no Brasil isso é ontem.**
+Data sem hora é **dia do calendário**, não instante — mas o JavaScript a lê como
+UTC, e o `Intl` formata no fuso local. Em qualquer fuso a oeste de Greenwich o
+resultado volta um dia: a avaliação de 07/08/2027 saía impressa como 06/08/2027,
+em prontuário, e o formulário mostrava a data certa porque `<input type="date">`
+usa a string ISO crua. Foram 60 chamadas em 16 arquivos — toda lista, todo
+painel e todo documento impresso. O conserto é montar com `T00:00:00`, que o
+JavaScript lê como meia-noite **local**, e `utils/idade.ts` já fazia assim: o
+idioma certo existia no projeto e o `formatarData` não o usava. Timestamp
+completo (`createdAt`) **não** entra nessa regra — ele é instante real, e
+formatá-lo no fuso do leitor é o correto.
+
 **Gráfico com faixa de referência precisa do domínio, não só da faixa.**
 Os nove exames do acompanhamento desenhavam `ReferenceArea` com a faixa certa e
 `domain={['auto','auto']}` no eixo — e **nenhuma faixa aparecia**. O recharts
@@ -320,6 +341,47 @@ da página aberta — e o usuário só descobriria a diferença ao conferir o to
 **anuncia quantas ficaram de fora** quando corta. E o CSV escapa `=`, `+`, `-` e
 `@` no início da célula: nome de paciente é texto digitado, e uma planilha que
 executa fórmula na máquina de quem abre é injeção, não formatação.
+
+**Faixa clínica calibrada pela norma pode reprovar o próprio catálogo.**
+O cadastro de fórmula láctea não valida coerência nenhuma — a enteral fecha por
+Atwater, mas a láctea só tem kcal e proteína, e não há o que fechar. A guarda
+óbvia seria a faixa de fórmula infantil do Codex, **60 a 70 kcal/100 ml** — e ela
+recusaria **três das dez fórmulas que a migration 016 semeia**: FORTINI (150),
+INFATRINE (100,8) e NEOCATE ADV (100). O catálogo não é de fórmula de partida, é
+de tudo que a criança recebe, e 1,5 kcal/ml é conduta. O que sobrevive é a
+**razão proteína/energia**, que é invariante de escala e vale igual para os dois:
+as dez caem entre 1,86 e 2,85 g/100 kcal, dentro do Codex. Regra geral: antes de
+pinar um limite clínico, **rodar o limite contra os dados que o sistema já
+distribui** — e travar isso em teste, para quem apertar a faixa depois ser
+reprovado pelo próprio seed. Detalhe em [docs/09 §7.1](docs/09-calculos-pediatria.md).
+
+**Exportação com escopo duplo repete o `if` da tela, ou mente calada.**
+`UsuarioList` e `LoginLogList` alternam entre a consulta do tenant e a `/global`
+do superadmin. O `carregarTudo` da exportação **tem de repetir esse mesmo
+`if`** — sem ele, o superadmin exporta da lista global e recebe só o próprio
+tenant, com contagem plausível, sem erro e sem aviso. O relatório sai parecendo
+completo, e é o único caso em que a exportação erra sem que nada na tela mude.
+
+**Retrato gravado explica o número; catálogo de hoje explica o cálculo de hoje.**
+A avaliação pediátrica salva imprimia a composição **atual** da fórmula ao lado
+de uma oferta calculada com a **antiga**: uma fórmula editada de 70 para
+100 kcal fazia a folha dizer *"100 kcal por 100 ml"* junto de *"880 ml ·
+616 kcal"* — conta que não fecha, num prontuário. Os números estavam certos; a
+legenda é que era de outro dia. A causa: `CalculoPediatrico` espelha para fora a
+fórmula que ele acha em `formulaLacteaService.select()`, que é o catálogo vivo —
+correto para o cálculo em andamento, errado para a avaliação salva. Hoje o
+formulário guarda o **retrato** (`formulaNome`, `formulaKcalPor100ml`,
+`formulaProteinaPor100ml` vêm na resposta) e o prefere enquanto a fórmula
+escolhida for a mesma; trocar a fórmula devolve a vez ao catálogo, porque aí o
+cálculo é novo. A UTI nunca teve o defeito: o documento dela lê
+`dieta.formulaNome`, que já vem do retrato do servidor.
+
+**Fórmula *alterada* no catálogo engana mais que fórmula *removida*.**
+A UTI avisava quando a fórmula sai do catálogo (`formulaRemovida`), e ninguém
+tratava o caso de ela ser **editada** — que é pior: o combo continua mostrando o
+produto certo, com a composição de hoje, ao lado de um resultado calculado com a
+de ontem, e nada na tela denuncia. A avaliação pediátrica hoje compara retrato
+com catálogo e mostra a faixa dizendo qual das duas explica os números.
 
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
@@ -375,7 +437,7 @@ query com `CAST`.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 272 testes contra nutridb_test
+./run-dev.sh test         # 296 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

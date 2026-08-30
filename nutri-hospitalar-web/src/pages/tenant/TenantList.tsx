@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAlerta, IconBusca } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TBadge,
   TButton,
   TDataGrid,
@@ -12,7 +13,9 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type ResultadoDaCarga,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
@@ -20,6 +23,7 @@ import { tenantService } from '@/services/tenantService'
 import type { Page } from '@/types/comum'
 import { DIAS_ALERTA, PERIODO_ACESSO_LABEL, type TenantResponse } from '@/types/tenant'
 import { formatarData } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 /**
  * "Expirando" não é um valor de `ativo` — é uma janela de vencimento. Vira
@@ -36,6 +40,7 @@ export function TenantList() {
   const [pagina, setPagina] = useState(0)
   const [dados, setDados] = useState<Page<TenantResponse>>()
   const [carregando, setCarregando] = useState(true)
+  const [paraImprimir, setParaImprimir] = useState<ResultadoDaCarga<TenantResponse>>()
 
   const nomeBusca = useDebounce(nome)
 
@@ -55,6 +60,67 @@ export function TenantList() {
   }, [nomeBusca, situacao, pagina])
 
   useEffect(carregar, [carregar])
+
+  /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<TenantResponse>> => {
+      const pagina = await tenantService.getAll({
+        nome: nomeBusca || undefined,
+        ativo: situacao === '' ? undefined : situacao !== 'false',
+        expirandoEmDias: situacao === 'expirando' ? DIAS_ALERTA : undefined,
+        page: 0,
+        size: limite,
+      })
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [nomeBusca, situacao],
+  )
+
+  /**
+   * A carteira de clientes com o vencimento à vista.
+   *
+   * <p><b>Dias para expirar</b> sai numa coluna própria e numérica porque é a
+   * única que se ordena para responder a pergunta que motiva a exportação —
+   * quem vence primeiro. E ela é <b>negativa</b> para quem já venceu, em vez de
+   * virar zero: a diferença entre "vence hoje" e "venceu há 40 dias" é toda a
+   * conversa com o cliente.
+   */
+  const colunasExportadas: ColunaExportavel<TenantResponse>[] = [
+    { titulo: 'Cliente', valor: (t) => t.nome },
+    { titulo: 'Período de acesso', valor: (t) => PERIODO_ACESSO_LABEL[t.periodoAcesso] },
+    {
+      titulo: 'Acesso até',
+      valor: (t) => (t.acessoExpiraEm ? formatarData(t.acessoExpiraEm) : 'Indeterminado'),
+    },
+    {
+      titulo: 'Dias para expirar',
+      numerica: true,
+      valor: (t) => (t.diasParaExpirar != null ? String(t.diasParaExpirar) : ''),
+    },
+    {
+      titulo: 'Situação',
+      valor: (t) => (t.acessoExpirado ? 'Expirado' : t.ativo ? 'Ativo' : 'Inativo'),
+    },
+    { titulo: 'Criado em', valor: (t) => formatarData(t.createdAt) },
+  ]
+
+  const filtrosAplicados = [
+    { rotulo: 'Nome', valor: nomeBusca },
+    {
+      rotulo: 'Situação',
+      valor:
+        situacao === 'true'
+          ? 'Ativo'
+          : situacao === 'false'
+            ? 'Inativo'
+            : situacao === 'expirando'
+              ? `Vencendo em até ${DIAS_ALERTA} dias`
+              : '',
+    },
+  ]
 
   /**
    * Reativar quem venceu não acontece aqui: o backend devolve 409 porque
@@ -122,6 +188,49 @@ export function TenantList() {
     <TPage
       title="Tenants"
       subtitle="Um cliente nasce ao cadastrar o seu primeiro usuário — não há cadastro de tenant."
+      actions={
+        <TAcoesDeExportacao
+          nome="Tenants"
+          colunas={colunasExportadas}
+          carregar={carregarTudo}
+          aoCarregarParaImprimir={setParaImprimir}
+        />
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Clientes"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(t) => t.id}
+            resumo={[
+              { rotulo: 'Clientes', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Ativos',
+                valor: String(paraImprimir.linhas.filter((t) => t.ativo && !t.acessoExpirado).length),
+              },
+              {
+                rotulo: 'Expirados',
+                valor: String(paraImprimir.linhas.filter((t) => t.acessoExpirado).length),
+              },
+              {
+                rotulo: `Vencem em ${DIAS_ALERTA} dias`,
+                valor: String(
+                  paraImprimir.linhas.filter(
+                    (t) =>
+                      t.diasParaExpirar != null &&
+                      t.diasParaExpirar >= 0 &&
+                      t.diasParaExpirar <= DIAS_ALERTA,
+                  ).length,
+                ),
+              },
+            ]}
+            nota="Dias para expirar é negativo em quem já venceu — vencer hoje e ter vencido há 40 dias são conversas diferentes. Renovar recomeça a contagem a partir de hoje, e reativar um vencido só acontece por renovação."
+          />
+        )
+      }
     >
       <TPanel>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

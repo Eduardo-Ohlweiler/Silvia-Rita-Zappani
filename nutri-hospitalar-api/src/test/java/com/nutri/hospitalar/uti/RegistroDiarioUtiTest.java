@@ -21,6 +21,7 @@ import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -251,6 +252,63 @@ class RegistroDiarioUtiTest extends AbstractIntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/uti/registros-diarios").header(AUTHORIZATION, comoB))
                 .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    /**
+     * O único verbo de escrita do acompanhamento que não tinha teste — e é o
+     * mais usado: o dia se corrige ao longo do plantão, à medida que os números
+     * chegam.
+     */
+    @Test
+    @DisplayName("alterar o dia recalcula os derivados sobre o novo volume")
+    void alterarRecalculaDerivados() throws Exception {
+        String corpo = mockMvc.perform(post("/uti/registros-diarios")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pessoaId":"%s","avaliacaoId":"%s","data":"%s",
+                                 "volRecebido24h":1200,"diureseMl":1800}
+                                """.formatted(paciente.getId(), avaliacaoId, hoje)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(corpo).get("id").asText();
+
+        // O plantão fechou em 1364 ml — o volume prescrito inteiro.
+        mockMvc.perform(put("/uti/registros-diarios/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pessoaId":"%s","avaliacaoId":"%s","data":"%s",
+                                 "volRecebido24h":1364,"diureseMl":1800}
+                                """.formatted(paciente.getId(), avaliacaoId, hoje)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.percentualRecebido").value(100.0))
+                .andExpect(jsonPath("$.caloriasRecebidas").value(1364.0))
+                // 1364 / 68 — o derivado tem de acompanhar, não ficar no valor antigo
+                .andExpect(jsonPath("$.caloriasPorQuilo").value(20.0588));
+    }
+
+    @Test
+    @DisplayName("alterar registro de outro cliente devolve 404")
+    void alterarDeOutroTenant() throws Exception {
+        String corpo = mockMvc.perform(post("/uti/registros-diarios")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pessoaId":"%s","data":"%s","volRecebido24h":1200}
+                                """.formatted(paciente.getId(), hoje)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(corpo).get("id").asText();
+
+        // O corpo é válido e o registro existe: só não é dele.
+        mockMvc.perform(put("/uti/registros-diarios/" + id)
+                        .header(AUTHORIZATION, autenticar(adminB.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pessoaId":"%s","data":"%s","volRecebido24h":9999}
+                                """.formatted(paciente.getId(), hoje)))
+                .andExpect(status().isNotFound());
     }
 
     // ─────────────────────────────────────────────────────────────────────

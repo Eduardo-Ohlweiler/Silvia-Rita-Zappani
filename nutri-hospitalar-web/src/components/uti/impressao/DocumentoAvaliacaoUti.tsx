@@ -7,11 +7,37 @@ import {
   TiraIndicadores,
   type LinhaValor,
 } from '@/components/impressao/Folha'
-import type { CalculoUtiRequest, ResultadoUti } from '@/types/uti'
-import { formatarData, formatarNumero } from '@/utils/format'
+import {
+  OPCOES_ETNIA,
+  OPCOES_FASE,
+  OPCOES_JANELA_PERDA,
+  OPCOES_MODO_INFUSAO,
+  OPCOES_POPULACAO,
+  OPCOES_POSICAO_FAIXA,
+  OPCOES_SEGMENTO,
+  OPCOES_SEXO,
+  OPCOES_TERAPIA_RENAL,
+  type CalculoUtiRequest,
+  type ResultadoUti,
+} from '@/types/uti'
+import { formatarData, formatarNumero, rotuloDe } from '@/utils/format'
 
 const n = (valor?: number | null, casas = 1, unidade = '') =>
   valor == null ? '—' : `${formatarNumero(valor, casas, casas)}${unidade ? ` ${unidade}` : ''}`
+
+/**
+ * Uma faixa "mínimo a máximo", com a unidade **do par**.
+ *
+ * Escrever `${n(min, 0)} a ${n(max, 0, 'kcal/dia')}` prendia a unidade ao
+ * segundo termo: faltando o máximo, o papel imprimia "1.020 a —", um número sem
+ * unidade nenhuma. Faltando qualquer um dos dois, não há faixa — e dizer isso é
+ * melhor que meia faixa.
+ */
+const faixa = (min: number | null | undefined, max: number | null | undefined,
+               casas: number, unidade: string) =>
+  min == null || max == null
+    ? '—'
+    : `${formatarNumero(min, casas, casas)} a ${formatarNumero(max, casas, casas)} ${unidade}`
 
 /**
  * A avaliação de terapia nutricional como **prontuário**.
@@ -47,27 +73,95 @@ export function DocumentoAvaliacaoUti({
   const dieta = resultado?.dieta
   const hidra = resultado?.hidratacao
 
+  const segmentos = (entradas.segmentosAmputados ?? [])
+    .map((seg) => rotuloDe(OPCOES_SEGMENTO, seg))
+    .filter(Boolean)
+    .join(', ')
+
   const medidas: LinhaValor[] = [
     {
       rotulo: 'Sexo e idade',
       valor: [
-        entradas.sexo === 'MASCULINO' ? 'Masculino' : entradas.sexo === 'FEMININO' ? 'Feminino' : '—',
-        entradas.idadeAnos != null ? `${entradas.idadeAnos} anos` : null,
+        rotuloDe(OPCOES_SEXO, entradas.sexo) ?? '—',
+        entradas.idadeAnos != null
+          ? `${entradas.idadeAnos} ${entradas.idadeAnos === 1 ? 'ano' : 'anos'}`
+          : null,
       ]
         .filter(Boolean)
         .join(' · '),
+      detalhe: rotuloDe(OPCOES_ETNIA, entradas.etnia)
+        ? `etnia ${rotuloDe(OPCOES_ETNIA, entradas.etnia)?.toLowerCase()} — a equação de Chumlea é separada por etnia`
+        : '',
     },
     { rotulo: 'Peso atual', valor: n(entradas.pesoAtualKg, 2, 'kg') },
     {
       rotulo: 'Peso habitual',
       valor: n(entradas.pesoUsualKg, 2, 'kg'),
-      detalhe: entradas.janelaPerda ? `janela de ${entradas.janelaPerda.toLowerCase()}` : '',
+      // O rótulo da janela vem do mapa de opções. `toLowerCase()` no enum
+      // imprimia "janela de um_mes" — nome cru de enum em prontuário.
+      detalhe: rotuloDe(OPCOES_JANELA_PERDA, entradas.janelaPerda)
+        ? `janela de ${rotuloDe(OPCOES_JANELA_PERDA, entradas.janelaPerda)}`
+        : '',
     },
     { rotulo: 'Altura', valor: n(entradas.alturaCm, 1, 'cm') },
     { rotulo: 'Altura do joelho', valor: n(entradas.alturaJoelhoCm, 1, 'cm') },
     { rotulo: 'Circunferência do braço', valor: n(entradas.circBracoCm, 1, 'cm') },
     { rotulo: 'Circunferência da panturrilha', valor: n(entradas.circPanturrilhaCm, 1, 'cm') },
     { rotulo: 'Circunferência abdominal', valor: n(entradas.circAbdominalCm, 1, 'cm') },
+    ...(segmentos ? [{ rotulo: 'Segmentos amputados', valor: segmentos }] : []),
+  ]
+
+  /**
+   * As escolhas que mudam a conta, e que não apareciam no papel.
+   *
+   * Sem elas a folha era inauditável na parte que mais importa: duas avaliações
+   * com as mesmas medidas e metas diferentes ficavam inexplicáveis — a diferença
+   * está na fase, no ponto da faixa ou na terapia renal, e nenhuma das três
+   * saía impressa. O próprio docstring deste arquivo já prometia o contrário.
+   */
+  const escolhas: LinhaValor[] = [
+    {
+      rotulo: 'Fase da terapia',
+      valor: rotuloDe(OPCOES_FASE, entradas.fase) ?? '—',
+      detalhe: entradas.kcalPorKgAlvo != null || entradas.proteinaPorKgAlvo != null
+        ? 'substituída por alvo personalizado'
+        : 'define a faixa de energia e de proteína',
+    },
+    {
+      rotulo: 'Ponto adotado na faixa',
+      valor: rotuloDe(OPCOES_POSICAO_FAIXA, entradas.posicaoNaFaixa) ?? 'Máximo da faixa',
+    },
+    {
+      rotulo: 'Alvo personalizado',
+      valor:
+        entradas.kcalPorKgAlvo != null || entradas.proteinaPorKgAlvo != null
+          ? [
+              entradas.kcalPorKgAlvo != null ? `${n(entradas.kcalPorKgAlvo, 1)} kcal/kg` : null,
+              entradas.proteinaPorKgAlvo != null ? `${n(entradas.proteinaPorKgAlvo, 2)} g/kg` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          : '—',
+      detalhe: 'Quando informado, vence a faixa da fase',
+    },
+    {
+      rotulo: 'Terapia renal substitutiva',
+      valor: rotuloDe(OPCOES_TERAPIA_RENAL, entradas.terapiaRenal) ?? '—',
+      detalhe: 'Substitui a meta proteica por 1,8 ou 2,0 g/kg',
+    },
+    {
+      rotulo: 'Modo de infusão',
+      valor: rotuloDe(OPCOES_MODO_INFUSAO, entradas.modoInfusao) ?? '—',
+      detalhe:
+        entradas.volumePorTempo != null && entradas.tempo != null
+          ? `${n(entradas.volumePorTempo, 0)} × ${n(entradas.tempo, 0)}`
+          : '',
+    },
+    {
+      rotulo: 'População de referência',
+      valor: rotuloDe(OPCOES_POPULACAO, entradas.populacaoReferencia) ?? '—',
+      detalhe: 'Só muda o ajuste de CB e CP com IMC abaixo de 18,5',
+    },
   ]
 
   const cascata: LinhaValor[] = [
@@ -125,13 +219,19 @@ export function DocumentoAvaliacaoUti({
   ]
 
   const necessidades: LinhaValor[] = [
-    { rotulo: 'Energia — faixa recomendada', valor: `${n(nec?.energiaMinima, 0)} a ${n(nec?.energiaMaxima, 0, 'kcal/dia')}` },
+    {
+      rotulo: 'Energia — faixa recomendada',
+      valor: faixa(nec?.energiaMinima, nec?.energiaMaxima, 0, 'kcal/dia'),
+    },
     {
       rotulo: 'Energia — meta adotada',
       valor: n(nec?.metaEnergetica, 0, 'kcal/dia'),
       detalhe: nec?.metaEnergeticaOrigem ?? nec?.motivo ?? '',
     },
-    { rotulo: 'Proteína — faixa recomendada', valor: `${n(nec?.proteinaMinima, 1)} a ${n(nec?.proteinaMaxima, 1, 'g/dia')}` },
+    {
+      rotulo: 'Proteína — faixa recomendada',
+      valor: faixa(nec?.proteinaMinima, nec?.proteinaMaxima, 1, 'g/dia'),
+    },
     {
       rotulo: 'Proteína — meta adotada',
       valor: n(nec?.metaProteica, 1, 'g/dia'),
@@ -143,9 +243,13 @@ export function DocumentoAvaliacaoUti({
       detalhe: 'Substitui a meta quando há hemodiálise',
     },
     {
+      // A frase vai no DETALHE, não na coluna numérica: ela é longa e ali sairia
+      // alinhada à direita com figuras tabulares, brigando com os números.
       rotulo: 'Base do peso usada na energia',
-      valor: nec?.baseDoPeso ?? '—',
-      detalhe: nec?.obeso ? 'Correção de obesidade da ASPEN/SCCM 2016 aplicada' : '',
+      valor: nec?.obeso ? 'Corrigida' : 'Peso de trabalho',
+      detalhe: nec?.obeso
+        ? (nec.baseDoPeso ?? 'Correção de obesidade da ASPEN/SCCM 2016 aplicada')
+        : 'Sem correção de obesidade — a energia usa o peso de trabalho direto',
     },
   ]
 
@@ -219,6 +323,13 @@ export function DocumentoAvaliacaoUti({
 
       <Secao titulo="Medidas informadas">
         <LinhasDeValor linhas={medidas} />
+      </Secao>
+
+      <Secao
+        titulo="Escolhas do cálculo"
+        nota="O que a nutricionista decidiu e que muda o número — sem isto, duas avaliações com as mesmas medidas e metas diferentes ficam inexplicáveis."
+      >
+        <LinhasDeValor linhas={escolhas} />
       </Secao>
 
       <Secao

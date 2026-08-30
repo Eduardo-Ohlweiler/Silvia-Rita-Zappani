@@ -6,6 +6,7 @@ import { TBotaoImprimir, TButton, TCombo, TEntry, TPage, TPanel } from '@/compon
 import { CalculoPediatrico } from '@/components/pediatria/CalculoPediatrico'
 import {
   ENTRADAS_VAZIAS,
+  paraRequisicao,
   type EntradasCalculo,
 } from '@/components/pediatria/entradas'
 import { DocumentoAvaliacaoPediatrica } from '@/components/pediatria/impressao/DocumentoAvaliacaoPediatrica'
@@ -16,7 +17,7 @@ import { pediatriaService } from '@/services/pediatriaService'
 import { pessoaService } from '@/services/pessoaService'
 import type { FormulaLacteaSelect, ResultadoPediatrico } from '@/types/pediatria'
 import type { Sexo } from '@/types/pessoa'
-import { formatarDocumento, paraNumero, textoDaMascara } from '@/utils/format'
+import { formatarDocumento, formatarNumero, paraNumero, textoDaMascara } from '@/utils/format'
 
 /** Idade em meses completos entre o nascimento e a data da avaliação. */
 function idadeEmMeses(nascimento: string, referencia: string): number | undefined {
@@ -53,8 +54,23 @@ export function AvaliacaoPediatricaForm() {
   const [resultadoSalvo, setResultadoSalvo] = useState<ResultadoPediatrico | null>(null)
   /** O resultado que está na tela agora — salvo ou recém-calculado. */
   const [resultado, setResultado] = useState<ResultadoPediatrico | null>(null)
-  /** A fórmula escolhida, espelhada pelo cálculo, que já busca o catálogo. */
+  /**
+   * A fórmula escolhida, espelhada pelo cálculo — que a busca **no catálogo de
+   * hoje**. Serve ao cálculo em andamento; não serve a uma avaliação salva.
+   */
   const [formulaEscolhida, setFormulaEscolhida] = useState<FormulaLacteaSelect>()
+  /**
+   * O retrato da fórmula **como estava no dia da avaliação**.
+   *
+   * A avaliação grava nome, kcal e proteína junto com o resultado, e é esse par
+   * que explica os números. Sem isto, reabrir uma avaliação e imprimi-la
+   * mostrava a composição **atual** ao lado de uma oferta calculada com a
+   * antiga: uma fórmula editada de 70 para 100 kcal fazia a folha dizer
+   * "100 kcal por 100 ml" ao lado de "880 ml · 616 kcal", conta que não fecha.
+   * Quem confere no papel concluiria que o sistema errou — e o número estava
+   * certo; a legenda é que era de outro dia.
+   */
+  const [retratoDaFormula, setRetratoDaFormula] = useState<FormulaLacteaSelect>()
   const [carregando, setCarregando] = useState(editando)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string>()
@@ -95,6 +111,17 @@ export function AvaliacaoPediatricaForm() {
         })
         // Enquanto nada for tocado, mostra o que foi gravado — sem recalcular.
         setResultadoSalvo(a.resultado)
+        setRetratoDaFormula(
+          a.formulaLacteaId && a.formulaNome
+            ? {
+                id: a.formulaLacteaId,
+                nome: a.formulaNome,
+                kcalPor100ml: a.formulaKcalPor100ml ?? 0,
+                proteinaPor100ml: a.formulaProteinaPor100ml ?? 0,
+                global: false,
+              }
+            : undefined,
+        )
       })
       .catch(handleApiError)
       .finally(() => setCarregando(false))
@@ -194,6 +221,35 @@ export function AvaliacaoPediatricaForm() {
     )
   }
 
+  /**
+   * O retrato vence o catálogo — mas só enquanto for a mesma fórmula.
+   *
+   * Trocar a fórmula no formulário refaz o cálculo com a composição de hoje, e
+   * aí é ela que explica os números. É a mesma regra do backend, que usa o
+   * retrato para os motivos de uma avaliação salva e o catálogo para um cálculo
+   * novo.
+   */
+  const formulaDoDocumento =
+    retratoDaFormula && retratoDaFormula.id === entradas.formulaLacteaId
+      ? retratoDaFormula
+      : formulaEscolhida
+
+  /**
+   * A fórmula foi editada no catálogo depois desta avaliação.
+   *
+   * A UTI já avisava quando a fórmula **sai** do catálogo; ninguém tratava o
+   * caso de ela ser **alterada**, que é mais traiçoeiro: o combo continua
+   * mostrando o produto certo, com a composição de hoje, ao lado de uma oferta
+   * calculada com a de ontem. Sem esta faixa a tela fica com uma conta que não
+   * fecha e nenhuma explicação.
+   */
+  const formulaAlterada =
+    !!retratoDaFormula &&
+    !!formulaEscolhida &&
+    retratoDaFormula.id === formulaEscolhida.id &&
+    (retratoDaFormula.kcalPor100ml !== formulaEscolhida.kcalPor100ml ||
+      retratoDaFormula.proteinaPor100ml !== formulaEscolhida.proteinaPor100ml)
+
   return (
     <TPage
       title={editando ? 'Editar avaliação pediátrica' : 'Nova avaliação pediátrica'}
@@ -203,17 +259,9 @@ export function AvaliacaoPediatricaForm() {
       documento={
         resultado && (
           <DocumentoAvaliacaoPediatrica
-            entradas={{
-              sexo: (entradas.sexo || null) as Sexo | null,
-              idadeMeses: paraNumero(entradas.idadeMeses) ?? null,
-              peso: paraNumero(entradas.peso) ?? null,
-              estatura: paraNumero(entradas.estatura) ?? null,
-              formulaLacteaId: entradas.formulaLacteaId || null,
-              volumeMl: paraNumero(entradas.volumeMl) ?? null,
-              frequenciaHoras: paraNumero(entradas.frequenciaHoras) ?? null,
-            }}
+            entradas={paraRequisicao(entradas)}
             resultado={resultado}
-            formula={formulaEscolhida}
+            formula={formulaDoDocumento}
             paciente={pacienteRotulo || undefined}
             profissional={profissionalRotulo || undefined}
             data={dataAvaliacao}
@@ -278,6 +326,19 @@ export function AvaliacaoPediatricaForm() {
             />
           </div>
         </TPanel>
+
+        {formulaAlterada && retratoDaFormula && (
+          <p className="text-caption rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-warning">
+            A composição de <b>{retratoDaFormula.nome}</b> mudou no catálogo depois desta
+            avaliação. Os números abaixo foram calculados com o que estava gravado no dia —{' '}
+            <b>
+              {formatarNumero(retratoDaFormula.kcalPor100ml)} kcal e{' '}
+              {formatarNumero(retratoDaFormula.proteinaPor100ml)} g por 100 ml
+            </b>{' '}
+            — e é essa composição que sai no papel. O combo mostra a de hoje, que é a que valeria
+            num cálculo novo.
+          </p>
+        )}
 
         <CalculoPediatrico
           entradas={entradas}

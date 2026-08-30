@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -250,6 +251,37 @@ class AvaliacaoPediatricaTest extends AbstractIntegrationTest {
                                  "idadeMeses":8,"peso":9}
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * A UTI já testava o seu {@code DELETE}; a pediatria, não.
+     *
+     * <p>Apagar avaliação é operação de correção — a nutricionista lançou no
+     * paciente errado —, e por isso ela existe. O que não pode existir é apagar
+     * a de outro cliente, e é isso que o segundo caso trava.
+     */
+    @Test
+    @DisplayName("apagar remove a avaliação, e a de outro cliente devolve 404")
+    void apagarAvaliacao() throws Exception {
+        String id = criarAvaliacao();
+
+        mockMvc.perform(delete("/pediatria/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminB.getEmail())))
+                .andExpect(status().isNotFound());
+
+        // Continua lá: o 404 recusou, não apagou pela metade.
+        assertThat(avaliacaoPediatricaRepository.findById(UUID.fromString(id))).isPresent();
+
+        mockMvc.perform(delete("/pediatria/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isNoContent());
+
+        assertThat(avaliacaoPediatricaRepository.findById(UUID.fromString(id))).isEmpty();
+
+        // Apagar de novo já não acha.
+        mockMvc.perform(delete("/pediatria/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isNotFound());
     }
 
     // ─────────────────────────────────────────────────────────────────────

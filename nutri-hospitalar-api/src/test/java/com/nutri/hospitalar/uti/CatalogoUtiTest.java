@@ -471,6 +471,167 @@ class CatalogoUtiTest extends AbstractIntegrationTest {
 
     // ─────────────────────────────────────────────────────────────────────
 
+    /**
+     * As listagens paginadas — a porta por onde a tela de catálogo e as
+     * exportações passam, e a única que não tinha teste.
+     *
+     * <p>O que se prova aqui é o <b>filtro `global`</b>: ele é o que separa "o
+     * que o sistema entrega" de "o que este cliente cadastrou", e é sobre ele
+     * que a exportação monta o recorte impresso. Errado, o relatório sairia
+     * dizendo que 53 fórmulas são do cliente.
+     */
+    @Nested
+    @DisplayName("As listas paginadas")
+    class Listas {
+
+        @Test
+        @DisplayName("fórmulas enterais: o filtro global separa as do sistema das próprias")
+        void listaFormulas() throws Exception {
+            criarFormulaNoA("Fórmula da casa");
+            String comoA = autenticar(adminA.getEmail());
+
+            mockMvc.perform(get("/formulas-enterais").param("size", "100")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(54));
+
+            mockMvc.perform(get("/formulas-enterais").param("global", "true").param("size", "100")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(jsonPath("$.totalElements").value(53));
+
+            mockMvc.perform(get("/formulas-enterais").param("global", "false")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.content[0].nome").value("Fórmula da casa"));
+        }
+
+        @Test
+        @DisplayName("fórmulas enterais: a lista não vaza a do outro cliente")
+        void listaFormulasNaoVaza() throws Exception {
+            criarFormulaNoA("Exclusiva do A");
+
+            mockMvc.perform(get("/formulas-enterais").param("global", "false")
+                            .header(AUTHORIZATION, autenticar(adminB.getEmail())))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(0));
+        }
+
+        @Test
+        @DisplayName("produtos: o filtro de tipo separa suplemento, módulo e insumo")
+        void listaProdutosPorTipo() throws Exception {
+            String comoA = autenticar(adminA.getEmail());
+
+            mockMvc.perform(get("/produtos-nutricionais").param("size", "100")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(35));
+
+            mockMvc.perform(get("/produtos-nutricionais")
+                            .param("tipo", "MODULO_PROTEICO").param("size", "100")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(jsonPath("$.totalElements").value(3));
+
+            mockMvc.perform(get("/produtos-nutricionais")
+                            .param("tipo", "INSUMO_ARTESANAL").param("size", "100")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(jsonPath("$.totalElements").value(9));
+        }
+
+        @Test
+        @DisplayName("produto: findById alcança o global a partir de qualquer cliente")
+        void produtoPorId() throws Exception {
+            ProdutoNutricional global = produtoNutricionalRepository.findAll().stream()
+                    .filter(ProdutoNutricional::ehGlobal).findFirst().orElseThrow();
+
+            mockMvc.perform(get("/produtos-nutricionais/" + global.getId())
+                            .header(AUTHORIZATION, autenticar(adminB.getEmail())))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.nome").value(global.getNome()))
+                    .andExpect(jsonPath("$.global").value(true));
+        }
+
+        /**
+         * Inativar tira do combo <b>sem tirar da lista</b> — é a razão de o
+         * {@code /select} existir separado da listagem. O cadastro continua
+         * consultável, e as avaliações já feitas guardam o retrato de qualquer
+         * jeito.
+         */
+        @Test
+        @DisplayName("produto inativo sai do combo e continua na lista")
+        void inativoSaiDoComboENaoDaLista() throws Exception {
+            String comoA = autenticar(adminA.getEmail());
+            String corpo = mockMvc.perform(post("/produtos-nutricionais")
+                            .header(AUTHORIZATION, comoA)
+                            .contentType("application/json")
+                            .content("""
+                                    {"nome":"Vai ser inativado","tipo":"SUPLEMENTO_ORAL",
+                                     "medidaNome":"Frasco","medidaQtd":200,"kcal":300}
+                                    """))
+                    .andExpect(status().isCreated())
+                    .andReturn().getResponse().getContentAsString();
+            String id = objectMapper.readTree(corpo).get("id").asText();
+
+            mockMvc.perform(get("/produtos-nutricionais/select").param("termo", "Vai ser")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1));
+
+            mockMvc.perform(patch("/produtos-nutricionais/" + id + "/ativo")
+                            .header(AUTHORIZATION, comoA)
+                            .param("ativo", "false"))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(get("/produtos-nutricionais/select").param("termo", "Vai ser")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(jsonPath("$.length()").value(0));
+
+            mockMvc.perform(get("/produtos-nutricionais").param("nome", "Vai ser")
+                            .header(AUTHORIZATION, comoA))
+                    .andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.content[0].ativo").value(false));
+        }
+
+        @Test
+        @DisplayName("produto próprio: alterar passa pelas mesmas regras do cadastro")
+        void alterarProduto() throws Exception {
+            String corpo = mockMvc.perform(post("/produtos-nutricionais")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"nome":"Suplemento da casa","tipo":"SUPLEMENTO_ORAL",
+                                     "medidaNome":"Frasco","medidaQtd":200,"kcal":300,
+                                     "proteinaG":12}
+                                    """))
+                    .andExpect(status().isCreated())
+                    .andReturn().getResponse().getContentAsString();
+            String id = objectMapper.readTree(corpo).get("id").asText();
+
+            mockMvc.perform(put("/produtos-nutricionais/" + id)
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"nome":"Suplemento da casa","tipo":"SUPLEMENTO_ORAL",
+                                     "medidaNome":"Frasco","medidaQtd":200,"kcal":320,
+                                     "proteinaG":14}
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.kcal").value(320.0))
+                    .andExpect(jsonPath("$.proteinaG").value(14.0));
+
+            // Existe, é válido, e não é dele.
+            mockMvc.perform(put("/produtos-nutricionais/" + id)
+                            .header(AUTHORIZATION, autenticar(adminB.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"nome":"Roubado","tipo":"SUPLEMENTO_ORAL",
+                                     "medidaNome":"Frasco","medidaQtd":200,"kcal":320}
+                                    """))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+
     private FormulaEnteral buscarGlobal(String nome) {
         return formulaEnteralRepository.findAll().stream()
                 .filter(f -> f.ehGlobal() && nome.equals(f.getNome()))

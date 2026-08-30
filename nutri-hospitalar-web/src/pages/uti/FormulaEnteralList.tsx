@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar, IconBloqueado, IconBusca } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TBadge,
   TButton,
   TDataGrid,
@@ -12,7 +13,9 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type ResultadoDaCarga,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
@@ -20,7 +23,8 @@ import { formulaEnteralService } from '@/services/utiService'
 import type { Page } from '@/types/comum'
 import { CATEGORIAS_ENTERAIS, type CategoriaFormulaEnteral } from '@/types/uti'
 import type { FormulaEnteralResponse } from '@/types/uti'
-import { formatarNumero } from '@/utils/format'
+import { formatarNumero, rotuloDe } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 export function FormulaEnteralList() {
   const navigate = useNavigate()
@@ -33,6 +37,7 @@ export function FormulaEnteralList() {
   const [pagina, setPagina] = useState(0)
   const [dados, setDados] = useState<Page<FormulaEnteralResponse>>()
   const [carregando, setCarregando] = useState(true)
+  const [paraImprimir, setParaImprimir] = useState<ResultadoDaCarga<FormulaEnteralResponse>>()
 
   const nomeBusca = useDebounce(nome)
 
@@ -56,6 +61,60 @@ export function FormulaEnteralList() {
   }, [sessao?.tenantId, nomeBusca, categoria, ativo, origem, pagina])
 
   useEffect(carregar, [carregar])
+
+  /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<FormulaEnteralResponse>> => {
+      const pagina = await formulaEnteralService.getAll({
+        nome: nomeBusca || undefined,
+        categoria: (categoria || undefined) as CategoriaFormulaEnteral | undefined,
+        ativo: ativo === '' ? undefined : ativo === 'true',
+        global: origem === '' ? undefined : origem === 'sistema',
+        page: 0,
+        size: limite,
+      })
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [nomeBusca, categoria, ativo, origem],
+  )
+
+  /**
+   * A composição inteira, e não as seis colunas da tela.
+   *
+   * <p>Quem exporta este catálogo está conferindo rótulo contra cadastro ou
+   * levando a lista para a comissão de padronização — e para isso a osmolaridade
+   * e o potássio importam tanto quanto a densidade, mesmo cabendo mal na grade.
+   * A água livre sai dizendo <b>quando é estimada</b>: numa planilha, "22" e
+   * "22 estimado" não podem ser a mesma célula.
+   */
+  const colunasExportadas: ColunaExportavel<FormulaEnteralResponse>[] = [
+    { titulo: 'Fórmula', valor: (f) => f.nome },
+    { titulo: 'Origem', valor: (f) => (f.global ? 'Do sistema' : 'Própria') },
+    { titulo: 'Categoria', valor: (f) => f.categoriaDescricao ?? 'Não informada' },
+    { titulo: 'Densidade (kcal/ml)', numerica: true, valor: (f) => txt(f.densidadeKcalMl, 2) },
+    { titulo: 'Proteína (g/L)', numerica: true, valor: (f) => txt(f.proteinaGL, 2) },
+    { titulo: 'Carboidrato (g/L)', numerica: true, valor: (f) => txt(f.choGL, 2) },
+    { titulo: 'Lipídio (g/L)', numerica: true, valor: (f) => txt(f.lipGL, 2) },
+    { titulo: 'Fibras (g/L)', numerica: true, valor: (f) => txt(f.fibrasGL, 2) },
+    { titulo: 'Potássio (mg/L)', numerica: true, valor: (f) => txt(f.potassioMgL, 1) },
+    { titulo: 'Osmolaridade (mOsm/L)', numerica: true, valor: (f) => txt(f.osmolaridadeMosmL, 1) },
+    {
+      titulo: 'Água livre (%)',
+      numerica: true,
+      valor: (f) => (f.aguaLivrePerc != null ? txt(f.aguaLivrePerc, 1) : 'Estimada pela densidade'),
+    },
+    { titulo: 'Situação', valor: (f) => (f.ativo ? 'Ativa' : 'Inativa') },
+  ]
+
+  const filtrosAplicados = [
+    { rotulo: 'Nome', valor: nomeBusca },
+    { rotulo: 'Categoria', valor: rotuloDe(CATEGORIAS_ENTERAIS, categoria) ?? '' },
+    { rotulo: 'Origem', valor: origem === 'sistema' ? 'Do sistema' : origem === 'proprias' ? 'Minhas fórmulas' : '' },
+    { rotulo: 'Situação', valor: ativo === 'true' ? 'Ativa' : ativo === 'false' ? 'Inativa' : '' },
+  ]
 
   async function alternarAtivo(formula: FormulaEnteralResponse) {
     try {
@@ -136,10 +195,42 @@ export function FormulaEnteralList() {
       title="Fórmulas enterais"
       subtitle="Composição sempre por litro — inclusive a de produto em frasco de 500 ml. As do sistema vêm prontas e valem para todos."
       actions={
-        <TButton onClick={() => navigate('/app/uti/formulas-enterais/nova')}>
-          <IconAdicionar className="size-4" />
-          Nova fórmula
-        </TButton>
+        <>
+          <TAcoesDeExportacao
+            nome="Fórmulas enterais"
+            colunas={colunasExportadas}
+            carregar={carregarTudo}
+            aoCarregarParaImprimir={setParaImprimir}
+          />
+          <TButton onClick={() => navigate('/app/uti/formulas-enterais/nova')}>
+            <IconAdicionar className="size-4" />
+            Nova fórmula
+          </TButton>
+        </>
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Fórmulas enterais"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(f) => f.id}
+            resumo={[
+              { rotulo: 'Fórmulas', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Do sistema',
+                valor: String(paraImprimir.linhas.filter((f) => f.global).length),
+              },
+              {
+                rotulo: 'Água livre no rótulo',
+                valor: String(paraImprimir.linhas.filter((f) => f.aguaLivrePerc != null).length),
+              },
+            ]}
+            nota="Composição sempre por litro, inclusive a de produto em frasco de 500 ml. Onde a água livre não veio do rótulo, o cálculo a estima pela densidade — e a coluna diz isso."
+          />
+        )
       }
     >
       <TPanel>
@@ -226,4 +317,9 @@ export function FormulaEnteralList() {
       <TDataGridFooter pagina={dados} onPaginaChange={setPagina} />
     </TPage>
   )
+}
+
+/** Número para célula: vazio continua vazio, e não vira zero. */
+function txt(valor: number | null | undefined, casas: number): string {
+  return valor == null ? '' : formatarNumero(valor, casas, casas)
 }

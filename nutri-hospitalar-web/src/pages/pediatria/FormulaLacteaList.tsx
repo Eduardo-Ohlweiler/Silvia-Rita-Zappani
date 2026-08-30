@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar, IconBloqueado, IconBusca } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TBadge,
   TButton,
   TDataGrid,
@@ -12,7 +13,9 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type ResultadoDaCarga,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
@@ -20,6 +23,7 @@ import { formulaLacteaService } from '@/services/pediatriaService'
 import type { Page } from '@/types/comum'
 import type { FormulaLacteaResponse } from '@/types/pediatria'
 import { formatarNumero } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 export function FormulaLacteaList() {
   const navigate = useNavigate()
@@ -31,6 +35,8 @@ export function FormulaLacteaList() {
   const [pagina, setPagina] = useState(0)
   const [dados, setDados] = useState<Page<FormulaLacteaResponse>>()
   const [carregando, setCarregando] = useState(true)
+
+  const [paraImprimir, setParaImprimir] = useState<ResultadoDaCarga<FormulaLacteaResponse>>()
 
   const nomeBusca = useDebounce(nome)
 
@@ -53,6 +59,67 @@ export function FormulaLacteaList() {
   }, [sessao?.tenantId, nomeBusca, ativo, origem, pagina])
 
   useEffect(carregar, [carregar])
+
+  /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<FormulaLacteaResponse>> => {
+      const pagina = await formulaLacteaService.getAll({
+        nome: nomeBusca || undefined,
+        ativo: ativo === '' ? undefined : ativo === 'true',
+        global: origem === '' ? undefined : origem === 'sistema',
+        page: 0,
+        size: limite,
+      })
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [nomeBusca, ativo, origem],
+  )
+
+  /**
+   * A composição, mais a razão que o cadastro usa para recusar erro de
+   * digitação.
+   *
+   * <p>A coluna <b>proteína por 100 kcal</b> não está na tela e existe só aqui:
+   * é a régua invariante de escala, e é ela que permite conferir uma lista
+   * inteira de uma olhada — todo produto real cai entre 1,8 e 3,0 (Codex
+   * CXS 72-1981). Uma linha fora da faixa é rótulo mal transcrito, e numa
+   * planilha isso se acha ordenando a coluna.
+   */
+  const colunasExportadas: ColunaExportavel<FormulaLacteaResponse>[] = [
+    { titulo: 'Fórmula', valor: (f) => f.nome },
+    { titulo: 'Origem', valor: (f) => (f.global ? 'Do sistema' : 'Própria') },
+    {
+      titulo: 'Kcal / 100 ml',
+      numerica: true,
+      valor: (f) => formatarNumero(f.kcalPor100ml, 1, 1),
+    },
+    {
+      titulo: 'Proteína g / 100 ml',
+      numerica: true,
+      valor: (f) => formatarNumero(f.proteinaPor100ml, 2, 2),
+    },
+    {
+      titulo: 'Proteína g / 100 kcal',
+      numerica: true,
+      valor: (f) =>
+        f.kcalPor100ml > 0
+          ? formatarNumero((f.proteinaPor100ml / f.kcalPor100ml) * 100, 2, 2)
+          : '',
+    },
+    { titulo: 'Situação', valor: (f) => (f.ativo ? 'Ativa' : 'Inativa') },
+  ]
+
+  const filtrosAplicados = [
+    { rotulo: 'Nome', valor: nomeBusca },
+    {
+      rotulo: 'Origem',
+      valor: origem === 'sistema' ? 'Do sistema' : origem === 'proprias' ? 'Minhas fórmulas' : '',
+    },
+    { rotulo: 'Situação', valor: ativo === 'true' ? 'Ativa' : ativo === 'false' ? 'Inativa' : '' },
+  ]
 
   async function alternarAtivo(formula: FormulaLacteaResponse) {
     try {
@@ -109,10 +176,42 @@ export function FormulaLacteaList() {
       title="Fórmulas lácteas"
       subtitle="As do sistema vêm prontas e valem para todos. Cadastre as suas quando precisar de outra composição."
       actions={
-        <TButton onClick={() => navigate('/app/pediatria/formulas-lacteas/nova')}>
-          <IconAdicionar className="size-4" />
-          Nova fórmula
-        </TButton>
+        <>
+          <TAcoesDeExportacao
+            nome="Fórmulas lácteas"
+            colunas={colunasExportadas}
+            carregar={carregarTudo}
+            aoCarregarParaImprimir={setParaImprimir}
+          />
+          <TButton onClick={() => navigate('/app/pediatria/formulas-lacteas/nova')}>
+            <IconAdicionar className="size-4" />
+            Nova fórmula
+          </TButton>
+        </>
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Fórmulas lácteas"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(f) => f.id}
+            resumo={[
+              { rotulo: 'Fórmulas', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Do sistema',
+                valor: String(paraImprimir.linhas.filter((f) => f.global).length),
+              },
+              {
+                rotulo: 'Ativas',
+                valor: String(paraImprimir.linhas.filter((f) => f.ativo).length),
+              },
+            ]}
+            nota="Composição por 100 ml do produto reconstituído, nunca por 100 g de pó. A coluna de proteína por 100 kcal é a régua de conferência: produto real cai entre 1,8 e 3,0 (Codex CXS 72-1981)."
+          />
+        )
       }
     >
       <TPanel>

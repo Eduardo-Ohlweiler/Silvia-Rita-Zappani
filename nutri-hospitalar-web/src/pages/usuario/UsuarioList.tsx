@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar, IconBusca, IconDesbloquear } from '@/assets/icons'
 import {
+  TAcoesDeExportacao,
   TBadge,
   TButton,
   TDataGrid,
@@ -13,7 +14,9 @@ import {
   TCombo,
   TSelect,
   type Coluna,
+  type ResultadoDaCarga,
 } from '@/components/common'
+import { DocumentoLista } from '@/components/impressao/DocumentoLista'
 import { useAuth } from '@/hooks/useAuth'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
@@ -22,7 +25,8 @@ import { usuarioService } from '@/services/usuarioService'
 import { ROLE_LABEL, type Role } from '@/types/auth'
 import type { Page } from '@/types/comum'
 import type { UsuarioResponse } from '@/types/usuario'
-import { formatarTelefone } from '@/utils/format'
+import { formatarData, formatarTelefone, rotuloDe } from '@/utils/format'
+import type { ColunaExportavel } from '@/utils/planilha'
 
 const OPCOES_ROLE = (Object.keys(ROLE_LABEL) as Role[]).map((r) => ({
   valor: r,
@@ -47,6 +51,7 @@ export function UsuarioList() {
   const [pagina, setPagina] = useState(0)
   const [dados, setDados] = useState<Page<UsuarioResponse>>()
   const [carregando, setCarregando] = useState(true)
+  const [paraImprimir, setParaImprimir] = useState<ResultadoDaCarga<UsuarioResponse>>()
 
   const nomeBusca = useDebounce(nome)
 
@@ -72,6 +77,67 @@ export function UsuarioList() {
   }, [dentroDeTenant, sessao?.tenantId, nomeBusca, role, ativo, tenantId, pagina])
 
   useEffect(carregar, [carregar])
+
+  /**
+   * Cobre o filtro inteiro, não a página aberta — e **repete o escopo da
+   * tela**.
+   *
+   * <p>Este `if` é a razão de a exportação daqui não ser cópia das outras. Sem
+   * ele o superadmin exportaria da lista global e receberia só os usuários do
+   * próprio tenant, com a mesma contagem de linhas de sempre e nenhum aviso: o
+   * relatório sairia parecendo completo. Ver `TAcoesDeExportacao`.
+   */
+  const carregarTudo = useCallback(
+    async (limite: number): Promise<ResultadoDaCarga<UsuarioResponse>> => {
+      const filtros = {
+        nome: nomeBusca || undefined,
+        role: (role as Role) || undefined,
+        ativo: ativo === '' ? undefined : ativo === 'true',
+        page: 0,
+        size: limite,
+      }
+      const pagina = dentroDeTenant
+        ? await usuarioService.getAll(filtros)
+        : await usuarioService.getAllGlobal({ ...filtros, tenantId: tenantId || undefined })
+
+      return {
+        linhas: pagina.content,
+        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+      }
+    },
+    [dentroDeTenant, nomeBusca, role, ativo, tenantId],
+  )
+
+  /**
+   * Sem senha, sem hash, sem token — a lista de usuários é dado de acesso.
+   *
+   * <p>A coluna <b>Cliente</b> só existe fora de um tenant, como na tela: dentro
+   * dele ela repetiria o mesmo nome em toda linha. E <b>Bloqueado</b> sai numa
+   * coluna própria em vez de misturado com ativo/inativo, porque são coisas
+   * diferentes: bloqueio é por tentativas de senha, e se desfaz num clique.
+   */
+  const colunasExportadas: ColunaExportavel<UsuarioResponse>[] = [
+    { titulo: 'Nome', valor: (u) => u.nome },
+    { titulo: 'E-mail', valor: (u) => u.email },
+    ...(dentroDeTenant
+      ? []
+      : [{ titulo: 'Cliente', valor: (u: UsuarioResponse) => u.tenantNome }]),
+    { titulo: 'Telefone', valor: (u) => formatarTelefone(u.codigoPais, u.telefone) },
+    { titulo: 'Acesso', valor: (u) => ROLE_LABEL[u.role] },
+    { titulo: 'Situação', valor: (u) => (u.ativo ? 'Ativo' : 'Inativo') },
+    { titulo: 'Bloqueado', valor: (u) => (u.bloqueado ? 'Sim' : 'Não') },
+    { titulo: 'Criado em', valor: (u) => formatarData(u.createdAt) },
+  ]
+
+  const filtrosAplicados = [
+    {
+      rotulo: 'Escopo',
+      valor: dentroDeTenant ? `Tenant ${sessao?.tenantNome ?? ''}` : 'Todos os clientes',
+    },
+    { rotulo: 'Nome', valor: nomeBusca },
+    { rotulo: 'Acesso', valor: rotuloDe(OPCOES_ROLE, role) ?? '' },
+    { rotulo: 'Situação', valor: ativo === 'true' ? 'Ativo' : ativo === 'false' ? 'Inativo' : '' },
+  ]
 
   async function desbloquear(usuario: UsuarioResponse) {
     try {
@@ -148,10 +214,42 @@ export function UsuarioList() {
           : 'Todos os clientes. Use o filtro para restringir a um deles.'
       }
       actions={
-        <TButton onClick={() => navigate('/app/usuarios/novo')}>
-          <IconAdicionar className="size-4" />
-          Novo usuário
-        </TButton>
+        <>
+          <TAcoesDeExportacao
+            nome="Usuários"
+            colunas={colunasExportadas}
+            carregar={carregarTudo}
+            aoCarregarParaImprimir={setParaImprimir}
+          />
+          <TButton onClick={() => navigate('/app/usuarios/novo')}>
+            <IconAdicionar className="size-4" />
+            Novo usuário
+          </TButton>
+        </>
+      }
+      documento={
+        paraImprimir && (
+          <DocumentoLista
+            titulo="Usuários"
+            colunas={colunasExportadas}
+            linhas={paraImprimir.linhas}
+            truncado={paraImprimir.restantes}
+            filtros={filtrosAplicados}
+            chaveDe={(u) => u.id}
+            resumo={[
+              { rotulo: 'Usuários', valor: String(paraImprimir.linhas.length) },
+              {
+                rotulo: 'Ativos',
+                valor: String(paraImprimir.linhas.filter((u) => u.ativo).length),
+              },
+              {
+                rotulo: 'Bloqueados',
+                valor: String(paraImprimir.linhas.filter((u) => u.bloqueado).length),
+              },
+            ]}
+            nota="Nenhuma senha ou credencial sai nesta folha. Bloqueio é consequência de tentativas de login, e se desfaz na tela — não é o mesmo que inativo."
+          />
+        )
       }
     >
       <TPanel>

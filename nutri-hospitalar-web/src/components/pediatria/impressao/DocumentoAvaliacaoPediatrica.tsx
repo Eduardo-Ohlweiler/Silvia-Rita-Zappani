@@ -8,12 +8,10 @@ import {
 } from '@/components/impressao/Folha'
 import type { CalculoPediatricoRequest, ResultadoPediatrico } from '@/types/pediatria'
 import { formatarData, formatarNumero } from '@/utils/format'
+import { idadeEmMesesTexto as idade } from '@/utils/idade'
 
 const n = (valor?: number | null, casas = 1, unidade = '') =>
   valor == null ? '—' : `${formatarNumero(valor, casas, casas)}${unidade ? ` ${unidade}` : ''}`
-
-const idade = (meses?: number | null) =>
-  meses == null ? '—' : `${meses} ${meses === 1 ? 'mês' : 'meses'}`
 
 /**
  * A avaliação pediátrica como **prontuário**.

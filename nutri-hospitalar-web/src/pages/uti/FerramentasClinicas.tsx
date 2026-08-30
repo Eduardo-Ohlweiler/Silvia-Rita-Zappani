@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  TBotaoImprimir,
   TEntry,
   TPage,
   TPanel,
@@ -12,6 +13,10 @@ import {
   type Aba,
   type ColunaResultado,
 } from '@/components/common'
+import {
+  DocumentoFerramentaClinica,
+  type AbaFerramenta,
+} from '@/components/uti/impressao/DocumentoFerramentaClinica'
 import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
 import { ferramentasClinicasService, produtoNutricionalService } from '@/services/utiService'
@@ -210,6 +215,14 @@ export function FerramentasClinicas() {
     <TPage
       title="Ferramentas clínicas"
       subtitle="Quatro conferências de beira de leito. Nada aqui é gravado."
+      // Imprime a aba aberta, não as quatro: quem calculou uma não quer três
+      // páginas de traços das outras.
+      actions={resultado && <TBotaoImprimir rotulo="Imprimir esta conferência" />}
+      documento={
+        resultado && (
+          <DocumentoFerramentaClinica aba={aba as AbaFerramenta} resultado={resultado} />
+        )
+      }
     >
       <div className="flex flex-col gap-4">
         <TTabs abas={abas} ativa={aba} onChange={setAba} />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TPage, TPanel, TSelect, type OpcaoSelect } from '@/components/common'
+import { TBotaoImprimir, TPage, TPanel, TSelect, type OpcaoSelect } from '@/components/common'
 import {
   AvaliacoesPorPeriodo,
   BarrasFaixaEtaria,
@@ -8,13 +8,14 @@ import {
   DistribuicaoClassificacoes,
   ProporcaoSexo,
 } from '@/components/pediatria/graficos/GraficosGerenciais'
+import { DocumentoDashboardPediatria } from '@/components/pediatria/impressao/DocumentoDashboardPediatria'
 import { TituloGrafico } from '@/components/graficos/chrome'
 import { useAuth } from '@/hooks/useAuth'
 import { handleApiError } from '@/services/api'
 import { formulaLacteaService, pediatriaService } from '@/services/pediatriaService'
 import type { DashboardGeral } from '@/types/pediatria'
 import { OPCOES_SEXO } from '@/types/pessoa'
-import { formatarNumero } from '@/utils/format'
+import { formatarNumero, rotuloDe } from '@/utils/format'
 
 const PERIODOS = [
   { valor: '30', rotulo: 'Últimos 30 dias' },
@@ -64,10 +65,29 @@ export function PediatriaDashboard() {
 
   useEffect(carregar, [carregar])
 
+  // O papel precisa dizer o que estava filtrado: um demonstrativo levado a uma
+  // reunião sem essa linha vira número sem recorte.
+  const filtrosAplicados = [
+    formulaLacteaId ? formulas.find((f) => f.valor === formulaLacteaId)?.rotulo : undefined,
+    rotuloDe(OPCOES_SEXO, sexo),
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <TPage
       title="Pediatria em números"
       subtitle="Como está o acompanhamento nutricional das crianças no período."
+      actions={dados && <TBotaoImprimir rotulo="Imprimir demonstrativo" />}
+      documento={
+        dados && (
+          <DocumentoDashboardPediatria
+            dados={dados}
+            periodo={PERIODOS.find((p) => p.valor === dias)?.rotulo ?? ''}
+            filtros={filtrosAplicados || undefined}
+          />
+        )
+      }
     >
       <div className="flex flex-col gap-4">
         <TPanel>
