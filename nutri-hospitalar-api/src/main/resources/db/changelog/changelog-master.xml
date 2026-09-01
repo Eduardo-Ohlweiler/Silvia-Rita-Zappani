@@ -42,4 +42,7 @@
     <include file="db/changelog/changes/026-insumos-artesanais-por-papel.xml"/>
     <include file="db/changelog/changes/027-avaliacao-uti-modulo-proteico.xml"/>
 
+    <!-- Fatia 10 — acompanhamento diário pediátrico (docs/11) -->
+    <include file="db/changelog/changes/028-create-registro-diario-pediatrico.xml"/>
+
 </databaseChangeLog>

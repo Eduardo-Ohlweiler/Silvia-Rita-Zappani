@@ -62,8 +62,21 @@ public record ResultadoUti(
             BigDecimal circPanturrilhaAjustadaCm,
             Classificacao classificacaoDeplecaoPanturrilha,
             String populacaoReferenciaUsada,
+            /**
+             * Por que esta coluna, quando algo além do padrão a justifica —
+             * a perda de peso registrada, ou a escolha manual do profissional.
+             * Nulo quando é só o padrão do módulo. Ver {@code docs/10} §2.9.
+             */
+            String motivoPopulacaoReferencia,
             boolean ajustePeloImcRelevante,
-            String motivoDeplecao
+            /**
+             * Um motivo POR MEDIDA, nomeando o que falta. Antes era um só,
+             * que existia apenas quando as duas medidas faltavam — a
+             * panturrilha sozinha ficava muda — e que culpava o IMC mesmo
+             * quando o ausente era a circunferência.
+             */
+            String motivoMassaMuscularBraco,
+            String motivoDeplecaoPanturrilha
     ) {}
 
     /**

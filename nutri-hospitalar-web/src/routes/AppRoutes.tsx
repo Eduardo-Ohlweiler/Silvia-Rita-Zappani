@@ -14,6 +14,9 @@ import { FormulaLacteaList } from '@/pages/pediatria/FormulaLacteaList'
 import { PediatriaCalculadora } from '@/pages/pediatria/PediatriaCalculadora'
 import { PediatriaDashboard } from '@/pages/pediatria/PediatriaDashboard'
 import { PediatriaPacienteDashboard } from '@/pages/pediatria/PediatriaPacienteDashboard'
+import { PainelAcompanhamentoPediatrico } from '@/pages/pediatria/PainelAcompanhamentoPediatrico'
+import { RegistroDiarioPediatricoForm } from '@/pages/pediatria/RegistroDiarioPediatricoForm'
+import { RegistroDiarioPediatricoList } from '@/pages/pediatria/RegistroDiarioPediatricoList'
 import { FormulaEnteralForm } from '@/pages/uti/FormulaEnteralForm'
 import { FormulaEnteralList } from '@/pages/uti/FormulaEnteralList'
 import { ProdutoNutricionalForm } from '@/pages/uti/ProdutoNutricionalForm'
@@ -83,6 +86,13 @@ export function AppRoutes() {
             <Route path="pediatria/formulas-lacteas" element={<FormulaLacteaList />} />
             <Route path="pediatria/formulas-lacteas/nova" element={<FormulaLacteaForm />} />
             <Route path="pediatria/formulas-lacteas/:id" element={<FormulaLacteaForm />} />
+            <Route
+              path="pediatria/painel-acompanhamento"
+              element={<PainelAcompanhamentoPediatrico />}
+            />
+            <Route path="pediatria/acompanhamento" element={<RegistroDiarioPediatricoList />} />
+            <Route path="pediatria/acompanhamento/novo" element={<RegistroDiarioPediatricoForm />} />
+            <Route path="pediatria/acompanhamento/:id" element={<RegistroDiarioPediatricoForm />} />
 
             {/* Rota literal antes de /:id — o Spring e o router preferem o literal */}
             <Route path="uti/painel" element={<DashboardUti />} />

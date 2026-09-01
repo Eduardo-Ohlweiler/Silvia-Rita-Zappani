@@ -61,9 +61,19 @@ const GRUPOS: Grupo[] = [
     titulo: 'Pediatria',
     itens: [
       { para: '/app/pediatria/painel-paciente', rotulo: 'Painel do paciente', Icone: IconPediatria },
+      {
+        para: '/app/pediatria/painel-acompanhamento',
+        rotulo: 'Painel de acompanhamento',
+        Icone: IconDashboard,
+      },
       { para: '/app/pediatria/dashboard', rotulo: 'Pediatria em números', Icone: IconDashboard },
       { para: '/app/pediatria/calculadora', rotulo: 'Calculadora', Icone: IconPediatria },
       { para: '/app/pediatria/avaliacoes', rotulo: 'Avaliações', Icone: IconPediatria },
+      {
+        para: '/app/pediatria/acompanhamento',
+        rotulo: 'Acompanhamento diário',
+        Icone: IconPediatria,
+      },
     ],
   },
   {

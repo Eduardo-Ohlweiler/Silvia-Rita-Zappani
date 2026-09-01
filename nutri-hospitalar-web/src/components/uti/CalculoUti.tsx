@@ -328,7 +328,13 @@ export function CalculoUti({
               <TSelect
                 label="Referência de ajuste"
                 opcoes={OPCOES_POPULACAO.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
-                ajuda="Em IMC abaixo de 18,5 as duas colunas divergem. O padrão clínico não soma centímetro, para não mascarar depleção."
+                /* O motivo, quando há um, vem antes da explicação geral: é ele
+                 * que diz por que ESTA coluna, e não a outra (docs/10 §2.9). */
+                ajuda={
+                  antro?.motivoPopulacaoReferencia
+                    ? `${antro.motivoPopulacaoReferencia}. Em IMC abaixo de 18,5 as duas colunas divergem.`
+                    : 'Em IMC abaixo de 18,5 as duas colunas divergem. O padrão clínico não soma centímetro, para não mascarar depleção.'
+                }
                 value={entradas.populacaoReferencia || 'POPULACAO_CLINICA'}
                 onChange={(e) => alterar('populacaoReferencia', e.target.value)}
               />
@@ -496,7 +502,7 @@ export function CalculoUti({
                 unidade="cm ajustados"
                 classificacao={antro?.classificacaoMassaMuscularBraco}
                 referencia={`CB ajustada pelo IMC · ${antro?.populacaoReferenciaUsada ?? ''}`}
-                motivoAusencia={antro?.motivoDeplecao}
+                motivoAusencia={antro?.motivoMassaMuscularBraco}
                 recalculando={recalculando}
               />
               <TResult
@@ -504,7 +510,11 @@ export function CalculoUti({
                 valor={formatarNumero(antro?.circPanturrilhaAjustadaCm)}
                 unidade="cm ajustados"
                 classificacao={antro?.classificacaoDeplecaoPanturrilha}
-                referencia="CP ajustada pelo IMC · Gonzalez 2021"
+                /* A coluna usada, não uma fonte fixa: em IMC < 18,5 com
+                 * população clínica a CP não recebe o +4, e o número deixa de
+                 * ser o de Gonzalez 2021. Ver docs/10 §2.9. */
+                referencia={`CP ajustada pelo IMC · ${antro?.populacaoReferenciaUsada ?? ''}`}
+                motivoAusencia={antro?.motivoDeplecaoPanturrilha}
                 recalculando={recalculando}
               />
             </TResultGroup>

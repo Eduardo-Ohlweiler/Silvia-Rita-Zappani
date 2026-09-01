@@ -395,9 +395,16 @@ export interface ResultadoAntropometria {
   circPanturrilhaAjustadaCm?: number
   classificacaoDeplecaoPanturrilha?: ClassificacaoUti
   populacaoReferenciaUsada?: string
+  /**
+   * Por que esta coluna, quando algo além do padrão a justifica — a perda de
+   * peso registrada, ou a escolha manual. Nulo quando é só o padrão.
+   */
+  motivoPopulacaoReferencia?: string
   /** Verdadeiro quando IMC < 18,5 — é a única faixa em que as colunas divergem. */
   ajustePeloImcRelevante: boolean
-  motivoDeplecao?: string
+  /** Um motivo por medida: a panturrilha tem o seu, e nomeia o que falta. */
+  motivoMassaMuscularBraco?: string
+  motivoDeplecaoPanturrilha?: string
 }
 
 export interface ResultadoNecessidades {

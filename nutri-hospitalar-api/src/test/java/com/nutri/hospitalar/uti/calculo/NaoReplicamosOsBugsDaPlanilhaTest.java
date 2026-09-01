@@ -31,7 +31,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * que o valor correto coincidisse por acaso.
  *
  * <p>Os defeitos 1, 2 e 19 são travados no banco e vivem em
- * {@code CatalogoUtiTest}; o 22 está fora do escopo desta fatia.
+ * {@code CatalogoUtiTest}; o <b>20 precisa da cascata inteira</b> e vive em
+ * {@code CalculoUtiEndpointTest}; o 22 está fora do escopo desta fatia.
+ * <b>Fora essas quatro exceções, todo defeito de §11 tem teste aqui</b> — se
+ * acrescentar um defeito ao documento, acrescente o teste junto.
  */
 @DisplayName("Não replicamos os defeitos da planilha")
 class NaoReplicamosOsBugsDaPlanilhaTest {
@@ -332,10 +335,11 @@ class NaoReplicamosOsBugsDaPlanilhaTest {
     @Test
     @DisplayName("defeito 21 — densidade sem linha na tabela devolve ausência, não degrau inventado")
     void defeito21_densidadeIntermediaria() {
-        // A tabela de % de água tem quatro densidades exatas; 12 produtos do
-        // catálogo têm densidade intermediária. Aplicar função escada seria
-        // inferência nossa sobre prescrição de UTI.
-        for (String densidade : new String[]{"1.12", "1.14", "1.21", "1.24", "1.3", "1.31", "1.33"})
+        // A tabela de % de água tem quatro densidades exatas (1,0 · 1,2 · 1,5 ·
+        // 2,0), e 9 das 53 fórmulas do catálogo caem fora delas — oito valores
+        // distintos, porque 1,24 aparece em duas (docs/10 §11, defeito 21).
+        // Aplicar função escada seria inferência nossa sobre prescrição de UTI.
+        for (String densidade : new String[]{"1.12", "1.14", "1.21", "1.23", "1.24", "1.3", "1.31", "1.33"})
             assertThat(HidratacaoCalculator.percentualDeAgua(null, new BigDecimal(densidade)))
                     .as("densidade %s", densidade)
                     .isNull();
@@ -344,6 +348,97 @@ class NaoReplicamosOsBugsDaPlanilhaTest {
         var comRotulo = HidratacaoCalculator.percentualDeAgua(
                 new BigDecimal("81"), new BigDecimal("1.24"));
         assertThat(comRotulo.origem()).isEqualTo(OrigemValor.AGUA_LIVRE_ROTULO);
+    }
+
+    /**
+     * As oito constantes do ajuste de CB pelo IMC (docs/10 §2.9, tabela do
+     * passo 1), <b>uma a uma e nos dois sexos</b>.
+     *
+     * <p>Antes disto {@code ajustarCircBraco} não era chamado por teste
+     * nenhum: trocar o sexo num dos ternários passava pela suíte inteira. Ao
+     * contrário do ajuste de CP, este depende do sexo em todas as faixas — é
+     * onde a troca é mais fácil de escrever e mais difícil de ver.
+     */
+    @Test
+    @DisplayName("fora da planilha — as oito constantes do ajuste de CB pelo IMC, por sexo")
+    void ajusteDaCircBracoPeloImc() {
+        // CB de 30 cm como base fixa: o que varia é só o ajuste.
+        BigDecimal cb = new BigDecimal("30");
+
+        // IMC < 18,5 — a ÚNICA faixa em que as duas colunas divergem.
+        assertThat(ajusteCb(cb, "17", Sexo.MASCULINO, PopulacaoReferencia.ADULTO_SAUDAVEL))
+                .as("magro, adulto saudável, homem: +3").isEqualByComparingTo("33");
+        assertThat(ajusteCb(cb, "17", Sexo.FEMININO, PopulacaoReferencia.ADULTO_SAUDAVEL))
+                .as("magro, adulto saudável, mulher: +2").isEqualByComparingTo("32");
+        // Na população clínica não soma: somar mascararia a depleção.
+        assertThat(ajusteCb(cb, "17", Sexo.MASCULINO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("magro, população clínica, homem: sem ajuste").isEqualByComparingTo("30");
+        assertThat(ajusteCb(cb, "17", Sexo.FEMININO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("magro, população clínica, mulher: sem ajuste").isEqualByComparingTo("30");
+
+        // Eutrofia — sem ajuste, nas duas colunas.
+        assertThat(ajusteCb(cb, "22", Sexo.MASCULINO, PopulacaoReferencia.ADULTO_SAUDAVEL))
+                .as("eutrófico: sem ajuste").isEqualByComparingTo("30");
+
+        // Daqui para baixo as colunas são idênticas — o ajuste só depende do sexo.
+        assertThat(ajusteCb(cb, "27", Sexo.MASCULINO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("sobrepeso, homem: −3").isEqualByComparingTo("27");
+        assertThat(ajusteCb(cb, "27", Sexo.FEMININO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("sobrepeso, mulher: −2").isEqualByComparingTo("28");
+
+        assertThat(ajusteCb(cb, "35", Sexo.MASCULINO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("obesidade, homem: −7").isEqualByComparingTo("23");
+        assertThat(ajusteCb(cb, "35", Sexo.FEMININO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("obesidade, mulher: −6").isEqualByComparingTo("24");
+
+        assertThat(ajusteCb(cb, "45", Sexo.MASCULINO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("obesidade grave, homem: −10").isEqualByComparingTo("20");
+        assertThat(ajusteCb(cb, "45", Sexo.FEMININO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("obesidade grave, mulher: −9").isEqualByComparingTo("21");
+
+        // Faixa fechada à esquerda: 25 e 40 exatos pertencem à faixa de cima.
+        assertThat(ajusteCb(cb, "25", Sexo.MASCULINO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("IMC 25 exato já é sobrepeso").isEqualByComparingTo("27");
+        assertThat(ajusteCb(cb, "40", Sexo.MASCULINO, PopulacaoReferencia.POPULACAO_CLINICA))
+                .as("IMC 40 exato já é obesidade grave").isEqualByComparingTo("20");
+    }
+
+    /**
+     * O nível <b>"muito baixa"</b> dos cortes de CB — o que
+     * {@code docs/10} §2.9 marca como existindo <b>apenas na imagem</b>, sem
+     * célula nenhuma que o audite. Por não ser auditável contra a planilha, é
+     * a parte que mais precisa de teste.
+     */
+    @Test
+    @DisplayName("fora da planilha — os dois níveis de massa muscular pelo braço")
+    void doisNiveisDeMassaMuscularPeloBraco() {
+        // Homem: < 26 muito baixa, < 28 baixa, daí adequada.
+        assertThat(massaBraco("25.9", Sexo.MASCULINO).rotulo()).isEqualTo("Massa muscular muito baixa");
+        assertThat(massaBraco("26", Sexo.MASCULINO).rotulo()).isEqualTo("Massa muscular baixa");
+        assertThat(massaBraco("27.9", Sexo.MASCULINO).rotulo()).isEqualTo("Massa muscular baixa");
+        assertThat(massaBraco("28", Sexo.MASCULINO).rotulo()).isEqualTo("Massa muscular adequada");
+
+        // Mulher: < 23 e < 25. Os cortes são outros — trocar o sexo aqui muda
+        // o diagnóstico de uma mulher de 24 cm de "baixa" para "adequada".
+        assertThat(massaBraco("22.9", Sexo.FEMININO).rotulo()).isEqualTo("Massa muscular muito baixa");
+        assertThat(massaBraco("23", Sexo.FEMININO).rotulo()).isEqualTo("Massa muscular baixa");
+        assertThat(massaBraco("24", Sexo.FEMININO).rotulo()).isEqualTo("Massa muscular baixa");
+        assertThat(massaBraco("25", Sexo.FEMININO).rotulo()).isEqualTo("Massa muscular adequada");
+
+        // O tom vem do servidor: é ele que a tela usa para colorir.
+        assertThat(massaBraco("22", Sexo.FEMININO).tom()).isEqualTo(TomResultado.CRITICO);
+        assertThat(massaBraco("24", Sexo.FEMININO).tom()).isEqualTo(TomResultado.ATENCAO);
+        assertThat(massaBraco("30", Sexo.FEMININO).tom()).isEqualTo(TomResultado.ADEQUADO);
+    }
+
+    private static BigDecimal ajusteCb(BigDecimal cb, String imc, Sexo sexo,
+                                       PopulacaoReferencia populacao) {
+        return AntropometriaCalculator.ajustarCircBraco(cb, new BigDecimal(imc), sexo, populacao);
+    }
+
+    private static Classificacao massaBraco(String cbAjustada, Sexo sexo) {
+        return AntropometriaCalculator.classificarMassaMuscularBraco(
+                new BigDecimal(cbAjustada), sexo);
     }
 
     @Test

@@ -210,6 +210,52 @@ class CalculoPediatricoTest {
             assertThat(r.imc()).isNotNull();
         }
 
+        /**
+         * O peso é opcional de propósito no request — é o cenário de quem
+         * preenche aos poucos. Antes destes testes, cada um destes três
+         * caminhos devolvia número nulo <b>e motivo nulo</b>: traço mudo na
+         * tela, contra docs/09 §10.
+         */
+        @Test
+        @DisplayName("sem peso, o VET falta COM motivo — não em silêncio")
+        void semPesoOVetFala() {
+            ResultadoPediatrico r = CalculoPediatricoCalculator.calcular(
+                    new EntradaPediatrica(Sexo.FEMININO, 8, null, bd("70"),
+                            null, null, null, null),
+                    F_8_MESES);
+
+            assertThat(r.vet()).isNull();
+            assertThat(r.motivoVet()).isNotNull().contains("peso");
+        }
+
+        @Test
+        @DisplayName("com estatura e sem peso, o IMC falta COM motivo")
+        void semPesoOImcFala() {
+            ResultadoPediatrico r = CalculoPediatricoCalculator.calcular(
+                    new EntradaPediatrica(Sexo.FEMININO, 8, null, bd("70"),
+                            null, null, null, null),
+                    F_8_MESES);
+
+            assertThat(r.imc()).isNull();
+            // Não pode culpar a estatura: ela foi informada.
+            assertThat(r.motivoImc()).isNotNull().contains("peso");
+        }
+
+        @Test
+        @DisplayName("sem peso e sem estatura, o estado nutricional fala em vez de calar")
+        void semMedidasOEstadoFala() {
+            ResultadoPediatrico r = CalculoPediatricoCalculator.calcular(
+                    new EntradaPediatrica(Sexo.FEMININO, 8, null, null,
+                            null, null, null, null),
+                    F_8_MESES);
+
+            // A linha da OMS existe — o que falta é o que comparar com ela.
+            assertThat(r.pesoIdade()).isNull();
+            assertThat(r.estaturaIdade()).isNull();
+            assertThat(r.imcIdade()).isNull();
+            assertThat(r.motivoEstadoNutricional()).isNotNull();
+        }
+
         @Test
         @DisplayName("sem sexo não há curva, e o motivo aponta o campo que falta")
         void semSexo() {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutri.hospitalar.loginlog.repository.LoginLogRepository;
 import com.nutri.hospitalar.pediatria.repository.AvaliacaoPediatricaRepository;
 import com.nutri.hospitalar.pediatria.repository.FormulaLacteaRepository;
+import com.nutri.hospitalar.pediatria.repository.RegistroDiarioPediatricoRepository;
 import com.nutri.hospitalar.uti.repository.AvaliacaoUtiRepository;
 import com.nutri.hospitalar.uti.repository.FormulaEnteralRepository;
 import com.nutri.hospitalar.uti.repository.RegistroDiarioUtiRepository;
@@ -53,6 +54,7 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected PessoaRepository pessoaRepository;
     @Autowired protected FormulaLacteaRepository formulaLacteaRepository;
     @Autowired protected AvaliacaoPediatricaRepository avaliacaoPediatricaRepository;
+    @Autowired protected RegistroDiarioPediatricoRepository registroDiarioPediatricoRepository;
     @Autowired protected AvaliacaoUtiRepository avaliacaoUtiRepository;
     @Autowired protected FormulaEnteralRepository formulaEnteralRepository;
     @Autowired protected RegistroDiarioUtiRepository registroDiarioUtiRepository;
@@ -78,6 +80,9 @@ public abstract class AbstractIntegrationTest {
         // precisa vir ANTES de pessoa aqui, senão toda a suíte quebra por FK.
         refreshTokenRepository.deleteAllInBatch();
         loginLogRepository.deleteAllInBatch();
+        // O dia pediátrico aponta para a avaliação com ON DELETE RESTRICT
+        // (migration 028): sai ANTES dela, como o da UTI.
+        registroDiarioPediatricoRepository.deleteAllInBatch();
         avaliacaoPediatricaRepository.deleteAllInBatch();
         // O dia aponta para a avaliação com ON DELETE RESTRICT: sai antes dela.
         registroDiarioUtiRepository.deleteAllInBatch();

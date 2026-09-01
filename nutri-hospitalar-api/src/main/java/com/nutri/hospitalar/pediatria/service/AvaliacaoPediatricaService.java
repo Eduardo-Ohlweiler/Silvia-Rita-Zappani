@@ -2,6 +2,7 @@ package com.nutri.hospitalar.pediatria.service;
 
 import com.nutri.hospitalar.config.PageableUtils;
 import com.nutri.hospitalar.config.SecurityUtils;
+import com.nutri.hospitalar.exceptions.ConflictException;
 import com.nutri.hospitalar.exceptions.NotFoundException;
 import com.nutri.hospitalar.pediatria.calculo.ResultadoPediatrico;
 import com.nutri.hospitalar.pediatria.dtos.AvaliacaoPediatricaCreateDto;
@@ -15,6 +16,7 @@ import com.nutri.hospitalar.pediatria.entity.FormulaLactea;
 import com.nutri.hospitalar.pediatria.mapper.AvaliacaoPediatricaMapper;
 import com.nutri.hospitalar.pediatria.mapper.ResultadoPediatricoMapper;
 import com.nutri.hospitalar.pediatria.repository.AvaliacaoPediatricaRepository;
+import com.nutri.hospitalar.pediatria.repository.RegistroDiarioPediatricoRepository;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
 import com.nutri.hospitalar.pessoa.enums.Sexo;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
@@ -48,6 +50,7 @@ public class AvaliacaoPediatricaService {
     private final PessoaRepository pessoaRepository;
     private final FormulaLacteaService formulaLacteaService;
     private final CalculoPediatricoService calculoService;
+    private final RegistroDiarioPediatricoRepository registroDiarioPediatricoRepository;
     private final SecurityUtils securityUtils;
 
     /** Cálculo avulso: não persiste nada, e é o que a tela chama a cada alteração. */
@@ -121,6 +124,19 @@ public class AvaliacaoPediatricaService {
     @Transactional
     public void delete(UUID id) {
         AvaliacaoPediatrica avaliacao = buscar(id);
+
+        // ON DELETE RESTRICT na migration 028: sem esta guarda a violação de
+        // constraint chegaria crua ao usuário, sem dizer o que a impede.
+        long dias = registroDiarioPediatricoRepository.countByTenantIdAndAvaliacaoId(
+                securityUtils.getTenantIdLogado(), id);
+
+        if (dias > 0)
+            throw new ConflictException(
+                    ("Esta avaliação tem %d %s de acompanhamento vinculado%s. "
+                            + "Desvincule ou remova %s antes de apagar a avaliação.")
+                            .formatted(dias, dias == 1 ? "dia" : "dias", dias == 1 ? "" : "s",
+                                    dias == 1 ? "o dia" : "os dias"));
+
         avaliacaoRepository.delete(avaliacao);
         log.info("Avaliação pediátrica excluída id={}", id);
     }

@@ -376,8 +376,8 @@ perda são entradas da mesma aba (§2.7).
 | Campo | `populacao_referencia` na aba Antropometria |
 | Valores | `POPULACAO_CLINICA` (padrão) · `ADULTO_SAUDAVEL` |
 | Visibilidade | **só aparece quando IMC < 18,5** — fora dessa faixa as colunas são iguais, e exibir controle que não muda nada é mentir sobre a interface |
-| Automatismo | havendo perda significativa por Blackburn (§2.7), assume `POPULACAO_CLINICA` **com o motivo escrito na tela**; a troca manual é permitida e fica registrada |
-| Saída | o resultado **declara a coluna usada**, como todo valor da cascata declara a sua origem (§2.5) |
+| Automatismo | havendo perda significativa por Blackburn (§2.7) — moderada ou grave —, assume `POPULACAO_CLINICA` **com o motivo escrito na tela**; a troca manual é permitida e fica registrada, também por escrito. O número não muda (a população clínica já é o padrão): o automatismo existe para a tela **dizer** que é a perda registrada que sustenta a escolha |
+| Saída | o resultado **declara a coluna usada**, como todo valor da cascata declara a sua origem (§2.5) — e a tela a lê do resultado, **nas duas medidas**: um rótulo fixo citando Gonzalez 2021 mentiria na única faixa em que as colunas divergem |
 | Persistência | gravado na avaliação — prontuário registra o critério, não só o número |
 
 > **Fora de escopo, e por isso não é este campo.** Um módulo de **adulto saudável /

@@ -11,6 +11,7 @@ import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
 import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
+import com.nutri.hospitalar.uti.enums.TomResultado;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -44,6 +45,9 @@ public final class AvaliacaoUtiCalculator {
 
     /** Abaixo daqui as duas colunas de ajuste de CB e CP divergem. */
     private static final BigDecimal IMC_LIMITE_MAGREZA = new BigDecimal("18.5");
+
+    private static final String ESCOLHA_MANUAL =
+            "Coluna escolhida no formulário";
 
     // Motivos de ausência — o texto que a tela mostra no lugar do traço.
     private static final String SEM_PESO =
@@ -165,7 +169,8 @@ public final class AvaliacaoUtiCalculator {
     private static ResultadoUti.Antropometria antropometria(EntradaUti e, Altura altura,
                                                             PesoDeTrabalho peso,
                                                             BigDecimal p50) {
-        PopulacaoReferencia populacao = e.populacaoOuPadrao();
+        // A população de referência é decidida depois da perda de peso: é ela
+        // que a justifica (docs/10 §2.9).
 
         // Estimativas
         BigDecimal alturaEstimada = AntropometriaCalculator.alturaChumlea1985(
@@ -206,6 +211,31 @@ public final class AvaliacaoUtiCalculator {
                 perda, e.janelaPerda());
         String motivoPerda = classifPerda != null ? null : SEM_PESO_USUAL;
 
+        // Qual coluna de ajuste usar, e por quê (docs/10 §2.9).
+        //
+        // A população clínica já é o padrão do módulo, então o automatismo não
+        // muda número nenhum — ele existe para a tela DIZER que a perda de peso
+        // registrada é o que sustenta a escolha. Sem isso o profissional vê o
+        // seletor sem saber o que o justifica. A troca manual continua valendo
+        // e também fica escrita.
+        boolean perdaSignificativa = classifPerda != null
+                && (classifPerda.tom() == TomResultado.ATENCAO
+                    || classifPerda.tom() == TomResultado.CRITICO);
+
+        PopulacaoReferencia populacao;
+        String motivoPopulacao;
+        if (e.populacaoReferencia() != null) {
+            populacao = e.populacaoReferencia();
+            motivoPopulacao = ESCOLHA_MANUAL;
+        } else if (perdaSignificativa) {
+            populacao = PopulacaoReferencia.POPULACAO_CLINICA;
+            motivoPopulacao = "%s: somar centímetro no magro mascararia a depleção"
+                    .formatted(classifPerda.rotulo());
+        } else {
+            populacao = e.populacaoOuPadrao();
+            motivoPopulacao = null;
+        }
+
         // Adequação de CB
         BigDecimal adequacao = AntropometriaCalculator.adequacaoCircBraco(e.circBracoCm(), p50);
         String motivoAdequacao = adequacao != null ? null
@@ -216,9 +246,13 @@ public final class AvaliacaoUtiCalculator {
                 e.circBracoCm(), imc, e.sexo(), populacao);
         BigDecimal cpAjustada = AntropometriaCalculator.ajustarCircPanturrilha(
                 e.circPanturrilhaCm(), imc, populacao);
-        String motivoDeplecao = (cbAjustada == null && cpAjustada == null)
-                ? "O ajuste pelo IMC precisa do IMC: informe peso e altura"
-                : null;
+        // Um motivo POR MEDIDA. Antes havia um só, que existia apenas quando as
+        // DUAS faltavam — então a panturrilha sozinha ficava muda — e que
+        // culpava o IMC mesmo quando o que faltava era a circunferência.
+        String motivoMassaBraco = motivoDoAjuste(
+                cbAjustada, e.circBracoCm(), imc, e.sexo(), "do braço");
+        String motivoDeplecaoPanturrilha = motivoDoAjuste(
+                cpAjustada, e.circPanturrilhaCm(), imc, e.sexo(), "da panturrilha");
 
         return new ResultadoUti.Antropometria(
                 arredondar(alturaEstimada), arredondar(chumlea), arredondar(jung),
@@ -249,8 +283,34 @@ public final class AvaliacaoUtiCalculator {
                 arredondar(cpAjustada),
                 AntropometriaCalculator.classificarDeplecaoPanturrilha(cpAjustada, e.sexo()),
                 populacao.getDescricao(),
+                motivoPopulacao,
                 imc != null && imc.compareTo(IMC_LIMITE_MAGREZA) < 0,
-                motivoDeplecao);
+                motivoMassaBraco, motivoDeplecaoPanturrilha);
+    }
+
+    /**
+     * Por que esta medida não classificou — <b>nomeando o que falta</b>.
+     *
+     * <p>A mensagem anterior era uma só para as duas medidas, e dizia sempre
+     * "informe peso e altura": num paciente com peso e altura registrados mas
+     * sem a panturrilha medida, ela culpava o dado que estava lá.
+     *
+     * @param ajustada  a circunferência já ajustada, ou {@code null}
+     * @param medida    a circunferência crua que a alimenta
+     * @param quala     "do braço" ou "da panturrilha", para a frase
+     */
+    private static String motivoDoAjuste(BigDecimal ajustada, BigDecimal medida,
+                                         BigDecimal imc, Sexo sexo, String quala) {
+        // O ajuste saiu e o sexo existe: a classificação saiu com ele.
+        if (ajustada != null && sexo != null) return null;
+
+        if (!positivo(medida))
+            return "Informe a circunferência %s".formatted(quala);
+        if (imc == null)
+            return "O ajuste pelo IMC precisa do IMC: informe peso e altura";
+        // Medida e IMC existem, então o que falta é o sexo — os cortes são
+        // separados por sexo, e aplicar o do outro muda o diagnóstico.
+        return "Informe o sexo: os pontos de corte são separados por sexo";
     }
 
     // ─── Aba 2 — Necessidades ───────────────────────────────────────────

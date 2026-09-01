@@ -62,6 +62,68 @@ class PediatriaDashboardTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$[2].pesoP50").value(7.900));
         }
 
+        /**
+         * As seis linhas de âncora do docs/09 §4.3, nas TRÊS medidas.
+         *
+         * <p>Antes disto só uma âncora era conferida, e só no peso: um
+         * deslocamento de uma linha na carga de um dos sexos passava pela
+         * suíte inteira. Tabela de referência de crescimento infantil
+         * deslocada é classificação errada, silenciosa.
+         */
+        @Test
+        @DisplayName("as seis âncoras do docs/09 §4.3 conferem nas três medidas")
+        void ancoras() throws Exception {
+            conferirAncora("MASCULINO",  0, 2.900, 3.900,  47.900,  51.800, 12.200, 14.800);
+            conferirAncora("MASCULINO", 12, 8.600, 10.800, 73.300,  78.200, 15.500, 18.300);
+            conferirAncora("MASCULINO", 60, 16.000, 21.100, 105.200, 114.800, 13.900, 16.700);
+            conferirAncora("FEMININO",   0, 2.800, 3.700,  47.200,  51.100, 12.100, 14.700);
+            conferirAncora("FEMININO",   8, 7.000, 9.000,  66.300,  71.200, 15.400, 18.500);
+            conferirAncora("FEMININO",  60, 15.700, 21.300, 104.500, 114.400, 13.800, 17.000);
+        }
+
+        /**
+         * O degrau dos 25 meses (docs/09 §4.4): a OMS emenda comprimento
+         * deitado com estatura em pé, e o salto é da fonte.
+         *
+         * <p><b>Não "corrigir".</b> Este teste existe para reprovar quem
+         * suavizar a curva achando que é erro de digitação.
+         */
+        @Test
+        @DisplayName("a descontinuidade dos 25 meses é preservada, não suavizada")
+        void descontinuidadeDos25Meses() throws Exception {
+            mockMvc.perform(get("/pediatria/curvas-oms")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .param("sexo", "MASCULINO")
+                            .param("idadeMin", "24")
+                            .param("idadeMax", "25"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].estaturaP15").value(84.600))
+                    .andExpect(jsonPath("$[1].estaturaP15").value(84.700))
+                    .andExpect(jsonPath("$[0].imcP15").value(14.500))
+                    .andExpect(jsonPath("$[1].imcP15").value(14.800));
+        }
+
+        private void conferirAncora(String sexo, int idade,
+                                    double pesoP15, double pesoP85,
+                                    double estP15, double estP85,
+                                    double imcP15, double imcP85) throws Exception {
+            mockMvc.perform(get("/pediatria/curvas-oms")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .param("sexo", sexo)
+                            .param("idadeMin", String.valueOf(idade))
+                            .param("idadeMax", String.valueOf(idade)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].idadeMeses").value(idade))
+                    .andExpect(jsonPath("$[0].pesoP15").value(pesoP15))
+                    .andExpect(jsonPath("$[0].pesoP85").value(pesoP85))
+                    .andExpect(jsonPath("$[0].estaturaP15").value(estP15))
+                    .andExpect(jsonPath("$[0].estaturaP85").value(estP85))
+                    .andExpect(jsonPath("$[0].imcP15").value(imcP15))
+                    .andExpect(jsonPath("$[0].imcP85").value(imcP85));
+        }
+
         @Test
         @DisplayName("não passa de 60 meses, nem que peçam")
         void limite() throws Exception {

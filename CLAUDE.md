@@ -67,6 +67,8 @@ sistema silvia/
         ├── services/              # api.ts (interceptor + refresh) + um por módulo
         ├── pages/                 # auth/Login · Dashboard · usuario · tenant
         │                          # pessoa · loginlog · perfil · pediatria
+        │                          #   (catálogo, avaliação, acompanhamento
+        │                          #    diário e os 3 painéis)
         │                          # uti/ (catálogos, cálculo, avaliação,
         │                          #      acompanhamento e os 3 painéis)
         ├── components/pessoa/     # PessoaRapidaModal (cadastro rápido)
@@ -90,16 +92,21 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **6 — Terapia Nutricional (UTI adulto)** | ✅ pronta · especificação [docs/10](docs/10-calculos-uti-adulto.md) · catálogos · cálculo e calculadora · ferramentas clínicas · avaliação · acompanhamento diário · **3 painéis** · **impressão** |
 | **7 — Simetria pediatria ↔ UTI** | ✅ pronta · guarda no cadastro de fórmula láctea · 3 documentos de impressão · exportação nas 10 listas · `CatalogoPediatriaTest` |
 | **8 — Módulo proteico** | ✅ pronta · migration 027 · o cálculo existia desde a fatia 2 e nenhuma tela o alcançava |
+| **9 — Varredura de conformidade** | ✅ pronta · `docs/09` e `docs/10 §13` item a item, calculador órfão e entrada órfã. Achou 2 defeitos de fala (corrigidos) e 7 lacunas de teste (fechadas) |
+| **10 — Acompanhamento diário pediátrico** | ✅ pronta · especificação [docs/11](docs/11-acompanhamento-pediatrico.md) · migration 028 · **3º painel** · impressão · exportação. **Nenhuma constante clínica nova**: a régua já estava no sistema |
+| **10.1 — Validação da fatia 10** | ✅ o painel de acompanhamento ganhou a impressão que só a UTI tinha, e o `DELETE` do dia ganhou teste (feliz e cross-tenant). A varredura no navegador achou uma legenda que não fechava com o número ao lado |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
-| 9 — `audit_log` | pendente |
+| 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
-**303 testes** no total, contra o banco `nutridb_test`.
+**357 testes** no total, contra o banco `nutridb_test`.
 
 ### O que falta, e por quê
 
-**Pediatria e UTI estão completos contra as suas especificações.** Quatro
-varreduras independentes o confirmam, e vale repeti-las antes de dar qualquer
-módulo por fechado: (1) `docs/09` e (2) `docs/10 §13` item a item; (3)
+**Pediatria e UTI estão completos contra as suas especificações** — e a
+varredura de 31/08/2026 provou que "completo" não é "sem defeito": ela achou
+**dois defeitos reais de fala**, um em cada módulo, ambos corrigidos e travados
+em teste (ver as armadilhas novas abaixo). Vale repetir as quatro antes de dar
+qualquer módulo por fechado: (1) `docs/09` e (2) `docs/10 §13` item a item; (3)
 **calculador órfão** — método público de `calculo/` que ninguém chama, que foi
 como o módulo proteico apareceu depois de duas auditorias; (4) **entrada órfã** —
 campo que a API aceita e nenhuma tela oferece.
@@ -108,11 +115,11 @@ O que resta é isto, e **nada disso é buraco nesses dois módulos**:
 
 | Pendência | Natureza | Por que não agora |
 |---|---|---|
-| **`audit_log`** | fatia própria | adiada por decisão. É a tabela que responde *"quem apagou?"*: os três `delete` do sistema são **físicos**, e o `created_by` some com a linha. Invisível no dia a dia; importa no dia em que alguém pergunta |
-| **Recuperação de senha** | fatia própria | depende de escolher o serviço de e-mail — não há `spring-boot-starter-mail` no `pom.xml` |
+| **`audit_log`** | fatia própria | adiada **para quando o sistema estiver em produção** (decisão de 31/08/2026). A especificação já existe, em [docs/06 §A09](docs/06-seguranca-owasp.md) — inclusive o record `AuditEvent` e a retenção de 12 meses —, e o molde estrutural é o módulo `loginlog`, com o expurgo no `ManutencaoJob`. É a tabela que responde *"quem apagou?"*: os três `delete` do sistema são **físicos**, e o `created_by` some com a linha. Invisível no dia a dia; importa no dia em que alguém pergunta |
+| **Recuperação de senha** | fatia própria | adiada junto do `audit_log`, e depende de escolher o serviço de e-mail — não há `spring-boot-starter-mail` no `pom.xml` |
 | **`agua_livre_perc` nulo nas 53 fórmulas** · **potássio do `Peptimax pó`** | digitação de cadastro | o mecanismo está pronto e a tela tem o campo. O dado vem do rótulo, e inventá-lo por aproximação é a inferência que `docs/10` recusa |
 | **Fonte primária do Chumlea 1988 de 8 ramos** | bibliografia | os números conferem contra a planilha; falta identificar a publicação |
-| **Acompanhamento diário pediátrico** · **ferramentas clínicas pediátricas** (Holliday-Segar, superfície corporal, TIG) · **percentil de CB pediátrico** (Frisancho) | decisão clínica da Silvia | **nenhum está na `Pediatria.xlsx`**, que tem 3 abas contra as 15 da UTI. São funcionalidade nova e exigem fonte auditável — a assimetria entre os módulos é a diferença entre as fontes, não descuido |
+| **Ferramentas clínicas pediátricas** (Holliday-Segar, superfície corporal, TIG) · **percentil de CB pediátrico** (Frisancho) | fonte a levantar | **nenhum está na `Pediatria.xlsx`**, que tem 3 abas contra as 15 da UTI. Decisão de 31/08/2026: **o que a planilha entrega é mantido; o que ela não entrega vem de literatura, com procedência citada** — o que a UTI já faz nas nove faixas de `graficos/referencias.ts`. Vira `docs/11` antes de virar código |
 | **Fatia 4 — Atendimento** | redefinir | as duas avaliações já são o contêiner que ela descrevia — detalhe abaixo |
 
 **Bloqueio resolvido.** As fatias de cálculo dependiam de uma especificação
@@ -425,6 +432,84 @@ Lição geral: **sentinela de ausência que também é valor de exibição preci
 constante compartilhada**, nunca literal repetido; e nenhuma tela está verificada
 enquanto ninguém a abriu vazia para ver se ela fala.
 
+**Simetria entre módulos é de propósito, não de colunas.**
+A fatia 10 quase virou outra coisa. "Espelhar o `RegistroDiarioUti` na
+pediatria" parece decisão de simetria, mas as 29 colunas de lá são gasometria,
+FiO₂, suporte ventilatório, lactato e PCR — elas existem porque a `AvaliacaoUti`
+tem fase da terapia crítica, terapia renal e noradrenalina. A
+`AvaliacaoPediatrica` **não tem um único campo de terapia intensiva**. Copiar as
+colunas teria transformado a pediatria em módulo de UTI pediátrica de lado, e
+exigido levantar toda faixa de referência pediátrica por idade (AAP 2017 para
+pressão, PALS para hipotensão, laboratório por faixa etária) — fatia própria,
+com fonte própria. O que se espelha é **o que o módulo vizinho resolve**
+(evolução no tempo, o 3º painel), não a lista de campos com que ele resolve.
+Antes de copiar uma tabela de um módulo para outro, ler as colunas da *avaliação*
+de cada um: elas dizem de que módulo se está falando.
+
+**Na pediatria a idade anda, e isso muda o desenho.**
+Na UTI a idade é entrada da avaliação e não muda entre os dias. Na pediatria ela
+é o **eixo X das curvas**, e 30 dias de internação de um lactente atravessam uma
+linha inteira da tabela da OMS. Por isso o dia de acompanhamento **calcula a
+própria idade** da data de nascimento (`docs/11 §3`) em vez de copiá-la da
+avaliação — idade copiada envelheceria calada — e **classifica com o peso do
+dia** em vez de repetir a classificação gravada. O teste que trava isso é o de
+uma criança de 9,0 kg (P85 exato, adequado) que passa a 9,2 kg: se a
+classificação sair "adequado", o registro está copiando, e a série mostraria uma
+criança parada onde ela mudou de faixa. Consequência de infraestrutura: como
+cada registro precisa da linha da OMS da *sua* idade, o painel faria uma consulta
+por dia — o mapa por sexo (`linhasPorIdade`) troca N consultas por, no máximo,
+duas.
+
+**Composição por litro e por 100 ml são a mesma conta com fator 10 de diferença.**
+`AcompanhamentoCalculator` da UTI divide por **1000**, porque o catálogo enteral
+é declarado por litro (defeito 1 de `docs/10`). A fórmula láctea é declarada por
+**100 ml** (`docs/09 §7`). As quatro contas do acompanhamento são idênticas nos
+dois módulos — `percentualRecebido` é literalmente reusado —, mas
+`caloriasRecebidas` e `proteinaRecebida` **não podem ser**: reusar a função da
+UTI daria dez vezes o valor, num número que vira adequação calórica na tela de
+quem prescreve. Reuso entre módulos exige conferir a **unidade declarada do
+catálogo**, não só a forma da fórmula.
+
+**Teste que depende do dia do mês quebra sozinho, e ensina a ignorar vermelho.**
+`UtiDashboardTest.adesaoMensalAusenteNaoEZero` afirmava algo sobre o **último mês
+da série** e criava o dia em `hoje.minusDays(2)`. Passava 28 dias por mês e
+quebrava nos dois primeiros, quando a subtração atravessa a virada — apareceu em
+01/09, sem nada no código ter mudado. Ao afirmar sobre um período (mês corrente,
+semana corrente), ancore a data **dentro** dele; subtrair dias não garante isso.
+
+**Ramo `else if` sem `else` é traço mudo esperando acontecer.**
+A varredura de `docs/09` achou o mesmo defeito das duas armadilhas acima num
+terceiro lugar, e a causa é sintática: `if (a && b) {...} else if (!b) {motivo}`
+**não tem ramo para "b veio, a não"**. No `CalculoPediatricoCalculator` isso
+acontecia três vezes — VET sem peso, IMC sem peso, estado nutricional sem
+medida nenhuma — e o peso é opcional *de propósito*, para quem preenche aos
+poucos. Regra: em bloco que produz valor-e-motivo, **todo caminho que não
+produz valor tem de produzir motivo**, e a forma de garantir isso é o `else`
+final, nunca uma cadeia de `else if`. O teste que trava é o mais simples que
+existe — chamar o cálculo sem a entrada e exigir `motivo != null` —, e a prova
+de que ele trava algo é reintroduzir o defeito e ver dois testes ficarem
+vermelhos. **Um teste que passa antes e depois da correção não trava nada.**
+
+**Legenda de fonte escrita à mão mente no dia em que a fonte passa a variar.**
+A tela da UTI declarava a coluna de referência usada no braço —
+`${antro?.populacaoReferenciaUsada}` — e, uma linha abaixo, cravava
+`"CP ajustada pelo IMC · Gonzalez 2021"` na panturrilha. Em IMC < 18,5 com
+população clínica a CP **não** recebe o `+4`: o número é o da orientação GLIM, e
+o rótulo jurava Gonzalez — na única faixa em que as duas colunas divergem, que é
+a do falso-negativo. O backend mandava o dado certo; a tela o descartava. Duas
+lições: quando o servidor manda a procedência, **usá-la** (literal ao lado de
+interpolação, no mesmo bloco, é o cheiro); e **a citação bibliográfica não mora
+na tela** — ela vive no enum e no `docs/`, e a tela mostra qual coluna valeu.
+
+**Motivo compartilhado por duas medidas cala a mais fraca e culpa a inocente.**
+Havia um `motivoDeplecao` para braço e panturrilha, e ele só existia quando as
+**duas** faltavam — panturrilha sozinha ficava muda. Pior: a frase era "informe
+peso e altura", exibida a quem tinha peso e altura registrados e apenas não
+mediu a panturrilha. **Culpar o dado que está lá é pior que não dizer nada.**
+Hoje é um motivo por medida, e ele nomeia o que falta: a medida, o IMC ou o
+sexo. Mesma família de `motivoProgressao`/`motivoDistribuicao`: **motivo é do
+tamanho da coisa que faltou**, e agrupar dois é perder os dois.
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -447,6 +532,7 @@ desatualizada — reinicie.
 | [docs/08-modulo-pessoas.md](docs/08-modulo-pessoas.md) | Cadastro de pessoas — PF/PJ, contatos, endereços e vínculos |
 | [docs/09-calculos-pediatria.md](docs/09-calculos-pediatria.md) | **Especificação numérica** das fórmulas da pediatria — OMS, DRIs, caso de teste |
 | [docs/10-calculos-uti-adulto.md](docs/10-calculos-uti-adulto.md) | **Especificação numérica** da UTI adulto — Chumlea, Jung, Rabito, dieta enteral, hidratação |
+| [docs/11-acompanhamento-pediatrico.md](docs/11-acompanhamento-pediatrico.md) | **Especificação** do acompanhamento diário pediátrico — os derivados, a idade que anda, e por que nenhuma constante nova entrou |
 
 ---
 
@@ -473,13 +559,38 @@ query com `CAST`.
 
 ---
 
+## Olhar as telas — não pule isto
+
+**Não há teste de front neste projeto**, e `build` + `lint` + a suíte inteira
+verde **já deixaram passar cinco defeitos reais** que só apareceram no
+navegador: um prontuário imprimindo "100 kcal por 100 ml" ao lado de "880 ml ·
+616 kcal"; 26 traços mudos numa tela cujos motivos o servidor calculava
+fielmente; uma nota prometendo "arredondado" ao lado de 14,33.
+
+A skill **[`olhar-telas`](.claude/skills/olhar-telas/SKILL.md)** tem o driver
+pronto e as sete armadilhas já pagas (esperar por `aside` e não por `**/app**`,
+máscara de centavos, combo de paciente × seletor de tenant, campo escondido em
+outra aba). Uso direto:
+
+```bash
+node .claude/skills/olhar-telas/olhar.mjs /app/uti/calculadora tela
+node .claude/skills/olhar-telas/olhar.mjs /app/uti/avaliacoes lista --pdf
+node .claude/skills/olhar-telas/olhar.mjs /app/pediatria/dashboard ped --360
+```
+
+Sai em `/tmp/olhar/`, e reporta rolagem horizontal, elemento culpado e erro de
+console. **Depois abra o arquivo** — gerar e não olhar não vale.
+
+`playwright-core` já vem no `node_modules` do front (dependência do Vite) e
+dirige o `/usr/bin/google-chrome` do sistema: **não instale playwright**.
+
 ## Rodar
 
 ```bash
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 303 testes contra nutridb_test
+./run-dev.sh test         # 357 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

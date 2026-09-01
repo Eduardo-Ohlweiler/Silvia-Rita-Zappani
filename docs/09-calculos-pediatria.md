@@ -331,9 +331,17 @@ fórmula `NAN 2` (73,8 kcal e 1,65 g/100 ml) · volume `110` ml · frequência `
 | Vezes ao dia | `8` | 24 / 3 |
 | Volume total | `880` ml/dia | 8 × 110 |
 | Calorias totais | `649,44` kcal/dia | 73,8 × 880 / 100 |
-| % calórico | `89,8257261410788` % | 649,44 / 723 × 100 |
+| % calórico | `89,83` % | 649,44 / 723 × 100 = 89,8257261410788, **arredondado a 2 casas** |
 | Proteína total | `14,52` g/dia | 1,65 × 880 / 100 |
 | % proteico | `132` % | 14,52 / 11 × 100 |
+
+**Sobre a escala dos percentuais.** A planilha guarda o percentual com toda a
+cauda de ponto flutuante; o sistema o devolve com **2 casas**, porque é assim que
+a coluna é declarada (`NUMERIC(6,2)`, migration `017`) e porque §10 manda
+arredondar com escala declarada. Os demais números da tabela saem com 4 casas
+(`NUMERIC(12,4)`). Conferir a API contra a cauda inteira acusaria divergência
+onde há só arredondamento — o valor exato fica registrado acima, na coluna da
+conferência.
 
 O caso de peso `9` contra P85 `9,0` não é coincidência: ele fixa a inclusividade
 do P85 descrita na §4.1. Se a implementação trocar `>` por `>=`, este teste

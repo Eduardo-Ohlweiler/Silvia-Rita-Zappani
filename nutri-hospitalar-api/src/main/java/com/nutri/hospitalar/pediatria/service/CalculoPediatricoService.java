@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Resolve o que o calculador precisa — a linha da curva da OMS e a composição
@@ -117,6 +119,30 @@ public class CalculoPediatricoService {
         return percentilOmsRepository.findBySexoAndIdadeMeses(sexo, idadeMeses)
                 .map(CalculoPediatricoService::toLinha)
                 .orElse(null);
+    }
+
+    /**
+     * As linhas da curva de um sexo inteiro, indexadas pela idade em meses.
+     *
+     * <p>Existe para o <b>acompanhamento diário</b>, que classifica muitos dias
+     * de uma vez: buscar linha por linha faria uma consulta por registro — 90
+     * consultas num painel de três meses, o clássico N+1. A tabela toda tem 61
+     * linhas por sexo, então trazê-la inteira sai mais barato que a metade das
+     * idas ao banco.
+     *
+     * <p>Idades fora de 0 a 60 meses simplesmente não estão no mapa, e um
+     * {@code get} devolve {@code null} — que é exatamente o que o calculador
+     * espera para explicar a ausência.
+     */
+    @Transactional(readOnly = true)
+    public Map<Integer, LinhaPercentil> linhasPorIdade(Sexo sexo) {
+        if (sexo == null) return Map.of();
+
+        return percentilOmsRepository
+                .findBySexoAndIdadeMesesBetweenOrderByIdadeMesesAsc(sexo, 0, IDADE_MAXIMA_CURVAS)
+                .stream()
+                .collect(Collectors.toMap(PercentilOms::getIdadeMeses,
+                                          CalculoPediatricoService::toLinha));
     }
 
     private static LinhaPercentil toLinha(PercentilOms p) {

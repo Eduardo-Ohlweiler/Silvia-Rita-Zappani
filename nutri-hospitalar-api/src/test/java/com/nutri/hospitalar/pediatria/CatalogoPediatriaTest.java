@@ -217,6 +217,53 @@ class CatalogoPediatriaTest extends AbstractIntegrationTest {
         }
 
         /**
+         * Os PISOS das duas guardas (docs/09 §7.1). Só os tetos estavam
+         * travados: remover a comparação com o piso não quebrava nada, e a
+         * guarda passava a aceitar composição implausível para baixo — que é
+         * o lado onde mora o erro de digitação por fator de 10.
+         */
+        @Test
+        @DisplayName("os limites exatos da densidade por baixo: 20 kcal passa, 19,9 não")
+        void pisoDaDensidade() throws Exception {
+            mockMvc.perform(post("/formulas-lacteas")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"nome":"No piso","kcalPor100ml":20,"proteinaPor100ml":0.5}
+                                    """))
+                    .andExpect(status().isCreated());
+
+            mockMvc.perform(post("/formulas-lacteas")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"nome":"Um passo abaixo","kcalPor100ml":19.9,"proteinaPor100ml":0.5}
+                                    """))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("os limites exatos da razão por baixo: 1,0 passa, 0,9 não")
+        void pisoDaRazao() throws Exception {
+            // 100 kcal com 1 g dá exatamente 1,0 g/100 kcal.
+            mockMvc.perform(post("/formulas-lacteas")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"nome":"No piso da razão","kcalPor100ml":100,"proteinaPor100ml":1}
+                                    """))
+                    .andExpect(status().isCreated());
+
+            mockMvc.perform(post("/formulas-lacteas")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"nome":"Um passo abaixo da razão","kcalPor100ml":100,"proteinaPor100ml":0.9}
+                                    """))
+                    .andExpect(status().isBadRequest());
+        }
+
+        /**
          * Módulo puro de carboidrato existe em dieta metabólica pediátrica, e
          * recusá-lo transformaria cadastro legítimo em cadastro impossível —
          * mesmo critério que a fórmula enteral usa com macro ausente.

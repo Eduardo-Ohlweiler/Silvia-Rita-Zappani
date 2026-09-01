@@ -68,6 +68,131 @@ class CalculoUtiEndpointTest extends AbstractIntegrationTest {
                         .value("da faixa da fase · máximo"));
     }
 
+    /**
+     * Defeito 20 de docs/10 §11 — <b>na planilha o peso estimado de
+     * {@code Estimativas} não alimenta aba nenhuma</b>: ele é calculado, fica
+     * na tela e as outras abas continuam exigindo peso digitado.
+     *
+     * <p>Como todo teste de defeito, este não confere o número dela: confere
+     * que o <b>nosso é diferente</b>. Aqui a estimativa atravessa a cascata
+     * inteira — antropometria, necessidades e dieta — sem que nenhum peso seja
+     * informado. Se alguém desligar essa ligação, os três blocos abaixo somem.
+     */
+    @Test
+    @DisplayName("defeito 20 — o peso estimado alimenta a cascata inteira, não morre na aba")
+    void defeito20_pesoEstimadoAlimentaTudo() throws Exception {
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,
+                                 "circBracoCm":25,"circPanturrilhaCm":34,"circAbdominalCm":90,
+                                 "fase":"AGUDA"}
+                                """))
+                .andExpect(status().isOk())
+                // Nenhum peso foi informado, e mesmo assim há peso de trabalho...
+                .andExpect(jsonPath("$.antropometria.pesoDeTrabalhoKg").exists())
+                .andExpect(jsonPath("$.antropometria.pesoDeTrabalhoOrigem")
+                        .value("peso estimado · Rabito 2008"))
+                // ...IMC, que na planilha só sai com peso digitado...
+                .andExpect(jsonPath("$.antropometria.imc").exists())
+                // ...e as metas, que é onde a planilha para de propagar.
+                .andExpect(jsonPath("$.necessidades.metaEnergetica").exists())
+                .andExpect(jsonPath("$.necessidades.metaProteica").exists());
+    }
+
+    /**
+     * O automatismo de docs/10 §2.9: havendo perda de peso significativa por
+     * Blackburn, a coluna de ajuste é a da população clínica <b>com o motivo
+     * escrito</b>.
+     *
+     * <p>O número não muda — a população clínica já é o padrão do módulo. O que
+     * este teste trava é a <b>frase</b>: sem ela o profissional vê o seletor
+     * sem saber o que o justifica.
+     */
+    @Test
+    @DisplayName("perda de peso significativa explica a coluna de ajuste, por escrito")
+    void motivoDaPopulacaoDeReferencia() throws Exception {
+        // 60 kg hoje contra 75 usuais em 3 meses = 20 % de perda: grave.
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":175,
+                                 "pesoAtualKg":60,"pesoUsualKg":75,"janelaPerda":"TRES_MESES",
+                                 "circBracoCm":25,"circPanturrilhaCm":30,"fase":"AGUDA"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.antropometria.populacaoReferenciaUsada")
+                        .value("População clínica"))
+                .andExpect(jsonPath("$.antropometria.motivoPopulacaoReferencia").exists());
+    }
+
+    @Test
+    @DisplayName("sem perda registrada, a coluna é só o padrão — e não inventa motivo")
+    void semPerdaNaoInventaMotivo() throws Exception {
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":175,
+                                 "pesoAtualKg":70,"circBracoCm":25,"fase":"AGUDA"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.antropometria.motivoPopulacaoReferencia").doesNotExist());
+    }
+
+    /**
+     * Cada medida de depleção explica a PRÓPRIA ausência.
+     *
+     * <p>Antes havia um motivo só, que aparecia apenas quando as duas medidas
+     * faltavam — então a panturrilha sozinha ficava muda — e que dizia
+     * "informe peso e altura" mesmo num paciente cujo peso e altura estavam
+     * registrados. Culpar o dado que está lá é pior que não dizer nada.
+     */
+    @Test
+    @DisplayName("cada medida de depleção explica a própria ausência, nomeando o que falta")
+    void motivoPorMedidaDeDeplecao() throws Exception {
+        // Peso e altura informados; braço medido, panturrilha NÃO.
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":175,
+                                 "pesoAtualKg":70,"circBracoCm":30,"fase":"AGUDA"}
+                                """))
+                .andExpect(status().isOk())
+                // O braço saiu: nada a explicar.
+                .andExpect(jsonPath("$.antropometria.circBracoAjustadaCm").exists())
+                .andExpect(jsonPath("$.antropometria.motivoMassaMuscularBraco").doesNotExist())
+                // A panturrilha não saiu, e agora fala — e cobra a MEDIDA,
+                // não o peso e a altura, que estão ali.
+                .andExpect(jsonPath("$.antropometria.circPanturrilhaAjustadaCm").doesNotExist())
+                .andExpect(jsonPath("$.antropometria.motivoDeplecaoPanturrilha")
+                        .value("Informe a circunferência da panturrilha"));
+    }
+
+    @Test
+    @DisplayName("sem IMC, as duas medidas culpam o IMC — e não a medida, que está lá")
+    void semImcAsDuasCulpamOImc() throws Exception {
+        // As duas circunferências medidas, mas sem altura não há IMC. O peso
+        // sai por estimativa; o IMC, não.
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"MASCULINO","idadeAnos":59,
+                                 "circBracoCm":30,"circPanturrilhaCm":34,"circAbdominalCm":90,
+                                 "fase":"AGUDA"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.antropometria.imc").doesNotExist())
+                .andExpect(jsonPath("$.antropometria.motivoMassaMuscularBraco")
+                        .value("O ajuste pelo IMC precisa do IMC: informe peso e altura"))
+                .andExpect(jsonPath("$.antropometria.motivoDeplecaoPanturrilha")
+                        .value("O ajuste pelo IMC precisa do IMC: informe peso e altura"));
+    }
+
     @Test
     @DisplayName("a origem da meta sobrevive ao protocolo de obesidade")
     void origemNaObesidade() throws Exception {

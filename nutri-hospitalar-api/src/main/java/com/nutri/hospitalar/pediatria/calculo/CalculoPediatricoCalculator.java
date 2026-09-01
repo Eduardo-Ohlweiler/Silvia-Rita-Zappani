@@ -59,6 +59,12 @@ public final class CalculoPediatricoCalculator {
             "Informe o volume por tomada";
     private static final String SEM_FORMULA =
             "Escolha a fórmula láctea para calcular calorias e proteína ofertadas";
+    private static final String SEM_PESO =
+            "Informe o peso";
+    private static final String SEM_PESO_PARA_IMC =
+            "Informe o peso para calcular o IMC";
+    private static final String SEM_MEDIDAS =
+            "Informe o peso ou a estatura para classificar o estado nutricional";
 
     /**
      * @param entrada as entradas já normalizadas
@@ -79,6 +85,9 @@ public final class CalculoPediatricoCalculator {
             imc = peso.divide(metros.multiply(metros, CONTA), CONTA);
         } else if (!positivo(estatura)) {
             motivoImc = SEM_ESTATURA;
+        } else {
+            // Estatura veio, peso não: sem este ramo o IMC saía nulo E mudo.
+            motivoImc = SEM_PESO_PARA_IMC;
         }
 
         // ─── Estado nutricional pela OMS ─────────────────────────────────
@@ -97,6 +106,11 @@ public final class CalculoPediatricoCalculator {
             if (positivo(peso))     pesoIdade     = faixa(peso,     linha.pesoP15(),     linha.pesoP85());
             if (positivo(estatura)) estaturaIdade = faixa(estatura, linha.estaturaP15(), linha.estaturaP85());
             if (imc != null)        imcIdade      = faixa(imc,      linha.imcP15(),      linha.imcP85());
+
+            // A linha da OMS existe, mas não há o que comparar com ela: sem
+            // este ramo as três classificações saíam nulas e sem uma palavra.
+            if (pesoIdade == null && estaturaIdade == null && imcIdade == null)
+                motivoEstado = SEM_MEDIDAS;
         }
 
         // ─── VET e necessidade proteica ──────────────────────────────────
@@ -109,6 +123,11 @@ public final class CalculoPediatricoCalculator {
             motivoVet = VET_FORA_DA_FAIXA;
         } else if (positivo(peso)) {
             vet = vet(peso, deposicao);
+        } else {
+            // A idade está na faixa e a deposição existe; falta o peso, que é
+            // o que multiplica. Sem este ramo o VET saía nulo e mudo — e o
+            // peso é opcional de propósito, para quem preenche aos poucos.
+            motivoVet = SEM_PESO;
         }
 
         BigDecimal proteinaNecessidade = necessidadeProteica(idade);
@@ -232,15 +251,28 @@ public final class CalculoPediatricoCalculator {
         return null;
     }
 
-    private static boolean positivo(BigDecimal valor) {
+    // Package-private, e não private, porque o acompanhamento diário
+    // (AcompanhamentoPediatricoCalculator) usa a MESMA escala e a MESMA régua.
+    // Uma segunda cópia delas divergiria — e a régua é a da OMS.
+
+    static boolean positivo(BigDecimal valor) {
         return valor != null && valor.compareTo(BigDecimal.ZERO) > 0;
     }
 
-    private static BigDecimal escala(BigDecimal valor) {
+    static BigDecimal escala(BigDecimal valor) {
         return valor == null ? null : valor.setScale(ESCALA, RoundingMode.HALF_UP);
     }
 
-    private static BigDecimal percentual(BigDecimal valor) {
+    static BigDecimal percentual(BigDecimal valor) {
         return valor == null ? null : valor.setScale(ESCALA_PERCENTUAL, RoundingMode.HALF_UP);
+    }
+
+    /** A precisão das contas intermediárias, compartilhada pelo acompanhamento. */
+    static MathContext conta() {
+        return CONTA;
+    }
+
+    static BigDecimal cem() {
+        return CEM;
     }
 }

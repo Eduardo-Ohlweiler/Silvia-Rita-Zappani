@@ -234,8 +234,15 @@ class UtiDashboardTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("a adesão do mês é ausente quando não houve dia medido, e não zero")
         void adesaoMensalAusenteNaoEZero() throws Exception {
-            UUID avaliacao = criarAvaliacao(hoje.minusDays(3), "68");
-            criarDia(avaliacao, hoje.minusDays(2), "1364", "1800");
+            // ATENÇÃO À DATA. Este teste afirma algo sobre o ÚLTIMO mês da
+            // série — o corrente —, então a avaliação e o dia têm de cair
+            // dentro dele. Com `hoje.minusDays(2)` o teste passava 28 dias por
+            // mês e quebrava nos dois primeiros, quando a subtração atravessa a
+            // virada: em 01/09 o dia caía em 30/08 e o mês corrente aparecia
+            // vazio. Teste que quebra sozinho é pior que teste ausente, porque
+            // ensina a ignorar vermelho.
+            UUID avaliacao = criarAvaliacao(hoje, "68");
+            criarDia(avaliacao, hoje, "1364", "1800");
 
             mockMvc.perform(get("/uti/dashboard")
                             .header(AUTHORIZATION, autenticar(adminA.getEmail())))

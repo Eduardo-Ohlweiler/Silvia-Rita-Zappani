@@ -96,6 +96,56 @@ class AvaliacaoPediatricaTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.estadoNutricional.pesoIdade.faixa").exists());
     }
 
+    /**
+     * O corte de 60/61 meses do <b>service</b> (IDADE_MAXIMA_CURVAS), não o do
+     * calculador: o teste unitário passa {@code linha = null} à mão, então
+     * trocar {@code > 60} por {@code >= 60} não quebrava nada.
+     */
+    @Test
+    @DisplayName("aos 60 meses ainda classifica; aos 61 não, e diz por quê")
+    void corteDasCurvasAos60Meses() throws Exception {
+        mockMvc.perform(post("/pediatria/avaliacoes/calcular")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"FEMININO","idadeMeses":60,"peso":18,"estatura":110}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estadoNutricional.pesoIdade.faixa").exists())
+                .andExpect(jsonPath("$.estadoNutricional.motivo").doesNotExist());
+
+        mockMvc.perform(post("/pediatria/avaliacoes/calcular")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"FEMININO","idadeMeses":61,"peso":18,"estatura":110}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estadoNutricional.pesoIdade").doesNotExist())
+                .andExpect(jsonPath("$.estadoNutricional.motivo").value(
+                        "As curvas de crescimento da OMS vão até 60 meses"));
+    }
+
+    /**
+     * O peso é opcional no request — quem preenche aos poucos passa por aqui.
+     * Antes, VET e IMC saíam nulos <b>e mudos</b>.
+     */
+    @Test
+    @DisplayName("sem peso, VET e IMC faltam com o motivo escrito")
+    void semPesoOsMotivosSaem() throws Exception {
+        mockMvc.perform(post("/pediatria/avaliacoes/calcular")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"FEMININO","idadeMeses":8,"estatura":70}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.necessidades.vet").doesNotExist())
+                .andExpect(jsonPath("$.necessidades.motivoVet").exists())
+                .andExpect(jsonPath("$.estadoNutricional.imc").doesNotExist())
+                .andExpect(jsonPath("$.estadoNutricional.motivoImc").exists());
+    }
+
     // ─── Gravação ────────────────────────────────────────────────────────
 
     @Test

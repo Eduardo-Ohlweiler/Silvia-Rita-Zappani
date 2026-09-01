@@ -131,10 +131,14 @@ public final class AvaliacaoUtiMapper {
                         classificacao(a.getClassifDeplecaoCp(), a.getClassifDeplecaoCpTom()),
                         a.getPopulacaoReferencia() == null
                                 ? null : a.getPopulacaoReferencia().getDescricao(),
+                        // Texto, como todo motivo: vem do recálculo sobre as
+                        // entradas gravadas, não de coluna.
+                        mAntro.motivoPopulacaoReferencia(),
                         // Se o ajuste pelo IMC era relevante depende só das
                         // entradas — e elas estão gravadas.
                         mAntro.ajustePeloImcRelevante(),
-                        mAntro.motivoDeplecao()),
+                        mAntro.motivoMassaMuscularBraco(),
+                        mAntro.motivoDeplecaoPanturrilha()),
 
                 new ResultadoUti.Necessidades(
                         a.getEnergiaMinima(), a.getEnergiaMaxima(),

@@ -206,7 +206,10 @@ export function DocumentoAvaliacaoUti({
     {
       rotulo: 'Massa muscular do braço',
       valor: antro?.classificacaoMassaMuscularBraco?.rotulo ?? '—',
-      detalhe: antro?.circBracoAjustadaCm != null ? `CB ajustada ${n(antro.circBracoAjustadaCm, 1, 'cm')}` : '',
+      detalhe:
+        antro?.circBracoAjustadaCm != null
+          ? `CB ajustada ${n(antro.circBracoAjustadaCm, 1, 'cm')}`
+          : (antro?.motivoMassaMuscularBraco ?? ''),
     },
     {
       rotulo: 'Depleção da panturrilha',
@@ -214,7 +217,7 @@ export function DocumentoAvaliacaoUti({
       detalhe:
         antro?.circPanturrilhaAjustadaCm != null
           ? `CP ajustada ${n(antro.circPanturrilhaAjustadaCm, 1, 'cm')}`
-          : (antro?.motivoDeplecao ?? ''),
+          : (antro?.motivoDeplecaoPanturrilha ?? ''),
     },
   ]
 

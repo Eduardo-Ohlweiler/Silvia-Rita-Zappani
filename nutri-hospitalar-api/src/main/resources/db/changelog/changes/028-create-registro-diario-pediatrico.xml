@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Acompanhamento diário pediátrico — o eixo do tempo que faltava à
+        pediatria. Especificação em docs/11.
+
+        É a tabela irmã de `registro_diario_uti`, e as três decisões estruturais
+        de lá valem aqui pelas mesmas razões:
+
+        1. `avaliacao_id` NULLABLE e ON DELETE RESTRICT — criança que internou de
+           madrugada tem dia antes de avaliação; e apagar avaliação com dias
+           vinculados tem de doer (409 dizendo quantos).
+
+        2. UNIQUE (tenant_id, pessoa_id, data) — sem isso dois registros do mesmo
+           dia coexistem e o painel plota os dois.
+
+        3. NENHUM derivado é coluna. Não existe `perc_recebido`, nem
+           `adequacao_calorica`, nem classificação da OMS: tudo sai na leitura,
+           sobre a avaliação vinculada e a tabela de percentis. Guardar o que se
+           pode calcular é criar duas versões que um dia divergem.
+
+        MAS O CONJUNTO DE COLUNAS É OUTRO, e isso é deliberado.
+
+        A de UTI tem gasometria, FiO₂, suporte ventilatório, lactato e PCR
+        porque `avaliacao_uti` tem fase da terapia crítica, terapia renal e
+        noradrenalina. `avaliacao_pediatrica` não tem um único campo de terapia
+        intensiva — é peso, estatura, percentil da OMS, VET, DRI e fórmula
+        láctea. Copiar as 29 colunas de lá transformaria a pediatria em módulo de
+        UTI pediátrica de lado, e exigiria faixa de referência pediátrica por
+        idade (AAP 2017, PALS, laboratório por faixa etária) que ninguém
+        levantou. Ver docs/11 §1.
+
+        E DUAS COLUNAS QUE A DE UTI NÃO TEM: `peso_kg` e `estatura_cm`.
+
+        Na UTI o peso é da avaliação e não muda entre os dias. Aqui a criança
+        CRESCE — é o que o acompanhamento existe para mostrar, e é o que dá à
+        curva da OMS um eixo do tempo. A idade de cada registro é calculada da
+        data de nascimento (docs/11 §3), não copiada: idade copiada envelheceria
+        calada.
+
+        As TOMADAS substituem as seis refeições da UTI. Lactente em fórmula
+        láctea não faz café, almoço e ceia — a unidade é a tomada, como
+        docs/09 §7 já modela a dieta.
+    -->
+    <changeSet id="028-create-registro-diario-pediatrico" author="eduardo">
+
+        <createTable tableName="registro_diario_pediatrico">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_registro_diario_pediatrico"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_reg_diario_ped_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="pessoa_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_reg_diario_ped_pessoa"
+                             references="pessoa(id)"/>
+            </column>
+
+            <!-- Nullable: o dia pode vir antes da avaliação. Ver comentário acima. -->
+            <column name="avaliacao_id" type="UUID"/>
+
+            <column name="data" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- ─── Antropometria do dia ───────────────────────────────── -->
+            <!--
+                Mesma escala das colunas da avaliação (migration 017), para que
+                peso gravado aqui e lá sejam comparáveis sem conversão.
+            -->
+            <column name="peso_kg" type="NUMERIC(6,3)"/>
+            <column name="estatura_cm" type="NUMERIC(6,2)"/>
+
+            <!-- ─── Dieta láctea ───────────────────────────────────────── -->
+            <column name="vol_prescrito_24h" type="NUMERIC(10,3)"/>
+            <column name="vol_recebido_24h" type="NUMERIC(10,3)"/>
+
+            <column name="tomadas_previstas" type="INTEGER"/>
+            <column name="tomadas_aceitas" type="INTEGER"/>
+
+            <column name="observacao" type="TEXT"/>
+
+            <column name="created_by" type="UUID">
+                <constraints foreignKeyName="fk_reg_diario_ped_created_by"
+                             references="usuario(id)"/>
+            </column>
+            <column name="updated_by" type="UUID">
+                <constraints foreignKeyName="fk_reg_diario_ped_updated_by"
+                             references="usuario(id)"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <!--
+            RESTRICT, não CASCADE: um cascade levaria o acompanhamento inteiro
+            embora junto de uma avaliação apagada, sem avisar.
+        -->
+        <addForeignKeyConstraint
+                baseTableName="registro_diario_pediatrico" baseColumnNames="avaliacao_id"
+                constraintName="fk_reg_diario_ped_avaliacao"
+                referencedTableName="avaliacao_pediatrica" referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="registro_diario_pediatrico"
+                             columnNames="tenant_id, pessoa_id, data"
+                             constraintName="uk_reg_diario_ped_pessoa_data"/>
+
+        <!--
+            Medidas e volumes não são negativos, e nenhum deles é zero por
+            acidente: peso zero é erro de digitação, não medida.
+        -->
+        <sql>
+            ALTER TABLE registro_diario_pediatrico ADD CONSTRAINT ck_reg_diario_ped_medidas
+            CHECK ((peso_kg     IS NULL OR peso_kg     &gt; 0)
+               AND (estatura_cm IS NULL OR estatura_cm &gt; 0)
+               AND (vol_prescrito_24h IS NULL OR vol_prescrito_24h &gt;= 0)
+               AND (vol_recebido_24h  IS NULL OR vol_recebido_24h  &gt;= 0));
+        </sql>
+
+        <!--
+            Aceitar MAIS tomadas do que se previu é erro de digitação, não
+            registro possível — e passaria calado como adequação acima de 100 %.
+        -->
+        <sql>
+            ALTER TABLE registro_diario_pediatrico ADD CONSTRAINT ck_reg_diario_ped_tomadas
+            CHECK ((tomadas_previstas IS NULL OR tomadas_previstas &gt; 0)
+               AND (tomadas_aceitas   IS NULL OR tomadas_aceitas   &gt;= 0)
+               AND (tomadas_previstas IS NULL OR tomadas_aceitas IS NULL
+                    OR tomadas_aceitas &lt;= tomadas_previstas));
+        </sql>
+
+        <createIndex tableName="registro_diario_pediatrico" indexName="idx_reg_diario_ped_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex tableName="registro_diario_pediatrico" indexName="idx_reg_diario_ped_pessoa_data">
+            <column name="pessoa_id"/>
+            <column name="data"/>
+        </createIndex>
+        <createIndex tableName="registro_diario_pediatrico" indexName="idx_reg_diario_ped_avaliacao">
+            <column name="avaliacao_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="registro_diario_pediatrico"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

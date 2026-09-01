@@ -16,6 +16,13 @@ import type {
   DashboardGeral,
   PainelPaciente,
   ResultadoPediatrico,
+  AvaliacaoPediatricaSugerida,
+  RegistroDiarioPediatricoCreate,
+  RegistroDiarioPediatricoFiltros,
+  RegistroDiarioPediatricoLista,
+  RegistroDiarioPediatricoResponse,
+  RegistroDiarioPediatricoUpdate,
+  PainelAcompanhamentoPediatrico,
 } from '@/types/pediatria'
 
 /**
@@ -90,5 +97,58 @@ export const formulaLacteaService = {
   alterarAtivo: (id: string, ativo: boolean) =>
     api
       .patch<FormulaLacteaResponse>(`/formulas-lacteas/${id}/ativo`, null, { params: { ativo } })
+      .then((r) => r.data),
+}
+
+/**
+ * O acompanhamento diário pediátrico — o eixo do tempo da pediatria (docs/11).
+ *
+ * **Nada é calculado aqui.** Percentual recebido, adequações, idade do dia e as
+ * três classificações da OMS vêm derivados do servidor, cada um com o motivo de
+ * estar ausente quando está.
+ */
+export const registroDiarioPediatricoService = {
+  getAll: (params: RegistroDiarioPediatricoFiltros) =>
+    api
+      .get<Page<RegistroDiarioPediatricoLista>>('/pediatria/registros-diarios', { params })
+      .then((r) => r.data),
+
+  findById: (id: string) =>
+    api
+      .get<RegistroDiarioPediatricoResponse>(`/pediatria/registros-diarios/${id}`)
+      .then((r) => r.data),
+
+  create: (dto: RegistroDiarioPediatricoCreate) =>
+    api
+      .post<RegistroDiarioPediatricoResponse>('/pediatria/registros-diarios', dto)
+      .then((r) => r.data),
+
+  update: (id: string, dto: RegistroDiarioPediatricoUpdate) =>
+    api
+      .put<RegistroDiarioPediatricoResponse>(`/pediatria/registros-diarios/${id}`, dto)
+      .then((r) => r.data),
+
+  remover: (id: string) =>
+    api.delete(`/pediatria/registros-diarios/${id}`).then(() => undefined),
+
+  /**
+   * Qual avaliação o dia deveria referenciar — **sugestão, não vínculo**.
+   *
+   * A tela mostra e o usuário confirma: ligar sozinho faria a adequação
+   * calórica mudar sem que ninguém tivesse escolhido a referência.
+   */
+  /** Os dias de um paciente: crescimento, oferta e adequação no tempo. */
+  painel: (pessoaId: string, de?: string, ate?: string) =>
+    api
+      .get<PainelAcompanhamentoPediatrico>('/pediatria/registros-diarios/painel', {
+        params: { pessoaId, de, ate },
+      })
+      .then((r) => r.data),
+
+  avaliacaoSugerida: (pessoaId: string, data: string) =>
+    api
+      .get<AvaliacaoPediatricaSugerida>('/pediatria/registros-diarios/avaliacao-sugerida', {
+        params: { pessoaId, data },
+      })
       .then((r) => r.data),
 }
