@@ -1,4 +1,5 @@
 import type { Paginacao } from './comum'
+import type { MotivoEncerramento } from './inicio'
 
 // ─── Fórmula enteral ──────────────────────────────────────────────────
 
@@ -639,6 +640,16 @@ export interface AvaliacaoUtiResponse {
   resultado: ResultadoUti
   /** A fórmula saiu do catálogo depois desta avaliação. O retrato dela ficou. */
   formulaRemovida: boolean
+
+  /**
+   * Nulo enquanto o acompanhamento corre. Preenchido, o paciente saiu da lista
+   * de trabalho da tela inicial — e a tela diz quando e por quê, para ninguém
+   * achar que o registro parou sozinho.
+   */
+  encerradoEm?: string | null
+  motivoEncerramento?: MotivoEncerramento | null
+  motivoEncerramentoDescricao?: string | null
+  observacaoEncerramento?: string | null
   observacao?: string
   createdAt: string
   updatedAt: string | null

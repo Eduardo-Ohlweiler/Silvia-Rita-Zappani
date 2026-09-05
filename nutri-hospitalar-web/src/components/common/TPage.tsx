@@ -30,7 +30,13 @@ export function TPage({ title, subtitle, actions, documento, children }: TPagePr
           <h1 className="text-h1 font-medium text-txt">{title}</h1>
           {subtitle && <p className="mt-0.5 text-caption text-txt-secondary">{subtitle}</p>}
         </div>
-        {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+        {/*
+          `flex-wrap` porque três ações não cabem lado a lado em 360 px, e o
+          `shrink-0` sozinho as empurrava para fora da tela — rolagem
+          horizontal, que a regra 6 do projeto proíbe. Telas com uma ou duas
+          ações não mudam: a quebra só acontece quando falta largura.
+        */}
+        {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
       </header>
 
       <div className={soTela}>{children}</div>

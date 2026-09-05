@@ -95,10 +95,11 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **9 — Varredura de conformidade** | ✅ pronta · `docs/09` e `docs/10 §13` item a item, calculador órfão e entrada órfã. Achou 2 defeitos de fala (corrigidos) e 7 lacunas de teste (fechadas) |
 | **10 — Acompanhamento diário pediátrico** | ✅ pronta · especificação [docs/11](docs/11-acompanhamento-pediatrico.md) · migration 028 · **3º painel** · impressão · exportação. **Nenhuma constante clínica nova**: a régua já estava no sistema |
 | **10.1 — Validação da fatia 10** | ✅ o painel de acompanhamento ganhou a impressão que só a UTI tinha, e o `DELETE` do dia ganhou teste (feliz e cross-tenant). A varredura no navegador achou uma legenda que não fechava com o número ao lado |
+| **11 — Tela inicial** | ✅ pronta · migration 029 · a lista de trabalho do dia, e o **encerramento do acompanhamento**, que é a saída dela |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
-**357 testes** no total, contra o banco `nutridb_test`.
+**367 testes** no total, contra o banco `nutridb_test`.
 
 ### O que falta, e por quê
 
@@ -510,6 +511,28 @@ Hoje é um motivo por medida, e ele nomeia o que falta: a medida, o IMC ou o
 sexo. Mesma família de `motivoProgressao`/`motivoDistribuicao`: **motivo é do
 tamanho da coisa que faltou**, e agrupar dois é perder os dois.
 
+**`toISOString()` devolve a data em UTC, e à noite isso é amanhã.**
+Os quatro formulários abriam com `new Date().toISOString().slice(0, 10)` como
+data padrão. No Brasil, das 21h à meia-noite, isso responde o **dia seguinte** —
+e como toda data de avaliação e de acompanhamento é `@PastOrPresent`, o servidor
+**recusava com 400**: o plantão noturno inteiro, num sistema hospitalar, sem que
+nada na tela dissesse por quê. É a irmã da armadilha de `formatarData`: dia do
+calendário não é instante, e tratá-lo como instante erra por um dia em todo fuso
+a oeste de Greenwich — só que aqui o erro é para o **futuro**, e por isso ele não
+some, ele bloqueia. Hoje existe `hojeIso()` em `utils/format.ts`, com
+`toLocaleDateString('sv-SE')`. Só apareceu porque alguém abriu a tela às 22h.
+
+**Lista de trabalho sem saída vira cemitério.**
+A tela inicial lista quem ainda não tem registro do dia — e o paciente que
+recebeu alta **nunca sairia**, porque o modelo não tem internação, leito nem
+alta: nenhuma coluna, em nenhuma tabela. Em uma semana a lista estaria cheia de
+gente que não está mais no leito, e quem usa aprenderia a ignorá-la, o que é
+pior do que não ter lista. Daí o `encerrado_em` na avaliação (migration 029) —
+na avaliação, e não numa tabela de internação, porque ela **já é** o contêiner do
+atendimento, que foi a razão de a fatia 4 ter sido abandonada. Regra geral: toda
+lista que cobra ação precisa de uma saída explícita, e a janela de inatividade é
+rede para o que ninguém encerrou, nunca o critério principal.
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -590,7 +613,7 @@ dirige o `/usr/bin/google-chrome` do sistema: **não instale playwright**.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 357 testes contra nutridb_test
+./run-dev.sh test         # 367 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

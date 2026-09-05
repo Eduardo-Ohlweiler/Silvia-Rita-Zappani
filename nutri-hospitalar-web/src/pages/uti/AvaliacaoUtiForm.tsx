@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import {
+  OPCOES_MOTIVO_ENCERRAMENTO,
+  type MotivoEncerramento,
+} from '@/types/inicio'
 import { IconAdicionar } from '@/assets/icons'
 import {
   TBotaoImprimir,
@@ -9,6 +13,7 @@ import {
   TEntry,
   TPage,
   TPanel,
+  TSelect,
   TTextArea,
 } from '@/components/common'
 import { CalculoUti } from '@/components/uti/CalculoUti'
@@ -25,10 +30,9 @@ import { catalogoService } from '@/services/catalogoService'
 import { pessoaService } from '@/services/pessoaService'
 import { avaliacaoUtiService } from '@/services/utiService'
 import type { ResultadoUti } from '@/types/uti'
-import { formatarDocumento } from '@/utils/format'
+import { formatarData, formatarDocumento, hojeIso } from '@/utils/format'
 import { idadeEmAnos } from '@/utils/idade'
 
-const HOJE = () => new Date().toISOString().slice(0, 10)
 
 /**
  * Registra uma avaliação de terapia nutricional num paciente.
@@ -53,7 +57,7 @@ export function AvaliacaoUtiForm() {
   const [pacienteRotulo, setPacienteRotulo] = useState('')
   const [profissionalId, setProfissionalId] = useState('')
   const [profissionalRotulo, setProfissionalRotulo] = useState('')
-  const [dataAvaliacao, setDataAvaliacao] = useState(HOJE)
+  const [dataAvaliacao, setDataAvaliacao] = useState(hojeIso)
   const [observacao, setObservacao] = useState('')
   const [entradas, setEntradas] = useState<EntradasUti>(ENTRADAS_UTI_VAZIAS)
 
@@ -66,6 +70,19 @@ export function AvaliacaoUtiForm() {
   /** O resultado que está na tela agora — salvo ou recém-calculado. */
   const [resultado, setResultado] = useState<ResultadoUti | null>(null)
   const [formulaRemovida, setFormulaRemovida] = useState(false)
+  /**
+   * O fim do acompanhamento. Enquanto nulo, o paciente aparece na lista de
+   * trabalho da tela inicial — e é este campo que o tira de lá.
+   */
+  const [encerramento, setEncerramento] = useState<{
+    encerradoEm: string
+    motivoDescricao: string
+    observacao?: string | null
+  }>()
+  const [encerrando, setEncerrando] = useState(false)
+  const [dataEncerramento, setDataEncerramento] = useState(hojeIso())
+  const [motivoEncerramento, setMotivoEncerramento] = useState<MotivoEncerramento>('ALTA_HOSPITALAR')
+  const [observacaoEncerramento, setObservacaoEncerramento] = useState('')
   const [carregando, setCarregando] = useState(editando)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string>()
@@ -94,6 +111,15 @@ export function AvaliacaoUtiForm() {
         setObservacao(a.observacao ?? '')
         setEntradas(paraEntradas(a.calculo))
         setFormulaRemovida(a.formulaRemovida)
+        setEncerramento(
+          a.encerradoEm
+            ? {
+                encerradoEm: a.encerradoEm,
+                motivoDescricao: a.motivoEncerramentoDescricao ?? '',
+                observacao: a.observacaoEncerramento,
+              }
+            : undefined,
+        )
         // Enquanto nada for tocado, mostra o que foi gravado — sem recalcular.
         setResultadoSalvo(a.resultado)
       })
@@ -183,6 +209,47 @@ export function AvaliacaoUtiForm() {
     )
   }
 
+  /**
+   * Encerrar tira o paciente da lista de trabalho — e é só isso que muda.
+   * Registrar um dia numa avaliação encerrada continua permitido: corrigir dado
+   * passado é legítimo.
+   */
+  async function encerrar() {
+    if (!id) return
+    setEncerrando(true)
+    try {
+      const a = await avaliacaoUtiService.encerrar(id, {
+        encerradoEm: dataEncerramento,
+        motivo: motivoEncerramento,
+        observacao: observacaoEncerramento || null,
+      })
+      setEncerramento({
+        encerradoEm: a.encerradoEm!,
+        motivoDescricao: a.motivoEncerramentoDescricao ?? '',
+        observacao: a.observacaoEncerramento,
+      })
+      toast.success('Acompanhamento encerrado')
+    } catch (erro) {
+      handleApiError(erro)
+    } finally {
+      setEncerrando(false)
+    }
+  }
+
+  async function reabrir() {
+    if (!id) return
+    setEncerrando(true)
+    try {
+      await avaliacaoUtiService.reabrir(id)
+      setEncerramento(undefined)
+      toast.success('Acompanhamento reaberto')
+    } catch (erro) {
+      handleApiError(erro)
+    } finally {
+      setEncerrando(false)
+    }
+  }
+
   return (
     <TPage
       title={editando ? 'Editar avaliação' : 'Nova avaliação de terapia nutricional'}
@@ -268,6 +335,70 @@ export function AvaliacaoUtiForm() {
             A fórmula usada nesta avaliação saiu do catálogo. Os números continuam válidos —
             a composição foi copiada para o registro no dia da avaliação.
           </p>
+        )}
+
+        {/*
+          A saída da lista de trabalho.
+
+          Sem isto, o paciente que recebeu alta é cobrado na tela inicial todo
+          dia, e em uma semana a lista vira um cemitério — pior que lista
+          nenhuma, porque quem usa aprende a ignorá-la. Só aparece na avaliação
+          já salva: não há o que encerrar antes de existir.
+        */}
+        {editando && (
+          <TPanel
+            title="Acompanhamento"
+            subtitle={
+              encerramento
+                ? 'Encerrado — este paciente não aparece mais na lista de trabalho da tela inicial.'
+                : 'Em andamento. Ao encerrar, o paciente sai da lista de trabalho da tela inicial.'
+            }
+          >
+            {encerramento ? (
+              <div className="flex flex-col gap-3">
+                <p className="text-body text-txt">
+                  Encerrado em <b>{formatarData(encerramento.encerradoEm)}</b> ·{' '}
+                  <b>{encerramento.motivoDescricao}</b>
+                  {encerramento.observacao ? ` — ${encerramento.observacao}` : ''}
+                </p>
+                <div>
+                  <TButton variant="secondary" loading={encerrando} onClick={() => void reabrir()}>
+                    Reabrir acompanhamento
+                  </TButton>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <TEntry
+                    label="Encerrado em"
+                    type="date"
+                    value={dataEncerramento}
+                    onChange={(e) => setDataEncerramento(e.target.value)}
+                  />
+                  <TSelect
+                    label="Motivo"
+                    opcoes={OPCOES_MOTIVO_ENCERRAMENTO}
+                    value={motivoEncerramento}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                      setMotivoEncerramento(e.target.value as MotivoEncerramento)
+                    }
+                  />
+                  <TEntry
+                    label="Observação"
+                    placeholder="Opcional"
+                    value={observacaoEncerramento}
+                    onChange={(e) => setObservacaoEncerramento(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <TButton variant="secondary" loading={encerrando} onClick={() => void encerrar()}>
+                    Encerrar acompanhamento
+                  </TButton>
+                </div>
+              </div>
+            )}
+          </TPanel>
         )}
 
         <CalculoUti

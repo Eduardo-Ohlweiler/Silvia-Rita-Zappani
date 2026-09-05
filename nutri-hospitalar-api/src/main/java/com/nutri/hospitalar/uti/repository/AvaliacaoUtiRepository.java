@@ -83,4 +83,38 @@ public interface AvaliacaoUtiRepository extends JpaRepository<AvaliacaoUti, UUID
                                           @Param("pacienteNome") String pacienteNome,
                                           @Param("de") LocalDate de,
                                           @Param("ate") LocalDate ate);
+
+    /**
+     * A avaliação mais recente de cada paciente — para "há quanto tempo".
+     *
+     * <p>Traz junto se essa última está <b>encerrada</b>, e é por isso que usa
+     * {@code DISTINCT ON} em vez de {@code max()}: quem só agrupa sabe a data,
+     * não sabe o estado da linha que a produziu.
+     *
+     * <p>Quem consome decide o que fazer com isso — a lista de "há mais tempo
+     * sem avaliação" descarta o encerrado, porque paciente com alta acumularia
+     * dias para sempre; a contagem de volume recente o mantém, porque ele
+     * <b>foi</b> avaliado.
+     */
+    @Query(value = """
+            SELECT DISTINCT ON (a.paciente_id)
+                   a.paciente_id                  AS paciente_id,
+                   p.nome                         AS paciente_nome,
+                   a.data_avaliacao               AS ultima,
+                   (a.encerrado_em IS NOT NULL)   AS encerrado
+            FROM avaliacao_uti a
+            JOIN pessoa p ON p.id = a.paciente_id
+            WHERE a.tenant_id = CAST(:tenantId AS uuid)
+              AND a.data_avaliacao <= CAST(:hoje AS date)
+            ORDER BY a.paciente_id, a.data_avaliacao DESC, a.created_at DESC
+            """, nativeQuery = true)
+    List<UltimaAvaliacaoPorPaciente> findUltimaPorPaciente(@Param("tenantId") UUID tenantId,
+                                                           @Param("hoje") LocalDate hoje);
+
+    interface UltimaAvaliacaoPorPaciente {
+        UUID getPacienteId();
+        String getPacienteNome();
+        LocalDate getUltima();
+        Boolean getEncerrado();
+    }
 }

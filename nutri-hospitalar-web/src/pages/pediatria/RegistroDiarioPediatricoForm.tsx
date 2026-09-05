@@ -27,10 +27,10 @@ import {
   formatarNumero,
   paraNumero,
   textoDaMascara,
+  hojeIso,
 } from '@/utils/format'
 import { idadeEmMesesTexto } from '@/utils/idade'
 
-const HOJE = () => new Date().toISOString().slice(0, 10)
 
 /** Texto cru, como foi digitado. A conversão acontece uma vez, no envio. */
 type Campos = Record<string, string>
@@ -68,7 +68,7 @@ export function RegistroDiarioPediatricoForm() {
 
   const [pessoaId, setPessoaId] = useState('')
   const [pessoaRotulo, setPessoaRotulo] = useState('')
-  const [data, setData] = useState(HOJE)
+  const [data, setData] = useState(hojeIso)
   const [campos, setCampos] = useState<Campos>(VAZIO)
 
   const [sugestao, setSugestao] = useState<AvaliacaoPediatricaSugerida>()

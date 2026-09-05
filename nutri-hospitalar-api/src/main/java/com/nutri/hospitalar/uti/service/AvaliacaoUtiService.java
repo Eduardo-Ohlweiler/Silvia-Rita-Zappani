@@ -2,6 +2,7 @@ package com.nutri.hospitalar.uti.service;
 
 import com.nutri.hospitalar.config.PageableUtils;
 import com.nutri.hospitalar.config.SecurityUtils;
+import com.nutri.hospitalar.exceptions.BusinessException;
 import com.nutri.hospitalar.exceptions.ConflictException;
 import com.nutri.hospitalar.exceptions.NotFoundException;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
@@ -16,6 +17,7 @@ import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiListaDto;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiResponseDto;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiUpdateDto;
 import com.nutri.hospitalar.uti.dtos.CalculoUtiRequestDto;
+import com.nutri.hospitalar.uti.dtos.EncerramentoUtiDto;
 import com.nutri.hospitalar.uti.entity.AvaliacaoUti;
 import com.nutri.hospitalar.uti.entity.FormulaEnteral;
 import com.nutri.hospitalar.uti.entity.ProdutoNutricional;
@@ -131,6 +133,51 @@ public class AvaliacaoUtiService {
 
         log.info("Avaliação de UTI alterada id={}", id);
         return AvaliacaoUtiMapper.toResponse(avaliacaoUtiRepository.save(avaliacao), r);
+    }
+
+    /**
+     * Encerra o acompanhamento — a saída da lista de trabalho.
+     *
+     * <p><b>Só isso.</b> Não trava o registro diário, não mexe no cálculo e não
+     * apaga nada: corrigir um dia passado numa avaliação encerrada é legítimo, e
+     * barrar isso puniria quem está consertando o registro.
+     *
+     * <p>A data não pode ser <b>anterior à própria avaliação</b> — um
+     * acompanhamento que termina antes de começar não é dado, é erro de
+     * digitação, e ele viraria dias negativos na estatística do serviço.
+     */
+    @Transactional
+    public AvaliacaoUtiResponseDto encerrar(UUID id, EncerramentoUtiDto dto) {
+        AvaliacaoUti avaliacao = buscar(id);
+
+        if (dto.encerradoEm().isBefore(avaliacao.getDataAvaliacao()))
+            throw new BusinessException(
+                    ("O acompanhamento não pode terminar antes de começar: a avaliação é de %s "
+                            + "e o encerramento está em %s.")
+                            .formatted(avaliacao.getDataAvaliacao(), dto.encerradoEm()));
+
+        avaliacao.setEncerradoEm(dto.encerradoEm());
+        avaliacao.setMotivoEncerramento(dto.motivo());
+        avaliacao.setObservacaoEncerramento(textoOuNulo(dto.observacao()));
+        avaliacao.setUpdatedBy(securityUtils.getUsuarioLogado());
+
+        // O motivo é dado clínico de desfecho: fica na coluna, não no log.
+        log.info("Acompanhamento de UTI encerrado avaliacaoId={}", id);
+        return paraResposta(avaliacaoUtiRepository.save(avaliacao));
+    }
+
+    /** Desfaz um encerramento feito por engano. */
+    @Transactional
+    public AvaliacaoUtiResponseDto reabrir(UUID id) {
+        AvaliacaoUti avaliacao = buscar(id);
+
+        avaliacao.setEncerradoEm(null);
+        avaliacao.setMotivoEncerramento(null);
+        avaliacao.setObservacaoEncerramento(null);
+        avaliacao.setUpdatedBy(securityUtils.getUsuarioLogado());
+
+        log.info("Acompanhamento de UTI reaberto avaliacaoId={}", id);
+        return paraResposta(avaliacaoUtiRepository.save(avaliacao));
     }
 
     /**

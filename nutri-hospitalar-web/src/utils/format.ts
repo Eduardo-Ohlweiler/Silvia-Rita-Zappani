@@ -116,6 +116,23 @@ export function formatarTelefone(codigoPais?: string | null, telefone?: string |
  * banco e nenhuma tela quer ver "723,0000".
  */
 /**
+ * Hoje, no **fuso de quem está usando** — e é por isso que ela existe.
+ *
+ * `new Date().toISOString().slice(0, 10)` devolve a data em **UTC**: no Brasil,
+ * das 21h à meia-noite ele já responde *amanhã*. Como toda data de avaliação e
+ * de acompanhamento é `@PastOrPresent`, o formulário nascia com data futura e o
+ * servidor **recusava com 400** — o plantão noturno inteiro, num sistema
+ * hospitalar, sem que nada na tela explicasse por quê.
+ *
+ * É a mesma família de {@link formatarData}: dia do calendário não é instante,
+ * e tratá-lo como instante erra por um dia em todo fuso a oeste de Greenwich.
+ * `sv-SE` é o truque conhecido para `AAAA-MM-DD` local sem montar a string na mão.
+ */
+export function hojeIso(): string {
+  return new Date().toLocaleDateString('sv-SE')
+}
+
+/**
  * O traço que marca ausência na interface.
  *
  * É constante, e exportada, porque **dois lugares precisam concordar sobre

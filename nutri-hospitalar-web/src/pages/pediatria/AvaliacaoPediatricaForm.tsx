@@ -17,7 +17,13 @@ import { pediatriaService } from '@/services/pediatriaService'
 import { pessoaService } from '@/services/pessoaService'
 import type { FormulaLacteaSelect, ResultadoPediatrico } from '@/types/pediatria'
 import type { Sexo } from '@/types/pessoa'
-import { formatarDocumento, formatarNumero, paraNumero, textoDaMascara } from '@/utils/format'
+import {
+  formatarDocumento,
+  formatarNumero,
+  hojeIso,
+  paraNumero,
+  textoDaMascara,
+} from '@/utils/format'
 
 /** Idade em meses completos entre o nascimento e a data da avaliação. */
 function idadeEmMeses(nascimento: string, referencia: string): number | undefined {
@@ -31,7 +37,6 @@ function idadeEmMeses(nascimento: string, referencia: string): number | undefine
   return meses < 0 ? undefined : meses
 }
 
-const HOJE = () => new Date().toISOString().slice(0, 10)
 
 export function AvaliacaoPediatricaForm() {
   const { id } = useParams()
@@ -42,7 +47,7 @@ export function AvaliacaoPediatricaForm() {
   const [pacienteRotulo, setPacienteRotulo] = useState('')
   const [profissionalId, setProfissionalId] = useState('')
   const [profissionalRotulo, setProfissionalRotulo] = useState('')
-  const [dataAvaliacao, setDataAvaliacao] = useState(HOJE)
+  const [dataAvaliacao, setDataAvaliacao] = useState(hojeIso)
   const [observacao, setObservacao] = useState('')
   const [entradas, setEntradas] = useState<EntradasCalculo>(ENTRADAS_VAZIAS)
 

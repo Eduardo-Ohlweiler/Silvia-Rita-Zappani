@@ -44,5 +44,6 @@
 
     <!-- Fatia 10 — acompanhamento diário pediátrico (docs/11) -->
     <include file="db/changelog/changes/028-create-registro-diario-pediatrico.xml"/>
+    <include file="db/changelog/changes/029-avaliacao-uti-encerramento.xml"/>
 
 </databaseChangeLog>

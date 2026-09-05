@@ -2,6 +2,8 @@ package com.nutri.hospitalar.uti.dtos;
 
 import com.nutri.hospitalar.uti.calculo.ResultadoUti;
 
+import com.nutri.hospitalar.uti.enums.MotivoEncerramento;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -35,6 +37,17 @@ public record AvaliacaoUtiResponseDto(
         CalculoUtiRequestDto calculo,
         ResultadoUti resultado,
         boolean formulaRemovida,
+
+        /**
+         * Nulo enquanto o acompanhamento corre. Preenchido, o paciente saiu da
+         * lista de trabalho da tela inicial — e a tela da avaliação diz quando
+         * e por quê, para ninguém achar que o registro parou sozinho.
+         */
+        LocalDate encerradoEm,
+        MotivoEncerramento motivoEncerramento,
+        String motivoEncerramentoDescricao,
+        String observacaoEncerramento,
+
         String observacao,
         Instant createdAt,
         Instant updatedAt

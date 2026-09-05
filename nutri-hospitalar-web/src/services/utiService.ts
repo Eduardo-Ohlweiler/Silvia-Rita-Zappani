@@ -1,4 +1,5 @@
 import { api } from './api'
+import type { EncerramentoUti } from '@/types/inicio'
 import type { Page } from '@/types/comum'
 import type {
   AvaliacaoSugerida,
@@ -86,6 +87,18 @@ export const avaliacaoUtiService = {
     api.put<AvaliacaoUtiResponse>(`/uti/avaliacoes/${id}`, dto).then((r) => r.data),
 
   remover: (id: string) => api.delete(`/uti/avaliacoes/${id}`).then(() => undefined),
+
+  /** Encerra o acompanhamento — tira o paciente da lista de trabalho. */
+  encerrar: (id: string, dto: EncerramentoUti) =>
+    api
+      .patch<AvaliacaoUtiResponse>(`/uti/avaliacoes/${id}/encerramento`, dto)
+      .then((r) => r.data),
+
+  /** Desfaz um encerramento feito por engano. */
+  reabrir: (id: string) =>
+    api
+      .delete<AvaliacaoUtiResponse>(`/uti/avaliacoes/${id}/encerramento`)
+      .then((r) => r.data),
 }
 
 /**

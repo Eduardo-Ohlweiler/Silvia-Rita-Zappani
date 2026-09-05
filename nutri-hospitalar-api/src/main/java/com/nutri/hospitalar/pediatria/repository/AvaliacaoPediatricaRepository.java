@@ -82,4 +82,71 @@ public interface AvaliacaoPediatricaRepository extends JpaRepository<AvaliacaoPe
                                                  @Param("ate") LocalDate ate,
                                                  @Param("mesesMin") Integer mesesMin,
                                                  @Param("mesesMax") Integer mesesMax);
+
+    /**
+     * As <b>duas últimas</b> avaliações de cada criança, para a tela inicial
+     * comparar as faixas da OMS.
+     *
+     * <p>Só isso: comparar dois rótulos já gravados em {@code classif_*}. Não
+     * há régua nova — a classificação foi feita no dia da avaliação, com a
+     * linha da OMS daquela idade, e aqui só se olha se ela mudou.
+     *
+     * <p>Criança com <b>uma</b> avaliação não aparece: não há de onde comparar,
+     * e inventar um "antes" a partir do nada seria pior do que ficar calado.
+     */
+    @Query(value = """
+            SELECT * FROM (
+                SELECT a.paciente_id                AS paciente_id,
+                       p.nome                       AS paciente_nome,
+                       a.id                         AS avaliacao_id,
+                       a.data_avaliacao             AS data_avaliacao,
+                       a.idade_meses                AS idade_meses,
+                       a.classif_peso_idade         AS peso_idade,
+                       a.classif_estatura_idade     AS estatura_idade,
+                       a.classif_imc_idade          AS imc_idade,
+                       row_number() OVER (PARTITION BY a.paciente_id
+                                          ORDER BY a.data_avaliacao DESC, a.created_at DESC) AS posicao
+                FROM avaliacao_pediatrica a
+                JOIN pessoa p ON p.id = a.paciente_id
+                WHERE a.tenant_id = CAST(:tenantId AS uuid)
+                  AND a.data_avaliacao <= CAST(:hoje AS date)
+            ) t
+            WHERE t.posicao <= 2
+            ORDER BY t.paciente_id, t.posicao
+            """, nativeQuery = true)
+    List<DuasUltimasAvaliacoes> findDuasUltimasPorPaciente(@Param("tenantId") UUID tenantId,
+                                                           @Param("hoje") LocalDate hoje);
+
+    /** Projeção da consulta acima. `posicao` 1 é a mais recente. */
+    interface DuasUltimasAvaliacoes {
+        UUID getPacienteId();
+        String getPacienteNome();
+        UUID getAvaliacaoId();
+        LocalDate getDataAvaliacao();
+        Integer getIdadeMeses();
+        String getPesoIdade();
+        String getEstaturaIdade();
+        String getImcIdade();
+        Integer getPosicao();
+    }
+
+    /** A avaliação mais recente de cada criança — para "há quanto tempo". */
+    @Query(value = """
+            SELECT a.paciente_id AS paciente_id, p.nome AS paciente_nome,
+                   max(a.data_avaliacao) AS ultima
+            FROM avaliacao_pediatrica a
+            JOIN pessoa p ON p.id = a.paciente_id
+            WHERE a.tenant_id = CAST(:tenantId AS uuid)
+              AND a.data_avaliacao <= CAST(:hoje AS date)
+            GROUP BY a.paciente_id, p.nome
+            ORDER BY max(a.data_avaliacao)
+            """, nativeQuery = true)
+    List<UltimaAvaliacaoPorPaciente> findUltimaPorPaciente(@Param("tenantId") UUID tenantId,
+                                                           @Param("hoje") LocalDate hoje);
+
+    interface UltimaAvaliacaoPorPaciente {
+        UUID getPacienteId();
+        String getPacienteNome();
+        LocalDate getUltima();
+    }
 }

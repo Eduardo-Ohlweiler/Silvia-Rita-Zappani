@@ -5,6 +5,7 @@ import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiFiltrosDto;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiListaDto;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiResponseDto;
 import com.nutri.hospitalar.uti.dtos.AvaliacaoUtiUpdateDto;
+import com.nutri.hospitalar.uti.dtos.EncerramentoUtiDto;
 import com.nutri.hospitalar.uti.service.AvaliacaoUtiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -101,6 +103,28 @@ public class AvaliacaoUtiController {
     public ResponseEntity<AvaliacaoUtiResponseDto> update(
             @PathVariable UUID id, @Valid @RequestBody AvaliacaoUtiUpdateDto dto) {
         return ResponseEntity.ok(avaliacaoUtiService.update(id, dto));
+    }
+
+    @PatchMapping("/{id}/encerramento")
+    @Operation(summary = "Encerra o acompanhamento desta avaliação",
+            description = """
+                    Tira o paciente da lista de trabalho da tela inicial — e é a
+                    única coisa que muda. Registrar um dia numa avaliação
+                    encerrada continua permitido: corrigir dado passado é
+                    legítimo.
+
+                    Enviar `encerradoEm` nulo **reabre** o acompanhamento, para
+                    o caso de encerramento feito por engano.
+                    """)
+    public ResponseEntity<AvaliacaoUtiResponseDto> encerrar(
+            @PathVariable UUID id, @Valid @RequestBody EncerramentoUtiDto dto) {
+        return ResponseEntity.ok(avaliacaoUtiService.encerrar(id, dto));
+    }
+
+    @DeleteMapping("/{id}/encerramento")
+    @Operation(summary = "Reabre o acompanhamento encerrado por engano")
+    public ResponseEntity<AvaliacaoUtiResponseDto> reabrir(@PathVariable UUID id) {
+        return ResponseEntity.ok(avaliacaoUtiService.reabrir(id));
     }
 
     @DeleteMapping("/{id}")

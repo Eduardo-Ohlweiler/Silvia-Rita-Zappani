@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        O fim do acompanhamento — a saída que faltava.
+
+        A tela inicial lista quem ainda não tem registro do dia. Sem um fim,
+        essa lista NUNCA ESVAZIA: o paciente que recebeu alta continua sendo
+        cobrado todo dia, e em uma semana a tela está cheia de gente que não
+        está mais no leito. Lista que cobra pelo que não existe é pior do que
+        lista nenhuma — quem usa aprende a ignorá-la.
+
+        POR QUE NA AVALIAÇÃO, E NÃO NUMA TABELA DE INTERNAÇÃO. O modelo não tem
+        internação, leito nem admissão — nenhuma coluna, em nenhuma tabela. E o
+        `CLAUDE.md` já argumenta que `AvaliacaoUti` **é** o contêiner do
+        atendimento, que foi a razão de a fatia 4 ter sido abandonada. Encerrar
+        a avaliação vigente encerra o ciclo; se o paciente reinternar, uma
+        avaliação nova o reabre, que é o que acontece na prática.
+
+        O ENCERRAMENTO NÃO MEXE NO CÁLCULO NEM NO REGISTRO DIÁRIO. Ele só tira
+        o paciente da lista de trabalho. Registrar um dia numa avaliação
+        encerrada continua permitido de propósito: correção de dado passado é
+        legítima, e travá-la puniria quem está consertando o registro.
+    -->
+    <changeSet id="029-avaliacao-uti-encerramento" author="eduardo">
+
+        <addColumn tableName="avaliacao_uti">
+            <!-- Nulo = acompanhamento em andamento. -->
+            <column name="encerrado_em" type="DATE"/>
+            <column name="motivo_encerramento" type="VARCHAR(30)"/>
+            <column name="observacao_encerramento" type="VARCHAR(500)"/>
+        </addColumn>
+
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_motivo_encerramento
+            CHECK (motivo_encerramento IS NULL
+                   OR motivo_encerramento IN ('ALTA_HOSPITALAR', 'OBITO',
+                                              'TRANSFERENCIA', 'SUSPENSAO_TERAPIA', 'OUTRO'));
+        </sql>
+
+        <!--
+            Data e motivo andam juntos: encerrar sem dizer por quê deixaria a
+            estatística do serviço com um buraco que ninguém preenche depois, e
+            um motivo sem data não encerra nada.
+        -->
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_encerramento_completo
+            CHECK ((encerrado_em IS NULL AND motivo_encerramento IS NULL)
+                   OR (encerrado_em IS NOT NULL AND motivo_encerramento IS NOT NULL));
+        </sql>
+
+        <!-- Observação só existe para explicar um encerramento que existe. -->
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_observacao_encerramento
+            CHECK (observacao_encerramento IS NULL OR encerrado_em IS NOT NULL);
+        </sql>
+
+        <rollback>
+            <sql>ALTER TABLE avaliacao_uti DROP CONSTRAINT ck_avaliacao_uti_observacao_encerramento;</sql>
+            <sql>ALTER TABLE avaliacao_uti DROP CONSTRAINT ck_avaliacao_uti_encerramento_completo;</sql>
+            <sql>ALTER TABLE avaliacao_uti DROP CONSTRAINT ck_avaliacao_uti_motivo_encerramento;</sql>
+            <dropColumn tableName="avaliacao_uti" columnName="observacao_encerramento"/>
+            <dropColumn tableName="avaliacao_uti" columnName="motivo_encerramento"/>
+            <dropColumn tableName="avaliacao_uti" columnName="encerrado_em"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

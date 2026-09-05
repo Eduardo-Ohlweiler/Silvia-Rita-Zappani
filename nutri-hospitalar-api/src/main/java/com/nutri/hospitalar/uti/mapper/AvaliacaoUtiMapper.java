@@ -56,6 +56,14 @@ public final class AvaliacaoUtiMapper {
                 // A FK é ON DELETE SET NULL: nome gravado sem FK significa que a
                 // fórmula saiu do catálogo depois desta avaliação.
                 a.getFormulaEnteral() == null && a.getFormulaNome() != null,
+
+                a.getEncerradoEm(),
+                a.getMotivoEncerramento(),
+                // O rótulo por extenso vem do enum, não da tela: citação e
+                // descrição moram no servidor, e a tela mostra o que ele mandou.
+                a.getMotivoEncerramento() == null ? null : a.getMotivoEncerramento().getDescricao(),
+                a.getObservacaoEncerramento(),
+
                 a.getObservacao(),
                 a.getCreatedAt(),
                 a.getUpdatedAt());

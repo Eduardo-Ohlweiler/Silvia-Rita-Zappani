@@ -8,6 +8,7 @@ import com.nutri.hospitalar.uti.enums.EtniaChumlea;
 import com.nutri.hospitalar.uti.enums.FaseTerapia;
 import com.nutri.hospitalar.uti.enums.JanelaPerdaPeso;
 import com.nutri.hospitalar.uti.enums.ModoInfusao;
+import com.nutri.hospitalar.uti.enums.MotivoEncerramento;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
 import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
@@ -155,6 +156,24 @@ public class AvaliacaoUti extends TenantEntity {
     @Column(name = "modulo_medida_g")                private BigDecimal moduloMedidaG;
     @Column(name = "modulo_proteina_por_medida_g")   private BigDecimal moduloProteinaPorMedidaG;
     @Column(name = "modulo_kcal_por_medida")         private BigDecimal moduloKcalPorMedida;
+
+    // ─── O fim do acompanhamento ────────────────────────────────────────
+    /**
+     * Nulo enquanto o acompanhamento corre. Preenchido, o paciente sai da lista
+     * de trabalho da tela inicial — que é a única coisa que este campo muda.
+     *
+     * <p>Não trava registro diário nem cálculo: corrigir um dia passado numa
+     * avaliação encerrada é legítimo, e barrar isso puniria quem está
+     * consertando o registro.
+     */
+    @Column(name = "encerrado_em")
+    private LocalDate encerradoEm;
+
+    @Enumerated(EnumType.STRING) @Column(name = "motivo_encerramento", length = 30)
+    private MotivoEncerramento motivoEncerramento;
+
+    @Column(name = "observacao_encerramento", length = 500)
+    private String observacaoEncerramento;
 
     @Enumerated(EnumType.STRING) @Column(name = "modo_infusao", length = 20)
     private ModoInfusao modoInfusao;
