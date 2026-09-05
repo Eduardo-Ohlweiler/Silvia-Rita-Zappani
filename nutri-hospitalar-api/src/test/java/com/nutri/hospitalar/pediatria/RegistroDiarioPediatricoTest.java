@@ -72,6 +72,7 @@ class RegistroDiarioPediatricoTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.derivados.idadeMeses").value(8))
                     // 800 / 880 × 100 — o prescrito da AVALIAÇÃO
                     .andExpect(jsonPath("$.derivados.percentualRecebido").value(90.91))
+                    .andExpect(jsonPath("$.derivados.prescritoDeReferencia").value(880.0))
                     .andExpect(jsonPath("$.derivados.referenciaDoRecebido")
                             .value(containsString("avaliação")))
                     // 73,8 × 800 / 100. Por litro daria 59,04 — dez vezes menos
@@ -82,6 +83,51 @@ class RegistroDiarioPediatricoTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.derivados.adequacaoProteica").value(120.00))
                     // 7 / 8
                     .andExpect(jsonPath("$.derivados.aceitacaoTomadas").value(87.50));
+        }
+
+        /**
+         * <b>O caso do Theo Barbosa.</b> Os dois prescritos preenchidos e
+         * diferentes — a combinação que nenhum teste cobria, e que a tela
+         * exibia como "650 / 700 ml · 90,28 %".
+         */
+        @Test
+        @DisplayName("com avaliação E prescrito digitado, o exibido é o da avaliação")
+        void oPrescritoExibidoEOQueAAdesaoUsou() throws Exception {
+            mockMvc.perform(post("/pediatria/registros-diarios")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"pessoaId":"%s","avaliacaoId":"%s","data":"%s",
+                                     "pesoKg":9.2,"volPrescrito24h":700,"volRecebido24h":800}
+                                    """.formatted(paciente.getId(), avaliacaoId, hoje)))
+                    .andExpect(status().isCreated())
+                    // O digitado fica gravado: é registro do dia.
+                    .andExpect(jsonPath("$.volPrescrito24h").value(700.0))
+                    // Mas o denominador é o da avaliação — 800 / 880, não 800 / 700.
+                    .andExpect(jsonPath("$.derivados.prescritoDeReferencia").value(880.0))
+                    .andExpect(jsonPath("$.derivados.percentualRecebido").value(90.91));
+        }
+
+        @Test
+        @DisplayName("a lista carrega o denominador e a procedência")
+        void aListaTrazOPrescritoDeReferencia() throws Exception {
+            mockMvc.perform(post("/pediatria/registros-diarios")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"pessoaId":"%s","avaliacaoId":"%s","data":"%s",
+                                     "pesoKg":9.2,"volPrescrito24h":700,"volRecebido24h":800}
+                                    """.formatted(paciente.getId(), avaliacaoId, hoje)))
+                    .andExpect(status().isCreated());
+
+            mockMvc.perform(get("/pediatria/registros-diarios")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content[0].volPrescrito24h").value(700.0))
+                    .andExpect(jsonPath("$.content[0].prescritoDeReferencia").value(880.0))
+                    .andExpect(jsonPath("$.content[0].referenciaDoRecebido")
+                            .value(containsString("avaliação")))
+                    .andExpect(jsonPath("$.content[0].percentualRecebido").value(90.91));
         }
 
         /**

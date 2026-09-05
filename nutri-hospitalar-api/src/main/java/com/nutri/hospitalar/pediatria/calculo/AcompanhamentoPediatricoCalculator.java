@@ -131,8 +131,15 @@ public final class AcompanhamentoPediatricoCalculator {
         BigDecimal prescrito = daAvaliacao
                 ? entrada.volumePrescritoNaAvaliacao() : entrada.volPrescrito24h();
 
+        /*
+         * A procedência acompanha o PRESCRITO, não o percentual: um dia já
+         * prescrito e ainda sem recebido diz contra o que a adesão vai ser
+         * medida, em vez de mostrar o volume sem nome.
+         */
+        String referenciaRecebido = positivo(prescrito)
+                ? (daAvaliacao ? PRESCRITO_DA_AVALIACAO : PRESCRITO_DO_DIA) : null;
+
         BigDecimal percRecebido = null;
-        String referenciaRecebido = null;
         String motivoPercRecebido;
         if (recebido == null) {
             motivoPercRecebido = SEM_RECEBIDO;
@@ -140,7 +147,6 @@ public final class AcompanhamentoPediatricoCalculator {
             motivoPercRecebido = SEM_PRESCRITO;
         } else {
             percRecebido = recebido.multiply(cem(), conta()).divide(prescrito, conta());
-            referenciaRecebido = daAvaliacao ? PRESCRITO_DA_AVALIACAO : PRESCRITO_DO_DIA;
             motivoPercRecebido = null;
         }
 
@@ -222,6 +228,7 @@ public final class AcompanhamentoPediatricoCalculator {
                 escala(imc), motivoImc,
                 pesoIdade, estaturaIdade, imcIdade, motivoEstado,
 
+                escala(positivo(prescrito) ? prescrito : null),
                 percentual(percRecebido), referenciaRecebido, motivoPercRecebido,
                 escala(calorias), escala(proteina), motivoOferta,
                 escala(kcalPorKg), escala(ptnPorKg), motivoPorQuilo,

@@ -14,8 +14,14 @@ import java.util.UUID;
  * mais a avaliação vinculada, calculados na leitura. Guardá-los criaria duas
  * versões do mesmo número.
  *
- * @param percentualRecebido contra o volume prescrito. Qual volume, o
- *                           {@code referenciaDoPercentual} diz.
+ * @param prescritoDeReferencia o volume <b>contra o qual</b> o percentual foi
+ *                              medido. O {@code volPrescrito24h} é o que foi
+ *                              digitado no dia; quando há avaliação vinculada,
+ *                              não é ele que entra na conta. Exibir um ao lado
+ *                              do outro sem dizer qual é qual fazia a folha
+ *                              afirmar "855 de 900 · 45,97 %"
+ * @param percentualRecebido medido contra o {@code prescritoDeReferencia}, e
+ *                           contra nenhum outro número
  * @param referenciaDoPercentual "prescrito na avaliação" ou "prescrito informado
  *                               no dia" — a diferença importa, e some se não for
  *                               dita
@@ -64,6 +70,7 @@ public record RegistroDiarioUtiResponseDto(
         BigDecimal ceia,
 
         // ─── Derivados ──────────────────────────────────────────────────
+        BigDecimal prescritoDeReferencia,
         BigDecimal percentualRecebido,
         String referenciaDoPercentual,
         BigDecimal caloriasRecebidas,

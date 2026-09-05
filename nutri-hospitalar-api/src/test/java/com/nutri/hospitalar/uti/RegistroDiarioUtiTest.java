@@ -59,6 +59,7 @@ class RegistroDiarioUtiTest extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 // 1200 / 1364 × 100
                 .andExpect(jsonPath("$.percentualRecebido").value(87.98))
+                .andExpect(jsonPath("$.prescritoDeReferencia").value(1364.0))
                 .andExpect(jsonPath("$.referenciaDoPercentual").value("prescrito na avaliação"))
                 // 1200 ml × 1,0 kcal/ml
                 .andExpect(jsonPath("$.caloriasRecebidas").value(1200.0))
@@ -84,12 +85,64 @@ class RegistroDiarioUtiTest extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 // Cai no prescrito digitado, e diz que caiu
                 .andExpect(jsonPath("$.percentualRecebido").value(80.0))
+                .andExpect(jsonPath("$.prescritoDeReferencia").value(1500.0))
                 .andExpect(jsonPath("$.referenciaDoPercentual")
                         .value("prescrito informado no dia"))
                 // Sem peso e sem fórmula, esses não existem — com o motivo
                 .andExpect(jsonPath("$.caloriasPorQuilo").doesNotExist())
                 .andExpect(jsonPath("$.diuresePorQuiloHora").doesNotExist())
                 .andExpect(jsonPath("$.motivoDerivados").value(containsString("Sem avaliação")));
+    }
+
+    /**
+     * <b>O caso que faltava.</b>
+     *
+     * <p>Os testes de cima têm ou avaliação, ou prescrito digitado — nunca os
+     * dois, diferentes. É justamente essa combinação que produzia a folha que
+     * não fecha: a tela mostrava os 900 digitados ao lado de uma adesão medida
+     * contra os 1.364 da avaliação, e quem conferisse no papel concluiria que
+     * o sistema errou.
+     */
+    @Test
+    @DisplayName("com avaliação E prescrito digitado, o exibido é o da avaliação — e a conta fecha")
+    void oPrescritoExibidoEOQueAAdesaoUsou() throws Exception {
+        mockMvc.perform(post("/uti/registros-diarios")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pessoaId":"%s","avaliacaoId":"%s","data":"%s",
+                                 "volPrescrito24h":900,"volRecebido24h":1200}
+                                """.formatted(paciente.getId(), avaliacaoId, hoje)))
+                .andExpect(status().isCreated())
+                // O digitado continua gravado: é registro do dia.
+                .andExpect(jsonPath("$.volPrescrito24h").value(900.0))
+                // Mas o denominador é o da avaliação, e é ele que a tela mostra.
+                .andExpect(jsonPath("$.prescritoDeReferencia").value(1364.0))
+                .andExpect(jsonPath("$.referenciaDoPercentual").value("prescrito na avaliação"))
+                // 1200 / 1364 — e NÃO 1200 / 900, que daria 133,33 %.
+                .andExpect(jsonPath("$.percentualRecebido").value(87.98));
+    }
+
+    @Test
+    @DisplayName("a lista carrega o denominador e a procedência — sem eles a planilha mente")
+    void aListaTrazOPrescritoDeReferencia() throws Exception {
+        mockMvc.perform(post("/uti/registros-diarios")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pessoaId":"%s","avaliacaoId":"%s","data":"%s",
+                                 "volPrescrito24h":900,"volRecebido24h":1200}
+                                """.formatted(paciente.getId(), avaliacaoId, hoje)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/uti/registros-diarios")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].volPrescrito24h").value(900.0))
+                .andExpect(jsonPath("$.content[0].prescritoDeReferencia").value(1364.0))
+                .andExpect(jsonPath("$.content[0].referenciaDoPercentual")
+                        .value("prescrito na avaliação"))
+                .andExpect(jsonPath("$.content[0].percentualRecebido").value(87.98));
     }
 
     @Test

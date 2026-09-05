@@ -118,6 +118,8 @@ public final class RegistroDiarioPediatricoMapper {
                 r.getPesoKg(),
                 r.getVolPrescrito24h(),
                 r.getVolRecebido24h(),
+                d.prescritoDeReferencia(),
+                d.referenciaDoRecebido(),
                 d.percentualRecebido(),
                 d.adequacaoCalorica(),
                 d.aceitacaoTomadas(),
@@ -134,6 +136,7 @@ public final class RegistroDiarioPediatricoMapper {
                 ResultadoPediatricoMapper.classificacao(IndiceOms.IMC_IDADE, d.imcIdade()),
                 d.motivoEstadoNutricional(),
 
+                d.prescritoDeReferencia(),
                 d.percentualRecebido(), d.referenciaDoRecebido(), d.motivoPercentualRecebido(),
                 d.caloriasRecebidas(), d.proteinaRecebida(), d.motivoOferta(),
                 d.caloriasPorKg(), d.proteinaPorKg(), d.motivoPorQuilo(),

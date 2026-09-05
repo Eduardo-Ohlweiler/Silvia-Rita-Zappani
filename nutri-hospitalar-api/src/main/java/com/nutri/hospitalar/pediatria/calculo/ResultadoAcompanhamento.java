@@ -16,6 +16,12 @@ import java.math.BigDecimal;
  * caminho que não produz valor produz motivo: é a regra de {@code docs/09} §10 e
  * a lição do {@code else if} sem {@code else} registrada no {@code CLAUDE.md}.
  *
+ * @param prescritoDeReferencia o volume <b>contra o qual</b> o percentual foi
+ *                              medido. O digitado no dia fica registrado, mas
+ *                              quando há avaliação vinculada não é ele que entra
+ *                              na conta — e exibir um ao lado do outro sem
+ *                              dizer qual é qual fazia a tela afirmar
+ *                              "650 de 700 · 90,28 %"
  * @param referenciaDoRecebido contra o quê o percentual comparou — "prescrito na
  *                             avaliação" ou "prescrito informado no dia". A
  *                             diferença importa, e some se não for dita
@@ -35,6 +41,7 @@ public record ResultadoAcompanhamento(
         String motivoEstadoNutricional,
 
         // ─── Dieta recebida ─────────────────────────────────────────────
+        BigDecimal prescritoDeReferencia,
         BigDecimal percentualRecebido,
         String referenciaDoRecebido,
         String motivoPercentualRecebido,

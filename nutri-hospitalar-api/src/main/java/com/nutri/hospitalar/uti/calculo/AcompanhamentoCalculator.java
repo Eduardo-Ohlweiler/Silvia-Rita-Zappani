@@ -26,19 +26,48 @@ public final class AcompanhamentoCalculator {
     private static final BigDecimal HORAS_DO_DIA = new BigDecimal("24");
 
     /**
+     * O prescrito <b>contra o qual</b> a adesão é medida, e de onde ele veio.
+     *
+     * <p>Os dois viajam juntos de propósito. A escolha do número morava dentro
+     * de {@link #percentualRecebido}, invisível de fora, e o mapper <b>refazia a
+     * mesma decisão</b> com um {@code positivo()} próprio para produzir a
+     * procedência textual — duas cópias da regra, a três arquivos de distância,
+     * sem nada garantindo que concordassem. Aqui é uma decisão só.
+     *
+     * <p>E o número escolhido precisava ser <b>publicável</b>: sem ele o front
+     * exibia o volume digitado ao lado de um percentual medido contra outro,
+     * e a folha do prontuário dizia "855 de 900 · 45,97 %".
+     */
+    public record PrescritoDeReferencia(BigDecimal valor, boolean daAvaliacao) {}
+
+    /**
+     * O prescrito preferido é o da <b>avaliação</b>, não o digitado no dia: é o
+     * que estava de fato prescrito, e não depende de alguém repetir o número
+     * certo. Sem avaliação vinculada, cai no volume digitado — e a tela diz
+     * contra o quê comparou. Especificado em {@code docs/11 §5}.
+     *
+     * <p>A escolha é por <b>positivo</b>, não por nulo: volume zero numa
+     * avaliação é ausência de prescrição, não prescrição de zero.
+     */
+    public static PrescritoDeReferencia prescritoDeReferencia(BigDecimal volPrescritoDaAvaliacao,
+                                                              BigDecimal volPrescritoDigitado) {
+        boolean daAvaliacao = positivo(volPrescritoDaAvaliacao);
+        return new PrescritoDeReferencia(
+                daAvaliacao ? volPrescritoDaAvaliacao : volPrescritoDigitado, daAvaliacao);
+    }
+
+    /**
      * {@code recebido / prescrito × 100}.
      *
-     * <p>O prescrito preferido é o da <b>avaliação</b>, não o digitado no dia:
-     * é o que estava de fato prescrito, e não depende de alguém repetir o número
-     * certo. Sem avaliação vinculada, cai no volume digitado — e a tela diz
-     * contra o quê comparou.
+     * <p>Delega a escolha do denominador a {@link #prescritoDeReferencia}, e é
+     * isso que torna impossível o percentual sair medido contra um número
+     * diferente do que a tela exibe: são literalmente o mesmo valor.
      */
     public static BigDecimal percentualRecebido(BigDecimal volRecebido,
                                                 BigDecimal volPrescritoDaAvaliacao,
                                                 BigDecimal volPrescritoDigitado) {
-        BigDecimal referencia = positivo(volPrescritoDaAvaliacao)
-                ? volPrescritoDaAvaliacao : volPrescritoDigitado;
-        return percentual(volRecebido, referencia);
+        return percentual(volRecebido,
+                prescritoDeReferencia(volPrescritoDaAvaliacao, volPrescritoDigitado).valor());
     }
 
     /** {@code volume × densidade}. Precisa da fórmula da avaliação. */

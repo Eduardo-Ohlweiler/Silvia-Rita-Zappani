@@ -8,6 +8,10 @@ import java.math.BigDecimal;
  * <p>Cada um vem acompanhado do <b>motivo</b> de estar ausente, quando está: a
  * tela explica em vez de mostrar traço mudo. Ver {@code docs/11} §5.
  *
+ * @param prescritoDeReferencia o volume <b>contra o qual</b> o percentual foi
+ *                              medido. O {@code volPrescrito24h} do registro é o
+ *                              digitado no dia; havendo avaliação vinculada, não
+ *                              é ele que entra na conta
  * @param referenciaDoRecebido contra o quê o percentual comparou — o prescrito da
  *                             avaliação ou o informado no dia. A diferença
  *                             importa, e some se não for dita
@@ -24,6 +28,7 @@ public record AcompanhamentoDerivadoDto(
         ClassificacaoDto imcIdade,
         String motivoEstadoNutricional,
 
+        BigDecimal prescritoDeReferencia,
         BigDecimal percentualRecebido,
         String referenciaDoRecebido,
         String motivoPercentualRecebido,

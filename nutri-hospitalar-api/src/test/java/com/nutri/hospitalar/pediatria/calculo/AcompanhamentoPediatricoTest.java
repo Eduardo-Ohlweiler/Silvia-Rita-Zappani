@@ -50,6 +50,9 @@ class AcompanhamentoPediatricoTest {
             assertThat(r.percentualRecebido()).isEqualByComparingTo("90.91");
             // E diz contra o quê comparou: sem isso o número não significa nada.
             assertThat(r.referenciaDoRecebido()).contains("avaliação");
+            // O denominador sai junto do percentual — a tela mostrava o digitado
+            // ao lado de uma conta feita com outro número.
+            assertThat(r.prescritoDeReferencia()).isEqualByComparingTo("880");
             assertThat(r.motivoPercentualRecebido()).isNull();
         }
 
@@ -128,6 +131,32 @@ class AcompanhamentoPediatricoTest {
 
             assertThat(r.percentualRecebido()).isEqualByComparingTo("80.00");
             assertThat(r.referenciaDoRecebido()).contains("no dia");
+            assertThat(r.prescritoDeReferencia()).isEqualByComparingTo("1000");
+        }
+
+        /**
+         * <b>O caso do Theo Barbosa</b>, que o banco de desenvolvimento tinha e
+         * nenhum teste cobria: os dois prescritos preenchidos e diferentes.
+         *
+         * <p>{@code CasoCanonico} passa {@code null} no digitado e
+         * {@code semAvaliacaoUsaOPrescritoDoDia} passa {@code null} na avaliação
+         * — então a precedência nunca era exercida de verdade. Na tela, isso
+         * saía como "650 / 700 ml · 90,28 %", e 650 de 700 é 92,9 %.
+         */
+        @Test
+        @DisplayName("com os dois prescritos, vence o da avaliação — e o denominador sai junto")
+        void oPrescritoDaAvaliacaoVenceODigitado() {
+            ResultadoAcompanhamento r = AcompanhamentoPediatricoCalculator.calcular(
+                    new EntradaAcompanhamento(Sexo.FEMININO, 8,
+                            bd("9"), null,
+                            bd("700"), bd("650"), null, null,
+                            bd("720"), null, null, null, null),
+                    F_8_MESES);
+
+            assertThat(r.prescritoDeReferencia()).isEqualByComparingTo("720");
+            assertThat(r.referenciaDoRecebido()).contains("avaliação");
+            // 650 / 720 — e não 650 / 700, que daria 92,86 %.
+            assertThat(r.percentualRecebido()).isEqualByComparingTo("90.28");
         }
 
         @Test

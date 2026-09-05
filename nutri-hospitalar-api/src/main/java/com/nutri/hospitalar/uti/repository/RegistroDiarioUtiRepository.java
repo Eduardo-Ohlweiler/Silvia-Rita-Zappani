@@ -112,10 +112,17 @@ public interface RegistroDiarioUtiRepository extends JpaRepository<RegistroDiari
     /**
      * Adesão média por paciente na janela, numa consulta só.
      *
-     * <p>Repete a regra de {@code AcompanhamentoCalculator.percentualRecebido}:
+     * <p>Repete a regra de {@code AcompanhamentoCalculator.prescritoDeReferencia}:
      * <b>o prescrito da avaliação vence o digitado</b>, e sem avaliação cai no
      * digitado. Repetir a regra em SQL é o preço de não fazer N+1 aqui — e é a
      * razão de este javadoc existir: se a regra mudar lá, muda aqui.
+     *
+     * <p>O {@code NULLIF(..., 0)} de dentro é o {@code positivo()} do Java
+     * escrito em SQL, e não é enfeite: o {@code COALESCE} sozinho escolhe por
+     * <b>nulo</b>, então uma avaliação com volume <b>zero</b> ficava com o zero e
+     * o dia sumia da média — enquanto o Java caía no digitado e o contava. Uma
+     * adesão média plausível, calculada sobre menos dias do que a lista mostra,
+     * sem erro e sem aviso.
      *
      * <p>Dia sem volume recebido não entra na média. Ausência não é zero: um dia
      * não preenchido afundaria a média de quem só esqueceu de digitar.
@@ -123,7 +130,7 @@ public interface RegistroDiarioUtiRepository extends JpaRepository<RegistroDiari
     @Query(value = """
             SELECT r.pessoa_id AS pessoa_id,
                    avg(r.vol_recebido_24h * 100.0
-                       / NULLIF(COALESCE(av.volume_total_ml, r.vol_prescrito_24h), 0)) AS adesao_media,
+                       / NULLIF(COALESCE(NULLIF(av.volume_total_ml, 0), r.vol_prescrito_24h), 0)) AS adesao_media,
                    count(*) AS dias
             FROM registro_diario_uti r
             LEFT JOIN avaliacao_uti av ON av.id = r.avaliacao_id
@@ -131,7 +138,7 @@ public interface RegistroDiarioUtiRepository extends JpaRepository<RegistroDiari
               AND r.data >= CAST(:desde AS date)
               AND r.data <= CAST(:hoje AS date)
               AND r.vol_recebido_24h IS NOT NULL
-              AND COALESCE(av.volume_total_ml, r.vol_prescrito_24h) > 0
+              AND COALESCE(NULLIF(av.volume_total_ml, 0), r.vol_prescrito_24h) > 0
             GROUP BY r.pessoa_id
             """, nativeQuery = true)
     List<AdesaoDoPaciente> findAdesaoMediaNaJanela(@Param("tenantId") UUID tenantId,
