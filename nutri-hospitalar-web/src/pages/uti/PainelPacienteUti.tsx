@@ -370,19 +370,19 @@ export function PainelPacienteUti() {
                         <table className="w-full min-w-[420px] text-body">
                           <thead>
                             <tr className="border-b border-line text-caption text-txt-secondary">
-                              <th className="py-2 text-left font-normal">Fórmula</th>
-                              <th className="py-2 text-right font-normal">Avaliações</th>
-                              <th className="py-2 text-right font-normal">1º uso</th>
-                              <th className="py-2 text-right font-normal">Último uso</th>
+                              <th className="px-2 py-2 text-left font-normal">Fórmula</th>
+                              <th className="px-2 py-2 text-right font-normal">Avaliações</th>
+                              <th className="px-2 py-2 text-right font-normal">1º uso</th>
+                              <th className="px-2 py-2 text-right font-normal">Último uso</th>
                             </tr>
                           </thead>
                           <tbody>
                             {dados.historicoFormulas.map((f) => (
                               <tr key={f.formulaNome} className="border-b border-line last:border-0">
-                                <td className="py-2">{f.formulaNome}</td>
-                                <td className="numeric py-2 text-right">{f.avaliacoes}</td>
-                                <td className="py-2 text-right">{formatarData(f.primeiroUso)}</td>
-                                <td className="py-2 text-right">{formatarData(f.ultimoUso)}</td>
+                                <td className="px-2 py-2">{f.formulaNome}</td>
+                                <td className="numeric px-2 py-2 text-right">{f.avaliacoes}</td>
+                                <td className="px-2 py-2 text-right">{formatarData(f.primeiroUso)}</td>
+                                <td className="px-2 py-2 text-right">{formatarData(f.ultimoUso)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -403,31 +403,31 @@ export function PainelPacienteUti() {
                         <table className="w-full min-w-[640px] text-body">
                           <thead>
                             <tr className="border-b border-line text-caption text-txt-secondary">
-                              <th className="py-2 text-left font-normal">Data</th>
-                              <th className="py-2 text-right font-normal">Peso</th>
-                              <th className="py-2 text-right font-normal">IMC</th>
-                              <th className="py-2 text-left font-normal">Classificação</th>
-                              <th className="py-2 text-right font-normal">Meta kcal</th>
-                              <th className="py-2 text-right font-normal">kcal/kg</th>
-                              <th className="py-2 text-right font-normal">g PTN/kg</th>
+                              <th className="px-2 py-2 text-left font-normal">Data</th>
+                              <th className="px-2 py-2 text-right font-normal">Peso</th>
+                              <th className="px-2 py-2 text-right font-normal">IMC</th>
+                              <th className="px-2 py-2 text-left font-normal">Classificação</th>
+                              <th className="px-2 py-2 text-right font-normal">Meta kcal</th>
+                              <th className="px-2 py-2 text-right font-normal">kcal/kg</th>
+                              <th className="px-2 py-2 text-right font-normal">g PTN/kg</th>
                             </tr>
                           </thead>
                           <tbody>
                             {[...dados.evolucao].reverse().map((p) => (
                               <tr key={p.dataAvaliacao} className="border-b border-line last:border-0">
-                                <td className="py-2">{formatarData(p.dataAvaliacao)}</td>
-                                <td className="numeric py-2 text-right">
+                                <td className="px-2 py-2">{formatarData(p.dataAvaliacao)}</td>
+                                <td className="numeric px-2 py-2 text-right">
                                   {num(p.pesoTrabalhoKg, '', 2)}
                                 </td>
-                                <td className="numeric py-2 text-right">{num(p.imc, '', 2)}</td>
-                                <td className="py-2">{p.classifImcOms ?? '—'}</td>
-                                <td className="numeric py-2 text-right">
+                                <td className="numeric px-2 py-2 text-right">{num(p.imc, '', 2)}</td>
+                                <td className="px-2 py-2">{p.classifImcOms ?? '—'}</td>
+                                <td className="numeric px-2 py-2 text-right">
                                   {num(p.metaEnergetica, '', 0)}
                                 </td>
-                                <td className="numeric py-2 text-right">
+                                <td className="numeric px-2 py-2 text-right">
                                   {num(p.caloriasPorQuilo, '', 1)}
                                 </td>
-                                <td className="numeric py-2 text-right">
+                                <td className="numeric px-2 py-2 text-right">
                                   {num(p.proteinaPorQuilo, '', 2)}
                                 </td>
                               </tr>

@@ -344,23 +344,24 @@ export function RegistroDiarioPediatricoForm() {
                   unidade="kg/m²"
                   motivoAusencia={d.motivoImc}
                 />
+                {/* Só `classificacao` — ela JÁ pinta o rótulo. O `valor` do
+                    TResult é o número que a classificação explica (na UTI,
+                    "92,88 %" ao lado de "Eutrofia"); passar o rótulo nos dois
+                    imprimia "Peso adequado  Peso adequado" na tela. */}
                 <TResult
                   label="Peso para a idade"
-                  valor={d.pesoIdade?.rotulo}
                   classificacao={d.pesoIdade ?? undefined}
                   referencia="OMS · P15 e P85"
                   motivoAusencia={d.motivoEstadoNutricional}
                 />
                 <TResult
                   label="Estatura para a idade"
-                  valor={d.estaturaIdade?.rotulo}
                   classificacao={d.estaturaIdade ?? undefined}
                   referencia="OMS · P15 e P85"
                   motivoAusencia={d.motivoEstadoNutricional}
                 />
                 <TResult
                   label="IMC para a idade"
-                  valor={d.imcIdade?.rotulo}
                   classificacao={d.imcIdade ?? undefined}
                   referencia="OMS · P15 e P85"
                   motivoAusencia={d.motivoEstadoNutricional}

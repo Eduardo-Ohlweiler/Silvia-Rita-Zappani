@@ -123,8 +123,15 @@ export function TResult({
           <>
             <span className={`text-body font-semibold ${cor}`}>{classificacao.rotulo}</span>
             {/* Na UTI o número e a classificação convivem: 92,88 % de adequação
-                E "Eutrofia". Um sem o outro obriga a consultar a tabela. */}
-            {!vazio && (
+                E "Eutrofia". Um sem o outro obriga a consultar a tabela.
+
+                O `valor !== rotulo` é guarda, não otimização: três chamadas do
+                acompanhamento pediátrico passavam `valor={d.pesoIdade?.rotulo}`
+                JUNTO de `classificacao={d.pesoIdade}`, e a tela imprimia
+                "Peso adequado  Peso adequado". Consertar só os call sites deixa
+                o quarto livre para nascer — é a mesma lição do traço mudo, em
+                que o conserto foi aqui e não nos 53 pontos. */}
+            {!vazio && valor !== classificacao.rotulo && (
               <span className="numeric text-caption text-txt-secondary">
                 {valor}
                 {unidade ? ` ${unidade}` : ''}

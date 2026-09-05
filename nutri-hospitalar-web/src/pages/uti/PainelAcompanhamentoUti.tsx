@@ -284,43 +284,43 @@ export function PainelAcompanhamentoUti() {
                       <table className="w-full min-w-[760px] text-body">
                         <thead>
                           <tr className="border-b border-line text-caption text-txt-secondary">
-                            <th className="py-2 text-left font-normal">Data</th>
-                            <th className="py-2 text-right font-normal">Prescrito</th>
-                            <th className="py-2 text-right font-normal">Recebido</th>
-                            <th className="py-2 text-right font-normal">Adesão</th>
-                            <th className="py-2 text-right font-normal">kcal/kg</th>
-                            <th className="py-2 text-right font-normal">g PTN/kg</th>
-                            <th className="py-2 text-right font-normal">Balanço</th>
-                            <th className="py-2 text-right font-normal">Diurese</th>
-                            <th className="py-2 text-right font-normal">PAM</th>
+                            <th className="px-2 py-2 text-left font-normal">Data</th>
+                            <th className="px-2 py-2 text-right font-normal">Prescrito</th>
+                            <th className="px-2 py-2 text-right font-normal">Recebido</th>
+                            <th className="px-2 py-2 text-right font-normal">Adesão</th>
+                            <th className="px-2 py-2 text-right font-normal">kcal/kg</th>
+                            <th className="px-2 py-2 text-right font-normal">g PTN/kg</th>
+                            <th className="px-2 py-2 text-right font-normal">Balanço</th>
+                            <th className="px-2 py-2 text-right font-normal">Diurese</th>
+                            <th className="px-2 py-2 text-right font-normal">PAM</th>
                           </tr>
                         </thead>
                         <tbody>
                           {[...dias].reverse().map((d) => (
                             <tr key={d.id} className="border-b border-line last:border-0">
-                              <td className="py-2">{formatarData(d.data)}</td>
-                              <td className="numeric py-2 text-right">
+                              <td className="px-2 py-2">{formatarData(d.data)}</td>
+                              <td className="numeric px-2 py-2 text-right">
                                 {num(d.volPrescrito24h, '', 0)}
                               </td>
-                              <td className="numeric py-2 text-right">
+                              <td className="numeric px-2 py-2 text-right">
                                 {num(d.volRecebido24h, '', 0)}
                               </td>
-                              <td className="numeric py-2 text-right">
+                              <td className="numeric px-2 py-2 text-right">
                                 {num(d.percentualRecebido, '%', 1)}
                               </td>
-                              <td className="numeric py-2 text-right">
+                              <td className="numeric px-2 py-2 text-right">
                                 {num(d.caloriasPorQuilo, '', 1)}
                               </td>
-                              <td className="numeric py-2 text-right">
+                              <td className="numeric px-2 py-2 text-right">
                                 {num(d.proteinaPorQuilo, '', 2)}
                               </td>
-                              <td className="numeric py-2 text-right">
+                              <td className="numeric px-2 py-2 text-right">
                                 {num(d.balancoHidricoMl, '', 0)}
                               </td>
-                              <td className="numeric py-2 text-right">
+                              <td className="numeric px-2 py-2 text-right">
                                 {num(d.diuresePorQuiloHora, '', 2)}
                               </td>
-                              <td className="numeric py-2 text-right">{num(d.pam, '', 0)}</td>
+                              <td className="numeric px-2 py-2 text-right">{num(d.pam, '', 0)}</td>
                             </tr>
                           ))}
                         </tbody>

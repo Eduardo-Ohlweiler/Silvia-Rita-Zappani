@@ -365,25 +365,25 @@ export function PediatriaPacienteDashboard() {
                         <table className="w-full min-w-[640px] text-body">
                           <thead>
                             <tr className="border-b border-line text-caption text-txt-secondary">
-                              <th className="py-2 text-left font-medium">Data</th>
-                              <th className="py-2 text-right font-medium">Idade</th>
-                              <th className="py-2 text-right font-medium">Peso</th>
-                              <th className="py-2 text-right font-medium">Estatura</th>
-                              <th className="py-2 text-right font-medium">IMC</th>
-                              <th className="py-2 text-right font-medium">VET</th>
-                              <th className="py-2 text-right font-medium">Cobertura</th>
+                              <th className="px-2 py-2 text-left font-medium">Data</th>
+                              <th className="px-2 py-2 text-right font-medium">Idade</th>
+                              <th className="px-2 py-2 text-right font-medium">Peso</th>
+                              <th className="px-2 py-2 text-right font-medium">Estatura</th>
+                              <th className="px-2 py-2 text-right font-medium">IMC</th>
+                              <th className="px-2 py-2 text-right font-medium">VET</th>
+                              <th className="px-2 py-2 text-right font-medium">Cobertura</th>
                             </tr>
                           </thead>
                           <tbody className="numeric">
                             {dados.evolucao.map((p) => (
                               <tr key={p.dataAvaliacao + p.idadeMeses} className="border-b border-line">
-                                <td className="py-2 text-left">{formatarData(p.dataAvaliacao)}</td>
-                                <td className="py-2 text-right">{p.idadeMeses} m</td>
-                                <td className="py-2 text-right">{formatarNumero(p.peso, 2)}</td>
-                                <td className="py-2 text-right">{formatarNumero(p.estatura, 1)}</td>
-                                <td className="py-2 text-right">{formatarNumero(p.imc, 2)}</td>
-                                <td className="py-2 text-right">{formatarNumero(p.vet, 0)}</td>
-                                <td className="py-2 text-right">
+                                <td className="px-2 py-2 text-left">{formatarData(p.dataAvaliacao)}</td>
+                                <td className="px-2 py-2 text-right">{p.idadeMeses} m</td>
+                                <td className="px-2 py-2 text-right">{formatarNumero(p.peso, 2)}</td>
+                                <td className="px-2 py-2 text-right">{formatarNumero(p.estatura, 1)}</td>
+                                <td className="px-2 py-2 text-right">{formatarNumero(p.imc, 2)}</td>
+                                <td className="px-2 py-2 text-right">{formatarNumero(p.vet, 0)}</td>
+                                <td className="px-2 py-2 text-right">
                                   {p.percCalorico != null
                                     ? `${formatarNumero(p.percCalorico, 1)}%`
                                     : '—'}
