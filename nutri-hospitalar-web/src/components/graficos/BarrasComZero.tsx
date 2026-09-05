@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import { EIXO, GRADE, GraficoVazio, TituloGrafico, TooltipCartao } from '@/components/graficos/chrome'
-import { chaveDoPonto } from '@/components/graficos/eixos'
+import { chaveDoPonto, tickNumerico } from '@/components/graficos/eixos'
 import { formatarNumero } from '@/utils/format'
 
 /**
@@ -80,7 +80,7 @@ export function BarrasComZero<T extends object>({
             {...EIXO}
             tickFormatter={(v: string) => (formatarX ? formatarX(v) : v)}
           />
-          <YAxis {...EIXO} width={56} />
+          <YAxis {...EIXO} width={56} tickFormatter={tickNumerico(casas)} />
 
           <ReferenceLine y={0} stroke="var(--line-strong)" strokeWidth={1.5} />
 

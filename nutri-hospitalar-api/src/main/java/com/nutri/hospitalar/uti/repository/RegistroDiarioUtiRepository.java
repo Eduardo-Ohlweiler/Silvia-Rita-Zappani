@@ -163,14 +163,29 @@ public interface RegistroDiarioUtiRepository extends JpaRepository<RegistroDiari
                             @Param("desde") LocalDate desde,
                             @Param("ate") LocalDate ate);
 
-    /** Quem já tem registro nesta data — os que saem da lista de pendentes. */
+    /**
+     * Quem já tem registro nesta data, <b>e qual é o registro</b>.
+     *
+     * <p>O id vem junto porque a tela inicial precisa dele: clicar num paciente
+     * já registrado tem de abrir <b>aquele</b> dia para edição. Devolver só a
+     * pessoa obrigava a tela a mandar todo mundo para "novo", e quem já tinha
+     * registro caía num formulário em branco.
+     *
+     * <p>Um paciente tem no máximo um registro por dia — a constraint garante.
+     */
     @Query(value = """
-            SELECT DISTINCT r.pessoa_id FROM registro_diario_uti r
+            SELECT r.pessoa_id AS pessoa_id, r.id AS registro_id
+            FROM registro_diario_uti r
             WHERE r.tenant_id = CAST(:tenantId AS uuid)
               AND r.data = CAST(:data AS date)
             """, nativeQuery = true)
-    List<UUID> findPessoasComRegistroEm(@Param("tenantId") UUID tenantId,
+    List<RegistroDoDia> findRegistrosEm(@Param("tenantId") UUID tenantId,
                                         @Param("data") LocalDate data);
+
+    interface RegistroDoDia {
+        UUID getPessoaId();
+        UUID getRegistroId();
+    }
 
     /**
      * Projeção da lista de trabalho. Interface e não record: é assim que o

@@ -12,6 +12,7 @@ import {
   TPage,
   TPanel,
   type Coluna,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
   type TomResultado,
 } from '@/components/common'
@@ -78,17 +79,17 @@ export function AvaliacaoUtiList() {
    * diz quantas ficaram de fora em vez de cortar calado.
    */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<AvaliacaoUtiLista>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<AvaliacaoUtiLista>> => {
       const pagina = await avaliacaoUtiService.getAll({
         pacienteNome: nomeBusca || undefined,
         de: de || undefined,
         ate: ate || undefined,
-        page: 0,
+        page: indice,
         size: limite,
       })
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [nomeBusca, de, ate],

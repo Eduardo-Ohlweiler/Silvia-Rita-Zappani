@@ -23,8 +23,16 @@ public record PainelInicialDto(
 
         LocalDate hoje,
 
-        /** Quem está em acompanhamento e ainda não tem registro de hoje. */
-        List<PendenteDoDiaDto> pendentesDeHoje,
+        /**
+         * <b>A ronda inteira</b>, e não só o que falta dela.
+         *
+         * <p>Antes esta lista trazia apenas os pendentes, e quando a
+         * nutricionista terminava o trabalho a tela ficava vazia — dizendo
+         * "1 de 1 registrados" com nenhuma linha embaixo. O número e a lista se
+         * contradiziam, e quem lia entendia "não entrou nada" em vez de
+         * "terminei". Cada linha diz o seu estado; os pendentes vêm primeiro.
+         */
+        List<LinhaDaRondaDto> ronda,
         /** Quantos já foram registrados hoje — o denominador da frase da tela. */
         int registradosHoje,
         int totalEmAcompanhamento,
@@ -37,12 +45,23 @@ public record PainelInicialDto(
 ) {
 
     /**
+     * Um paciente da ronda.
+     *
      * @param diasSemRegistro dias desde o último registro. Vai como número
      *                        <b>sem julgamento</b> — quem lê decide
+     * @param registradoHoje  o dia de hoje já foi registrado. É o que transforma
+     *                        a lista em ronda: sem isto ela só sabia mostrar
+     *                        pendência, e sumia quando o trabalho terminava
+     * @param registroDeHojeId o dia de hoje, para o clique abrir <b>aquele</b>
+     *                        registro em vez de um formulário em branco. Nulo
+     *                        quando ainda não há registro — e aí o clique abre
+     *                        um novo, com o paciente já escolhido
      */
-    public record PendenteDoDiaDto(UUID pessoaId, String pessoaNome,
-                                   LocalDate ultimoDia, int diasSemRegistro,
-                                   UUID avaliacaoId) {}
+    public record LinhaDaRondaDto(UUID pessoaId, String pessoaNome,
+                                  LocalDate ultimoDia, int diasSemRegistro,
+                                  boolean registradoHoje,
+                                  UUID registroDeHojeId,
+                                  UUID avaliacaoId) {}
 
     /**
      * Adesão sustentadamente baixa <b>depois da primeira semana</b>.

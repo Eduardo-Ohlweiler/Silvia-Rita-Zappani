@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
   TButton,
@@ -93,8 +93,18 @@ export function RegistroDiarioUtiForm() {
   const editando = !!id
 
   const [aba, setAba] = useState(ABA_DIETA)
-  const [pessoaId, setPessoaId] = useState('')
-  const [pessoaRotulo, setPessoaRotulo] = useState('')
+  /*
+   * A tela inicial linka para cá com o paciente na URL. Sem ler isto, o clique
+   * na ronda abria o formulário em branco e obrigava a procurar de novo quem a
+   * própria tela acabou de apontar.
+   */
+  const [parametros] = useSearchParams()
+  const [pessoaId, setPessoaId] = useState(() =>
+    editando ? '' : (parametros.get('pessoaId') ?? ''),
+  )
+  const [pessoaRotulo, setPessoaRotulo] = useState(() =>
+    editando ? '' : (parametros.get('pessoaNome') ?? ''),
+  )
   const [data, setData] = useState(hojeIso)
   const [campos, setCampos] = useState<Campos>(VAZIO)
 
@@ -172,7 +182,16 @@ export function RegistroDiarioUtiForm() {
       .then((s) => {
         if (cancelado) return
         setSugestao(s)
-        // Só pré-seleciona em registro novo: em edição, respeita o que ficou.
+        /*
+         * Registro novo já nasce apontando para a sugestão.
+         *
+         * Em edição a regra é outra, e ela tem uma metade que faltava: respeitar
+         * o que ficou gravado, MAS deixar o usuário criar um vínculo que não
+         * existia. Sem a segunda metade, marcar a caixa num dia salvo sem
+         * avaliação não fazia nada — `avaliacaoVinculada` continuava vazio e o
+         * salvar mandava `null`, então a caixa voltava desmarcada e ninguém
+         * dizia por quê.
+         */
         if (!editando) setAvaliacaoVinculada(s.id)
       })
       .catch(handleApiError)
@@ -192,7 +211,9 @@ export function RegistroDiarioUtiForm() {
 
     const payload = {
       pessoaId,
-      avaliacaoId: vincular ? (avaliacaoVinculada ?? null) : null,
+      // A caixa marcada vale a sugestão, mesmo que o estado não tenha sido
+      // tocado — é a rede que impede o vínculo de sumir em silêncio.
+      avaliacaoId: vincular ? (avaliacaoVinculada ?? sugestao?.id ?? null) : null,
       data,
       dieta: campos.dieta || null,
       volPrescrito24h: paraNumero(campos.volPrescrito24h) ?? null,
@@ -306,7 +327,15 @@ export function RegistroDiarioUtiForm() {
                     type="checkbox"
                     className="size-4 accent-primary"
                     checked={vincular}
-                    onChange={(e) => setVincular(e.target.checked)}
+                    onChange={(e) => {
+                      setVincular(e.target.checked)
+                      // Marcar a caixa É escolher a avaliação que ela nomeia.
+                      // Em edição de um dia salvo sem vínculo, este era o passo
+                      // que faltava.
+                      if (e.target.checked && !avaliacaoVinculada) {
+                        setAvaliacaoVinculada(sugestao.id ?? undefined)
+                      }
+                    }}
                   />
                   <span>
                     Comparar com a avaliação de{' '}

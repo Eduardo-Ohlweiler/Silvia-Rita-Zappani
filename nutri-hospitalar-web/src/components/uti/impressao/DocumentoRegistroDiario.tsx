@@ -27,9 +27,29 @@ const n = (valor?: number | null, casas = 1, unidade = '') =>
 export function DocumentoRegistroDiario({ registro }: { registro: RegistroDiarioUtiResponse }) {
   const r = registro
 
+  /*
+   * O prescrito CONTRA O QUAL a adesão foi medida, não o digitado no dia.
+   *
+   * `RegistroDiarioUtiMapper` chama `percentualRecebido(recebido,
+   * volumeDaAvaliacao, volPrescrito24h)`: o volume da avaliação vence quando
+   * existe, e é ele que faz a linha fechar. Imprimir o digitado ao lado de um
+   * percentual calculado sobre outro número dá uma conta que não fecha num
+   * prontuário — 1.200 de 1.500 não é 88,0 %, e quem confere no papel conclui
+   * que o sistema errou. O `DocumentoPainelAcompanhamentoPediatrico` já fazia
+   * assim; os dois documentos DO DIA ficaram com a ordem velha.
+   */
+  const prescritoDaAdesao =
+    r.avaliacaoVolumePrescrito != null && r.avaliacaoVolumePrescrito > 0
+      ? r.avaliacaoVolumePrescrito
+      : r.volPrescrito24h
+
   const dieta: LinhaValor[] = [
     { rotulo: 'Dieta', valor: r.dieta ?? '—' },
-    { rotulo: 'Volume prescrito em 24 h', valor: n(r.volPrescrito24h, 0, 'ml') },
+    {
+      rotulo: 'Volume prescrito em 24 h',
+      valor: n(prescritoDaAdesao, 0, 'ml'),
+      detalhe: r.referenciaDoPercentual ?? '',
+    },
     { rotulo: 'Volume recebido em 24 h', valor: n(r.volRecebido24h, 0, 'ml') },
     {
       rotulo: 'Adesão',

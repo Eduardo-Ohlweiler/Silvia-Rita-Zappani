@@ -13,6 +13,7 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -81,18 +82,18 @@ export function ProdutoNutricionalList() {
 
   /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<ProdutoNutricionalResponse>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<ProdutoNutricionalResponse>> => {
       const pagina = await produtoNutricionalService.getAll({
         nome: nomeBusca || undefined,
         tipo: (tipo || undefined) as TipoProdutoNutricional | undefined,
         ativo: ativo === '' ? undefined : ativo === 'true',
         global: origem === '' ? undefined : origem === 'sistema',
-        page: 0,
+        page: indice,
         size: limite,
       })
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [nomeBusca, tipo, ativo, origem],

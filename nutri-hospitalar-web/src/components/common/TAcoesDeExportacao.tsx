@@ -15,6 +15,30 @@ import { baixarCsv, nomeDeArquivo, type ColunaExportavel } from '@/utils/planilh
  */
 export const TETO_DE_EXPORTACAO = 2000
 
+/**
+ * Quantas linhas cabem numa requisição.
+ *
+ * <p>É o {@code spring.data.web.pageable.max-page-size} da API, e ele não é
+ * negociável a partir do cliente: pedir {@code size=2000} devolve <b>100</b>,
+ * calado. A exportação pedia 2.000 numa chamada só e recebia 100 — o teto real
+ * era vinte vezes menor que o anunciado aqui e no {@code CLAUDE.md}, e a
+ * planilha do log de acesso saía com 100 de 175. O aviso de corte disparava,
+ * então ninguém perdia dado sem saber; mas quem exportasse um mês de
+ * acompanhamento receberia "estreite o período" todo dia, sem entender por quê.
+ *
+ * <p>Subir o limite do servidor resolveria pelo lado errado — ele existe para
+ * que nenhuma listagem devolva página gigante. Quem precisa de mais páginas
+ * as pede, e é o que a exportação faz agora.
+ */
+const LINHAS_POR_REQUISICAO = 100
+
+/** Uma página de resultados, como a listagem a devolve. */
+export interface PaginaDaCarga<T> {
+  linhas: T[]
+  /** Quantas linhas atendem ao filtro no total, não só nesta página. */
+  total: number
+}
+
 export interface ResultadoDaCarga<T> {
   linhas: T[]
   /** Quantas linhas atendem ao filtro além das que vieram. */
@@ -46,17 +70,37 @@ export function TAcoesDeExportacao<T>({
   /** Vira o nome do arquivo e o título do relatório. */
   nome: string
   colunas: ColunaExportavel<T>[]
-  carregar: (limite: number) => Promise<ResultadoDaCarga<T>>
+  carregar: (limite: number, indice: number) => Promise<PaginaDaCarga<T>>
   /** Entrega as linhas à tela, que monta o `documento` da `TPage`. */
   aoCarregarParaImprimir: (resultado: ResultadoDaCarga<T> | undefined) => void
 }) {
   const [ocupado, setOcupado] = useState(false)
   const vaiImprimir = useRef(false)
 
+  /**
+   * Junta páginas até cobrir o filtro ou bater no teto.
+   *
+   * <p>Para no primeiro dos três: alcançou o total que o servidor informou,
+   * chegou ao teto, ou veio página vazia — esta última é a guarda contra laço
+   * infinito se o total mentir.
+   */
+  const carregarTudo = useCallback(async (): Promise<ResultadoDaCarga<T>> => {
+    const linhas: T[] = []
+    let total = 0
+    for (let indice = 0; linhas.length < TETO_DE_EXPORTACAO; indice++) {
+      const pagina = await carregar(LINHAS_POR_REQUISICAO, indice)
+      total = pagina.total
+      if (pagina.linhas.length === 0) break
+      linhas.push(...pagina.linhas)
+      if (linhas.length >= total) break
+    }
+    return { linhas, restantes: Math.max(0, total - linhas.length) }
+  }, [carregar])
+
   const planilha = useCallback(async () => {
     setOcupado(true)
     try {
-      const { linhas, restantes } = await carregar(TETO_DE_EXPORTACAO)
+      const { linhas, restantes } = await carregarTudo()
       if (linhas.length === 0) {
         toast.info('Nenhum registro para o filtro aplicado.')
         return
@@ -72,12 +116,12 @@ export function TAcoesDeExportacao<T>({
     } finally {
       setOcupado(false)
     }
-  }, [carregar, colunas, nome])
+  }, [carregarTudo, colunas, nome])
 
   const relatorio = useCallback(async () => {
     setOcupado(true)
     try {
-      const resultado = await carregar(TETO_DE_EXPORTACAO)
+      const resultado = await carregarTudo()
       if (resultado.linhas.length === 0) {
         toast.info('Nenhum registro para o filtro aplicado.')
         return
@@ -89,7 +133,7 @@ export function TAcoesDeExportacao<T>({
     } finally {
       setOcupado(false)
     }
-  }, [carregar, aoCarregarParaImprimir])
+  }, [carregarTudo, aoCarregarParaImprimir])
 
   // O documento só existe depois que o React pintou as linhas que acabaram de
   // chegar. Dois quadros: um para o commit, outro para o layout assentar.

@@ -13,6 +13,7 @@ import {
   TPage,
   TPanel,
   type Coluna,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -73,17 +74,17 @@ export function RegistroDiarioUtiList() {
 
   /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<RegistroDiarioUtiLista>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<RegistroDiarioUtiLista>> => {
       const pagina = await registroDiarioUtiService.getAll({
         pessoaNome: nomeBusca || undefined,
         de: de || undefined,
         ate: ate || undefined,
-        page: 0,
+        page: indice,
         size: limite,
       })
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [nomeBusca, de, ate],

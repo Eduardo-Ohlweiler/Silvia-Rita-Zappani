@@ -8,8 +8,8 @@ import { inicioService } from '@/services/inicioService'
 import type {
   AlertaAdesao,
   MudancaDeFaixa,
+  LinhaDaRonda,
   PainelInicial,
-  PendenteDoDia,
   SemAvaliacao,
 } from '@/types/inicio'
 import { formatarData, formatarNumero } from '@/utils/format'
@@ -52,7 +52,7 @@ export function Dashboard() {
 
   useEffect(carregar, [carregar])
 
-  const pendentes: Coluna<PendenteDoDia>[] = [
+  const ronda: Coluna<LinhaDaRonda>[] = [
     { chave: 'nome', cabecalho: 'Paciente', render: (p) => p.pessoaNome },
     {
       chave: 'ultimo',
@@ -65,6 +65,22 @@ export function Dashboard() {
       numerica: true,
       // Número puro, sem cor: quem lê decide o que é muito.
       render: (p) => p.diasSemRegistro,
+    },
+    {
+      /*
+       * O estado em cada linha é o que faz a lista ser a RONDA. Sem ele a tela
+       * dizia "1 de 1 registrados" com nada embaixo — o número e a lista se
+       * contradizendo, e quem lia entendia "não entrou nada" em vez de
+       * "terminei".
+       */
+      chave: 'estado',
+      cabecalho: 'Hoje',
+      render: (p) =>
+        p.registradoHoje ? (
+          <TBadge tom="sucesso">Registrado</TBadge>
+        ) : (
+          <TBadge tom="alerta">Pendente</TBadge>
+        ),
     },
   ]
 
@@ -161,29 +177,34 @@ export function Dashboard() {
             dados
               ? dados.totalEmAcompanhamento === 0
                 ? 'Nenhum paciente em acompanhamento no momento.'
-                : `${dados.registradosHoje} de ${dados.totalEmAcompanhamento} já registrados hoje.`
+                : dados.registradosHoje === dados.totalEmAcompanhamento
+                  ? `Ronda concluída — ${dados.registradosHoje} de ${dados.totalEmAcompanhamento} registrados hoje.`
+                  : `${dados.registradosHoje} de ${dados.totalEmAcompanhamento} já registrados hoje.`
               : undefined
           }
         >
           <TDataGrid
-            colunas={pendentes}
-            linhas={dados?.pendentesDeHoje ?? []}
+            colunas={ronda}
+            linhas={dados?.ronda ?? []}
             chaveDe={(p) => p.pessoaId}
             carregando={carregando}
             tituloCartao={(p) => p.pessoaNome}
+            /*
+             * Quem já registrou abre AQUELE dia; quem não, abre um novo com o
+             * paciente escolhido. Mandar todo mundo para "novo" fazia quem já
+             * tinha registro cair num formulário em branco — e ainda arriscava
+             * o 409 do um-registro-por-dia.
+             */
             onLinhaClick={(p) =>
-              navigate(`/app/uti/acompanhamento/novo?pessoaId=${p.pessoaId}`)
+              navigate(
+                p.registroDeHojeId
+                  ? `/app/uti/acompanhamento/${p.registroDeHojeId}`
+                  : `/app/uti/acompanhamento/novo?pessoaId=${p.pessoaId}` +
+                      `&pessoaNome=${encodeURIComponent(p.pessoaNome)}`,
+              )
             }
-            vazioTitulo={
-              dados?.totalEmAcompanhamento
-                ? 'Tudo registrado'
-                : 'Nenhum acompanhamento em curso'
-            }
-            vazioDescricao={
-              dados?.totalEmAcompanhamento
-                ? 'Todos os pacientes em acompanhamento já têm o registro de hoje.'
-                : 'Um paciente entra aqui ao ganhar o primeiro dia de acompanhamento, e sai quando o acompanhamento é encerrado.'
-            }
+            vazioTitulo="Nenhum acompanhamento em curso"
+            vazioDescricao="Um paciente entra aqui ao ganhar o primeiro dia de acompanhamento, e sai quando o acompanhamento é encerrado."
           />
         </TPanel>
 

@@ -13,6 +13,7 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -63,17 +64,17 @@ export function TenantList() {
 
   /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<TenantResponse>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<TenantResponse>> => {
       const pagina = await tenantService.getAll({
         nome: nomeBusca || undefined,
         ativo: situacao === '' ? undefined : situacao !== 'false',
         expirandoEmDias: situacao === 'expirando' ? DIAS_ALERTA : undefined,
-        page: 0,
+        page: indice,
         size: limite,
       })
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [nomeBusca, situacao],

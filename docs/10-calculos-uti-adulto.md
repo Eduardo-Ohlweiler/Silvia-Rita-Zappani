@@ -866,6 +866,15 @@ com a célula no comentário do teste.
 | **Propofol** | 20 ml/h · 24 h | `528` kcal/dia |
 | **Artesanal** | VET 2000 · peso 75 · óleo 0,5 · Carbodex 3 · Albumix 2 | doses `48,7504` · totais `261,1517` / `92,4505` / `59,1379` · kcal base `1826,6498` · **kcal total `1946,6498`, e `kcalDeMacros` fecha no mesmo número** · água `1789,3855` |
 
+**Sobre a escala dos percentuais.** Os gabaritos de percentual acima são os do
+**calculador**, com 4 casas — `100,2941`, `123,0275`, `11,7647`. A **API** os
+devolve com **2**: `arredondarPercentual` é aplicado uniformemente na saída, e
+a coluna é `NUMERIC(6,2)`. Quem comparar a resposta HTTP contra esta tabela vai
+achar que diverge, e não diverge — é a mesma nota que o [`docs/09
+§9`](09-calculos-pediatria.md) já traz. A **classificação usa o valor cheio**:
+`classificarPerdaPeso` recebe o número não arredondado, então um 4,999 % não
+vira "grave" por arredondamento.
+
 ---
 
 ## 11. Os defeitos da planilha — não replicar

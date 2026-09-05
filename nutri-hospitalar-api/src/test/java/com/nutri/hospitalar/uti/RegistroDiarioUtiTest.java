@@ -288,6 +288,51 @@ class RegistroDiarioUtiTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.caloriasPorQuilo").value(20.0588));
     }
 
+    /**
+     * Vincular um dia que foi gravado <b>sem</b> avaliação.
+     *
+     * <p>É o caminho de quem registrou o dia antes de avaliar — a madrugada que
+     * o próprio {@code docs/11} cita — e depois volta para ligar os dois. O
+     * servidor sempre aceitou; era a tela que perdia a escolha, mandando
+     * {@code null} porque o estado do vínculo nunca fora preenchido em edição.
+     */
+    @Test
+    @DisplayName("dia salvo sem avaliação aceita ganhar o vínculo depois, e os derivados aparecem")
+    void vincularDepoisDeSalvarSemAvaliacao() throws Exception {
+        String comoA = autenticar(adminA.getEmail());
+
+        String corpo = mockMvc.perform(post("/uti/registros-diarios")
+                        .header(AUTHORIZATION, comoA)
+                        .contentType("application/json")
+                        .content("""
+                                {"pessoaId":"%s","data":"%s","volRecebido24h":1200}
+                                """.formatted(paciente.getId(), hoje)))
+                .andExpect(status().isCreated())
+                // Sem vínculo os derivados que dependem do peso e da fórmula
+                // não existem — e o motivo é escrito.
+                .andExpect(jsonPath("$.caloriasPorQuilo").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        String id = objectMapper.readTree(corpo).get("id").asText();
+
+        mockMvc.perform(put("/uti/registros-diarios/" + id)
+                        .header(AUTHORIZATION, comoA)
+                        .contentType("application/json")
+                        .content("""
+                                {"pessoaId":"%s","avaliacaoId":"%s","data":"%s",
+                                 "volRecebido24h":1200}
+                                """.formatted(paciente.getId(), avaliacaoId, hoje)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avaliacaoId").value(avaliacaoId.toString()))
+                // 1200 / 1364 e 1200 × 1,0 / 68 — os derivados nascem com o vínculo
+                .andExpect(jsonPath("$.percentualRecebido").value(87.98))
+                .andExpect(jsonPath("$.caloriasPorQuilo").value(17.6471));
+
+        // E o vínculo sobrevive à releitura: era aqui que a tela o perdia.
+        mockMvc.perform(get("/uti/registros-diarios/" + id).header(AUTHORIZATION, comoA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avaliacaoId").value(avaliacaoId.toString()));
+    }
+
     @Test
     @DisplayName("alterar registro de outro cliente devolve 404")
     void alterarDeOutroTenant() throws Exception {

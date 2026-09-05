@@ -2,6 +2,7 @@ export { TBadge } from './TBadge'
 export {
   TAcoesDeExportacao,
   TETO_DE_EXPORTACAO,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from './TAcoesDeExportacao'
 export { TBotaoImprimir } from './TBotaoImprimir'

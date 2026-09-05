@@ -13,6 +13,7 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -62,17 +63,17 @@ export function FormulaLacteaList() {
 
   /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<FormulaLacteaResponse>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<FormulaLacteaResponse>> => {
       const pagina = await formulaLacteaService.getAll({
         nome: nomeBusca || undefined,
         ativo: ativo === '' ? undefined : ativo === 'true',
         global: origem === '' ? undefined : origem === 'sistema',
-        page: 0,
+        page: indice,
         size: limite,
       })
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [nomeBusca, ativo, origem],

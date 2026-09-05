@@ -14,6 +14,7 @@ import {
   TSelect,
   type Coluna,
   type OpcaoSelect,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -94,7 +95,7 @@ export function AvaliacaoPediatricaList() {
 
   /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<AvaliacaoPediatricaLista>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<AvaliacaoPediatricaLista>> => {
       const pagina = await pediatriaService.getAll({
         pacienteId: pacienteId || undefined,
         formulaLacteaId: formulaLacteaId || undefined,
@@ -102,12 +103,12 @@ export function AvaliacaoPediatricaList() {
         ate: ate || undefined,
         mesesMin: paraNumero(mesesMin),
         mesesMax: paraNumero(mesesMax),
-        page: 0,
+        page: indice,
         size: limite,
       })
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [pacienteId, formulaLacteaId, de, ate, mesesMin, mesesMax],

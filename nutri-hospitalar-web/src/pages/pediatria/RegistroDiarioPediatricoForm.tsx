@@ -415,7 +415,10 @@ export function RegistroDiarioPediatricoForm() {
                   unidade="%"
                   referencia={
                     registro?.avaliacaoVet != null
-                      ? `de ${formatarNumero(registro.avaliacaoVet, 0)} kcal/dia`
+                      // Uma casa, não zero: o VET de 765,5 saía "766" ao lado
+                      // de 67,49 %, e 516,6/766 dá 67,44. A legenda tem de
+                      // fechar com o número que ela explica.
+                      ? `de ${formatarNumero(registro.avaliacaoVet, 1)} kcal/dia`
                       : undefined
                   }
                   motivoAusencia={d.motivoAdequacaoCalorica}

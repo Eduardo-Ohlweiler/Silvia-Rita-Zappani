@@ -13,6 +13,7 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -64,18 +65,18 @@ export function FormulaEnteralList() {
 
   /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<FormulaEnteralResponse>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<FormulaEnteralResponse>> => {
       const pagina = await formulaEnteralService.getAll({
         nome: nomeBusca || undefined,
         categoria: (categoria || undefined) as CategoriaFormulaEnteral | undefined,
         ativo: ativo === '' ? undefined : ativo === 'true',
         global: origem === '' ? undefined : origem === 'sistema',
-        page: 0,
+        page: indice,
         size: limite,
       })
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [nomeBusca, categoria, ativo, origem],

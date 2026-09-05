@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import { EIXO, GRADE, GraficoVazio, TituloGrafico, TooltipCartao } from '@/components/graficos/chrome'
-import { chaveDoPonto } from '@/components/graficos/eixos'
+import { chaveDoPonto, tickNumerico } from '@/components/graficos/eixos'
 import type { Referencia } from '@/components/graficos/referencias'
 import { formatarNumero } from '@/utils/format'
 
@@ -116,7 +116,7 @@ export function SerieNoTempo<T extends object>({
             {...EIXO}
             tickFormatter={(v: string) => (formatarX ? formatarX(v) : v)}
           />
-          <YAxis {...EIXO} width={48} domain={dominio} />
+          <YAxis {...EIXO} width={48} domain={dominio} tickFormatter={tickNumerico(casas)} />
 
           {referencia && <Faixa referencia={referencia} />}
 

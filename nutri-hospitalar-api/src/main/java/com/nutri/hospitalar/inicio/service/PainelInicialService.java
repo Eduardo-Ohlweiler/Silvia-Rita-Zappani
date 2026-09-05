@@ -83,21 +83,28 @@ public class PainelInicialService {
 
         var emAcompanhamento =
                 registroDiarioUtiRepository.findEmAcompanhamento(tenantId, desde, hoje);
-        Set<UUID> comRegistroHoje =
-                Set.copyOf(registroDiarioUtiRepository.findPessoasComRegistroEm(tenantId, hoje));
+        Map<UUID, UUID> registroDeHojePorPessoa = new HashMap<>();
+        registroDiarioUtiRepository.findRegistrosEm(tenantId, hoje)
+                .forEach(r -> registroDeHojePorPessoa.put(r.getPessoaId(), r.getRegistroId()));
 
-        List<PainelInicialDto.PendenteDoDiaDto> pendentes = emAcompanhamento.stream()
-                .filter(p -> !comRegistroHoje.contains(p.getPessoaId()))
-                .map(p -> new PainelInicialDto.PendenteDoDiaDto(
+        // A ronda INTEIRA, com o estado de cada um — não só o que falta.
+        // Pendente primeiro, porque é o que cobra ação; dentro de cada grupo, o
+        // mais antigo antes, que é a ordem em que a consulta já vem.
+        List<PainelInicialDto.LinhaDaRondaDto> ronda = emAcompanhamento.stream()
+                .map(p -> new PainelInicialDto.LinhaDaRondaDto(
                         p.getPessoaId(), p.getPessoaNome(),
-                        p.getUltimoDia(), p.getDiasSemRegistro(), p.getAvaliacaoId()))
+                        p.getUltimoDia(), p.getDiasSemRegistro(),
+                        registroDeHojePorPessoa.containsKey(p.getPessoaId()),
+                        registroDeHojePorPessoa.get(p.getPessoaId()),
+                        p.getAvaliacaoId()))
+                .sorted(Comparator.comparing(PainelInicialDto.LinhaDaRondaDto::registradoHoje))
                 .toList();
 
         return new PainelInicialDto(
                 hoje,
-                pendentes,
+                ronda,
                 (int) emAcompanhamento.stream()
-                        .filter(p -> comRegistroHoje.contains(p.getPessoaId())).count(),
+                        .filter(p -> registroDeHojePorPessoa.containsKey(p.getPessoaId())).count(),
                 emAcompanhamento.size(),
                 adesaoBaixa(tenantId, desde, hoje, emAcompanhamento),
                 mudancasDeFaixa(tenantId, hoje),

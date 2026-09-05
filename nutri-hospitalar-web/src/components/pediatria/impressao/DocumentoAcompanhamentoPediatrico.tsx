@@ -53,8 +53,23 @@ export function DocumentoAcompanhamentoPediatrico({
     },
   ]
 
+  /*
+   * O prescrito CONTRA O QUAL a adesão foi medida — a ordem era a inversa, e
+   * com ela a folha se contradizia: 700 de 880 não é 83,3 %. O servidor mede
+   * contra o volume da avaliação sempre que ele existe (`docs/11 §5`), e o
+   * `DocumentoPainelAcompanhamentoPediatrico` já imprimia nessa ordem.
+   */
+  const prescritoDaAdesao =
+    r.avaliacaoVolumeTotal != null && r.avaliacaoVolumeTotal > 0
+      ? r.avaliacaoVolumeTotal
+      : r.volPrescrito24h
+
   const dieta: LinhaValor[] = [
-    { rotulo: 'Volume prescrito em 24 h', valor: n(r.volPrescrito24h ?? r.avaliacaoVolumeTotal, 0, 'ml') },
+    {
+      rotulo: 'Volume prescrito em 24 h',
+      valor: n(prescritoDaAdesao, 0, 'ml'),
+      detalhe: d.referenciaDoRecebido ?? '',
+    },
     { rotulo: 'Volume recebido em 24 h', valor: n(r.volRecebido24h, 0, 'ml') },
     {
       rotulo: 'Do prescrito',
@@ -94,7 +109,7 @@ export function DocumentoAcompanhamentoPediatrico({
       valor: n(d.adequacaoCalorica, 1, '%'),
       detalhe:
         r.avaliacaoVet != null
-          ? `de ${n(r.avaliacaoVet, 0)} kcal/dia`
+          ? `de ${n(r.avaliacaoVet, 1)} kcal/dia`
           : (d.motivoAdequacaoCalorica ?? ''),
     },
     {

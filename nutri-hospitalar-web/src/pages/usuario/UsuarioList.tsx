@@ -14,6 +14,7 @@ import {
   TCombo,
   TSelect,
   type Coluna,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -88,12 +89,12 @@ export function UsuarioList() {
    * relatório sairia parecendo completo. Ver `TAcoesDeExportacao`.
    */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<UsuarioResponse>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<UsuarioResponse>> => {
       const filtros = {
         nome: nomeBusca || undefined,
         role: (role as Role) || undefined,
         ativo: ativo === '' ? undefined : ativo === 'true',
-        page: 0,
+        page: indice,
         size: limite,
       }
       const pagina = dentroDeTenant
@@ -102,7 +103,7 @@ export function UsuarioList() {
 
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [dentroDeTenant, nomeBusca, role, ativo, tenantId],

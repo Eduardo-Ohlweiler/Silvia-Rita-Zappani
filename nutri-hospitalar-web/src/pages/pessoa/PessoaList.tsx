@@ -14,6 +14,7 @@ import {
   TSelect,
   type Coluna,
   type OpcaoSelect,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -76,19 +77,19 @@ export function PessoaList() {
 
   /** Cobre o filtro inteiro, não a página aberta. Ver `TAcoesDeExportacao`. */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<PessoaResponse>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<PessoaResponse>> => {
       const pagina = await pessoaService.getAll({
         nome: nomeBusca || undefined,
         documento: documentoBusca || undefined,
         tipoPessoa: (tipoPessoa as TipoPessoa) || undefined,
         tipoCadastroId: tipoCadastroId || undefined,
         ativo: ativo === '' ? undefined : ativo === 'true',
-        page: 0,
+        page: indice,
         size: limite,
       })
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [nomeBusca, documentoBusca, tipoPessoa, tipoCadastroId, ativo],

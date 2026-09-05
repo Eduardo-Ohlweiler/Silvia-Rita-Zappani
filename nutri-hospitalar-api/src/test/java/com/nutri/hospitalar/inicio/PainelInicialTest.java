@@ -55,17 +55,25 @@ class PainelInicialTest extends AbstractIntegrationTest {
             mockMvc.perform(get("/painel-inicial")
                             .header(AUTHORIZATION, autenticar(adminB.getEmail())))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.pendentesDeHoje").isArray())
-                    .andExpect(jsonPath("$.pendentesDeHoje").isEmpty())
+                    .andExpect(jsonPath("$.ronda").isArray())
+                    .andExpect(jsonPath("$.ronda").isEmpty())
                     .andExpect(jsonPath("$.adesaoBaixa").isArray())
                     .andExpect(jsonPath("$.mudancasDeFaixa").isArray())
                     .andExpect(jsonPath("$.haMaisTempoSemAvaliacao").isArray())
                     .andExpect(jsonPath("$.totalEmAcompanhamento").value(0));
         }
 
+        /**
+         * A lista é a RONDA, não a pendência.
+         *
+         * <p>Antes ela filtrava quem já tinha o registro do dia, e a tela
+         * terminava o trabalho dizendo "1 de 1 registrados" com nada embaixo —
+         * o número contradizendo a lista. Quem aparece continua aparecendo;
+         * o que muda é a marca.
+         */
         @Test
-        @DisplayName("quem tem registro de HOJE não aparece como pendente")
-        void comRegistroDeHojeNaoPende() throws Exception {
+        @DisplayName("quem já registrou hoje CONTINUA na ronda, marcado como registrado")
+        void comRegistroDeHojeApareceMarcado() throws Exception {
             UUID aval = criarAvaliacao(hoje.minusDays(2));
             criarDia(aval, hoje.minusDays(1), 1200);
             criarDia(aval, hoje, 1200);
@@ -75,7 +83,13 @@ class PainelInicialTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.totalEmAcompanhamento").value(1))
                     .andExpect(jsonPath("$.registradosHoje").value(1))
-                    .andExpect(jsonPath("$.pendentesDeHoje").isEmpty());
+                    // A lista NÃO esvazia: ela mostra a ronda inteira.
+                    .andExpect(jsonPath("$.ronda.length()").value(1))
+                    .andExpect(jsonPath("$.ronda[0].registradoHoje").value(true))
+                    // Com o id do dia: é ele que o clique abre para editar.
+                    // Sem isto a tela mandava todo mundo para "novo", e quem já
+                    // tinha registro caía num formulário em branco.
+                    .andExpect(jsonPath("$.ronda[0].registroDeHojeId").exists());
         }
 
         @Test
@@ -88,9 +102,12 @@ class PainelInicialTest extends AbstractIntegrationTest {
                             .header(AUTHORIZATION, autenticar(adminA.getEmail())))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.registradosHoje").value(0))
-                    .andExpect(jsonPath("$.pendentesDeHoje.length()").value(1))
-                    .andExpect(jsonPath("$.pendentesDeHoje[0].pessoaNome").value("Paciente da Ronda"))
-                    .andExpect(jsonPath("$.pendentesDeHoje[0].diasSemRegistro").value(2));
+                    .andExpect(jsonPath("$.ronda.length()").value(1))
+                    .andExpect(jsonPath("$.ronda[0].pessoaNome").value("Paciente da Ronda"))
+                    .andExpect(jsonPath("$.ronda[0].registradoHoje").value(false))
+                    // Sem registro hoje não há id — e aí o clique abre um novo.
+                    .andExpect(jsonPath("$.ronda[0].registroDeHojeId").doesNotExist())
+                    .andExpect(jsonPath("$.ronda[0].diasSemRegistro").value(2));
         }
 
         /**
@@ -106,7 +123,7 @@ class PainelInicialTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/painel-inicial")
                             .header(AUTHORIZATION, autenticar(adminA.getEmail())))
-                    .andExpect(jsonPath("$.pendentesDeHoje.length()").value(1));
+                    .andExpect(jsonPath("$.ronda.length()").value(1));
 
             mockMvc.perform(patch("/uti/avaliacoes/" + aval + "/encerramento")
                             .header(AUTHORIZATION, autenticar(adminA.getEmail()))
@@ -119,7 +136,7 @@ class PainelInicialTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/painel-inicial")
                             .header(AUTHORIZATION, autenticar(adminA.getEmail())))
-                    .andExpect(jsonPath("$.pendentesDeHoje").isEmpty())
+                    .andExpect(jsonPath("$.ronda").isEmpty())
                     .andExpect(jsonPath("$.totalEmAcompanhamento").value(0))
                     // E some do "há mais tempo sem avaliação" também: senão ele
                     // acumularia dias para sempre, que é o mesmo fantasma.
@@ -147,7 +164,7 @@ class PainelInicialTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/painel-inicial")
                             .header(AUTHORIZATION, autenticar(adminA.getEmail())))
-                    .andExpect(jsonPath("$.pendentesDeHoje.length()").value(1));
+                    .andExpect(jsonPath("$.ronda.length()").value(1));
         }
 
         @Test
@@ -226,7 +243,7 @@ class PainelInicialTest extends AbstractIntegrationTest {
             mockMvc.perform(get("/painel-inicial")
                             .header(AUTHORIZATION, autenticar(adminB.getEmail())))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.pendentesDeHoje").isEmpty())
+                    .andExpect(jsonPath("$.ronda").isEmpty())
                     .andExpect(jsonPath("$.adesaoBaixa").isEmpty())
                     .andExpect(jsonPath("$.haMaisTempoSemAvaliacao").isEmpty())
                     .andExpect(jsonPath("$.totalEmAcompanhamento").value(0));

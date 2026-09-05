@@ -5,12 +5,16 @@
  * serializa omitindo nulos, e a chave simplesmente não vem.
  */
 
-export interface PendenteDoDia {
+/** Um paciente da ronda — com o estado, que é o que a torna ronda e não pendência. */
+export interface LinhaDaRonda {
   pessoaId: string
   pessoaNome: string
   ultimoDia: string
   /** Dias desde o último registro. Número puro — a tela não o pinta. */
   diasSemRegistro: number
+  registradoHoje: boolean
+  /** O dia de hoje, quando existe — é o que o clique abre para editar. */
+  registroDeHojeId?: string | null
   avaliacaoId?: string | null
 }
 
@@ -55,7 +59,7 @@ export interface NumerosDoMes {
 
 export interface PainelInicial {
   hoje: string
-  pendentesDeHoje: PendenteDoDia[]
+  ronda: LinhaDaRonda[]
   registradosHoje: number
   totalEmAcompanhamento: number
   adesaoBaixa: AlertaAdesao[]

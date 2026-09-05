@@ -9,6 +9,7 @@ import {
   TPanel,
   TSelect,
   type Coluna,
+  type PaginaDaCarga,
   type ResultadoDaCarga,
 } from '@/components/common'
 import { DocumentoLista } from '@/components/impressao/DocumentoLista'
@@ -71,13 +72,13 @@ export function LoginLogList() {
    * `TAcoesDeExportacao`.
    */
   const carregarTudo = useCallback(
-    async (limite: number): Promise<ResultadoDaCarga<LoginLogResponse>> => {
+    async (limite: number, indice: number): Promise<PaginaDaCarga<LoginLogResponse>> => {
       const filtros = {
         sucesso: sucesso === '' ? undefined : sucesso === 'true',
         ip: ipBusca || undefined,
         de: paraIso(de),
         ate: paraIso(ate),
-        page: 0,
+        page: indice,
         size: limite,
       }
       const pagina =
@@ -87,7 +88,7 @@ export function LoginLogList() {
 
       return {
         linhas: pagina.content,
-        restantes: Math.max(0, pagina.totalElements - pagina.content.length),
+        total: pagina.totalElements,
       }
     },
     [escopo, sucesso, ipBusca, de, ate],

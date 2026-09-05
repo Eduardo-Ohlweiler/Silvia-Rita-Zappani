@@ -96,6 +96,7 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **10 — Acompanhamento diário pediátrico** | ✅ pronta · especificação [docs/11](docs/11-acompanhamento-pediatrico.md) · migration 028 · **3º painel** · impressão · exportação. **Nenhuma constante clínica nova**: a régua já estava no sistema |
 | **10.1 — Validação da fatia 10** | ✅ o painel de acompanhamento ganhou a impressão que só a UTI tinha, e o `DELETE` do dia ganhou teste (feliz e cross-tenant). A varredura no navegador achou uma legenda que não fechava com o número ao lado |
 | **11 — Tela inicial** | ✅ pronta · migration 029 · a lista de trabalho do dia, e o **encerramento do acompanhamento**, que é a saída dela |
+| **11.1 — Verificação de ponta a ponta** | ✅ pronta · o que foi **preenchido** na tela × o que a tela **enviou** × o que o servidor **persistiu** × o que **reabriu**, em todas as telas. Achou 3 defeitos reais (folha do dia com o prescrito errado ao lado da adesão, eixo de gráfico em notação inglesa, exportação com teto de 100 em vez de 2.000) — nenhum deles visível a `build`, `lint` ou aos 368 testes |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
@@ -532,6 +533,46 @@ na avaliação, e não numa tabela de internação, porque ela **já é** o cont
 atendimento, que foi a razão de a fatia 4 ter sido abandonada. Regra geral: toda
 lista que cobra ação precisa de uma saída explícita, e a janela de inatividade é
 rede para o que ninguém encerrou, nunca o critério principal.
+
+**A folha do dia imprimia o prescrito que ninguém usou na conta.**
+`Volume prescrito em 24 h` saía do valor **digitado no dia**, e a `Adesão` ao
+lado dele vinha medida contra o **volume da avaliação** — que é o que o
+servidor usa (`percentualRecebido(recebido, volumeDaAvaliacao, volDigitado)`).
+No papel: *"Prescrito 1.500 · Recebido 1.200 · Adesão 88,0 %"*, e 1.200 de
+1.500 é 80 %. Um prontuário que se contradiz faz quem confere concluir que o
+sistema errou. O `DocumentoPainelAcompanhamentoPediatrico` **já** imprimia na
+ordem certa desde a fatia 7; os dois documentos **do dia** — UTI e pediatria —
+ficaram com a ordem velha, e ninguém comparou um com o outro. Regra: quando o
+servidor manda a procedência (`referenciaDoPercentual`, `referenciaDoRecebido`),
+**o número exibido tem de ser o que essa procedência nomeia** — e a procedência
+vai ao lado, para a conta poder ser refeita no papel. Corolário: ao consertar
+um documento de impressão, procurar os irmãos dele.
+
+**Rótulo de eixo sem formatador fala outra língua.**
+O `<YAxis>` dos três gráficos compartilhados não tinha `tickFormatter`, então o
+recharts imprimia o número com o `toString()` do JavaScript. No gráfico de
+crescimento pediátrico o peso de uma criança de 14 meses saía **`9.263`** — que
+em português se lê *nove mil duzentos e sessenta e três*. Os eixos da UTI
+escaparam por acaso: as escalas de lá caem em inteiros, e inteiro não tem
+separador decimal para errar, então o defeito ficou invisível até a pediatria
+plotar quilos com três casas. É a irmã de `paraNumero`: **o ponto não é
+separador de milhar aqui**. O `casas` já existia em todo gráfico — para o
+tooltip; era só o eixo que não o usava. Hoje é `tickNumerico(casas)` em
+`graficos/eixos.ts`, num lugar só, para o próximo gráfico não precisar lembrar.
+
+**O teto de exportação era vinte vezes menor que o anunciado.**
+`TAcoesDeExportacao` pedia `size=2000` numa requisição só, e o
+`spring.data.web.pageable.max-page-size: 100` devolvia **100**, calado. A
+planilha do log de acesso saía com 100 de 175. Ninguém perdia dado sem saber —
+o aviso de corte dispara e diz quantos ficaram de fora, que é a rede que a
+fatia 7 montou —, mas o número prometido no código e neste arquivo era outro, e
+quem exportasse um mês de acompanhamento levaria *"estreite o período"* todo
+dia sem entender por quê. Subir o limite do servidor consertaria pelo lado
+errado: ele existe para nenhuma listagem devolver página gigante. Hoje a
+exportação **pagina** — 100 por vez até o total ou até o teto —, e o
+`carregar` das onze listas recebe o índice da página. Lição: **limite pedido
+pelo cliente não é limite obtido**; quando os dois são declarados em camadas
+diferentes, o menor vence em silêncio, e só contar as linhas do arquivo mostra.
 
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
