@@ -7,6 +7,7 @@ import {
 } from '@/types/inicio'
 import { IconAdicionar } from '@/assets/icons'
 import {
+  TAviso,
   TBotaoImprimir,
   TButton,
   TCombo,
@@ -331,10 +332,10 @@ export function AvaliacaoUtiForm() {
           precisa saber que a composição na tela não existe mais no catálogo.
         */}
         {formulaRemovida && (
-          <p className="text-caption rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-warning">
+          <TAviso>
             A fórmula usada nesta avaliação saiu do catálogo. Os números continuam válidos —
             a composição foi copiada para o registro no dia da avaliação.
-          </p>
+          </TAviso>
         )}
 
         {/*

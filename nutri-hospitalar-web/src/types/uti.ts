@@ -752,6 +752,15 @@ export interface RegistroDiarioUtiResponse extends RegistroDiarioUtiCreate {
   suporteVentilatorioDescricao?: string
 
   /** Derivados — não são colunas. */
+  /**
+   * O volume CONTRA O QUAL a adesão foi medida.
+   *
+   * O `volPrescrito24h` é o que foi digitado no dia — registro, não
+   * denominador: havendo avaliação vinculada, não é ele que entra na conta.
+   * Exibir um no lugar do outro é o que fazia a folha dizer "855 de 900 ·
+   * 45,97 %". Quem mostra prescrito ao lado de percentual mostra ESTE.
+   */
+  prescritoDeReferencia?: number
   percentualRecebido?: number
   /** "prescrito na avaliação" ou "prescrito informado no dia". */
   referenciaDoPercentual?: string
@@ -773,6 +782,9 @@ export interface RegistroDiarioUtiLista {
   data: string
   volPrescrito24h?: number
   volRecebido24h?: number
+  /** O denominador da adesão — ver `RegistroDiarioUtiResponse`. */
+  prescritoDeReferencia?: number
+  referenciaDoPercentual?: string
   percentualRecebido?: number
   caloriasPorQuilo?: number
   balancoHidricoMl?: number

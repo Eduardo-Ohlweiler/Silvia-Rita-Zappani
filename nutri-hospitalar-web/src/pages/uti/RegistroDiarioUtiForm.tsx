@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
+  TAviso,
   TButton,
   TCombo,
   TEntry,
@@ -278,6 +279,24 @@ export function RegistroDiarioUtiForm() {
     { id: ABA_OBS, rotulo: 'Observações' },
   ]
 
+  /*
+   * O digitado no dia difere do que a avaliação prescreveu.
+   *
+   * A adesão é medida contra o da avaliação, então o número digitado fica
+   * registrado mas não entra na conta — e sem dizer isso a tela mostra um
+   * volume no campo ao lado de um percentual medido contra outro. Ao vivo,
+   * antes de salvar: a sugestão já traz o volume.
+   *
+   * `paraNumero` e não `Number`: o campo é mascarado e o texto vem com vírgula.
+   */
+  const prescritoDaAvaliacao = vincular ? sugestao?.volumePrescrito : undefined
+  const prescritoDigitado = paraNumero(campos.volPrescrito24h)
+  const divergeDoDaAvaliacao =
+    prescritoDaAvaliacao != null &&
+    prescritoDaAvaliacao > 0 &&
+    prescritoDigitado != null &&
+    prescritoDigitado !== prescritoDaAvaliacao
+
   return (
     <TPage
       title={editando ? 'Editar acompanhamento' : 'Novo acompanhamento diário'}
@@ -384,6 +403,16 @@ export function RegistroDiarioUtiForm() {
               />
             </div>
 
+            {divergeDoDaAvaliacao && (
+              <TAviso className="mt-4">
+                A avaliação vinculada prescreve{' '}
+                <b>{formatarNumero(prescritoDaAvaliacao, 0)} ml/dia</b>, e este dia traz{' '}
+                <b>{formatarNumero(prescritoDigitado, 0)} ml</b>. A adesão é medida contra o
+                volume da avaliação — é o que estava de fato prescrito. O valor do dia fica
+                registrado, mas não entra nessa conta.
+              </TAviso>
+            )}
+
             <hr className="my-5 border-line" />
 
             <TResultGroup
@@ -395,7 +424,13 @@ export function RegistroDiarioUtiForm() {
                 label="% recebido"
                 valor={formatarNumero(derivados?.percentualRecebido)}
                 unidade="%"
-                referencia={derivados?.referenciaDoPercentual}
+                /* O denominador ao lado do percentual: sem o número, quem lê
+                   compara com o campo digitado acima e a conta não fecha. */
+                referencia={
+                  derivados?.prescritoDeReferencia != null
+                    ? `de ${formatarNumero(derivados.prescritoDeReferencia, 0)} ml · ${derivados.referenciaDoPercentual ?? ''}`
+                    : derivados?.referenciaDoPercentual
+                }
                 motivoAusencia={derivados ? undefined : 'Salve para ver os derivados'}
               />
               <TResult

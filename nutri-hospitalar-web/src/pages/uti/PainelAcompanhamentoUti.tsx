@@ -299,8 +299,10 @@ export function PainelAcompanhamentoUti() {
                           {[...dias].reverse().map((d) => (
                             <tr key={d.id} className="border-b border-line last:border-0">
                               <td className="px-2 py-2">{formatarData(d.data)}</td>
+                              {/* O prescrito da coluna é o que a adesão usou —
+                                  a coluna vizinha é medida contra ele. */}
                               <td className="numeric px-2 py-2 text-right">
-                                {num(d.volPrescrito24h, '', 0)}
+                                {num(d.prescritoDeReferencia, '', 0)}
                               </td>
                               <td className="numeric px-2 py-2 text-right">
                                 {num(d.volRecebido24h, '', 0)}

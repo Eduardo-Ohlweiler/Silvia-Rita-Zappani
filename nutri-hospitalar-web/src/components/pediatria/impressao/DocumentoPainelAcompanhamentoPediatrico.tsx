@@ -216,9 +216,14 @@ export function DocumentoPainelAcompanhamentoPediatrico({
             { titulo: 'Data', celula: (d) => formatarData(d.data) },
             { titulo: 'Fórmula', celula: (d) => d.avaliacaoFormulaNome ?? AUSENTE },
             {
+              /* Era `avaliacaoVolumeTotal ?? volPrescrito24h` — a terceira cópia
+                 da precedência, e a única que escolhia por NULO enquanto o
+                 servidor escolhe por POSITIVO: uma avaliação com volume zero
+                 imprimia 0 como denominador ao lado de um percentual medido
+                 contra o digitado. Hoje lê o número que o servidor escolheu. */
               titulo: 'Prescrito',
               numerica: true,
-              celula: (d) => n(d.avaliacaoVolumeTotal ?? d.volPrescrito24h, 0),
+              celula: (d) => n(d.derivados.prescritoDeReferencia, 0),
             },
             { titulo: 'Recebido', numerica: true, celula: (d) => n(d.volRecebido24h, 0) },
             {

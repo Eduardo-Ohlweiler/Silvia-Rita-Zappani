@@ -109,7 +109,16 @@ export function RegistroDiarioPediatricoList() {
     { titulo: 'Data', valor: (r) => formatarData(r.data) },
     { titulo: 'Idade', valor: (r) => idadeEmMesesTexto(r.idadeMeses) },
     { titulo: 'Peso (kg)', numerica: true, valor: (r) => txt(r.pesoKg, 3) },
-    { titulo: 'Prescrito (ml)', numerica: true, valor: (r) => txt(r.volPrescrito24h, 0) },
+    // O prescrito da coluna é o que o percentual usou, e a procedência vem ao
+    // lado: numa planilha lida offline é onde a diferença entre "o que digitei"
+    // e "contra o que mediu" mais precisa estar escrita.
+    { titulo: 'Prescrito (ml)', numerica: true, valor: (r) => txt(r.prescritoDeReferencia, 0) },
+    { titulo: 'Referência do prescrito', valor: (r) => r.referenciaDoRecebido ?? '' },
+    {
+      titulo: 'Prescrito informado no dia (ml)',
+      numerica: true,
+      valor: (r) => txt(r.volPrescrito24h, 0),
+    },
     { titulo: 'Recebido (ml)', numerica: true, valor: (r) => txt(r.volRecebido24h, 0) },
     { titulo: 'Recebido (%)', numerica: true, valor: (r) => txt(r.percentualRecebido, 1) },
     { titulo: 'Adequação calórica (%)', numerica: true, valor: (r) => txt(r.adequacaoCalorica, 1) },
@@ -174,12 +183,14 @@ export function RegistroDiarioPediatricoList() {
       numerica: true,
       render: (r) => (
         <span className="flex flex-col items-end">
+          {/* O denominador é o que a conta usou, não o digitado no dia — senão
+              a divisão na tela não fecha com o percentual logo abaixo. */}
           <span>
-            {formatarNumero(r.volRecebido24h)} / {formatarNumero(r.volPrescrito24h)} ml
+            {formatarNumero(r.volRecebido24h)} / {formatarNumero(r.prescritoDeReferencia)} ml
           </span>
           {r.percentualRecebido != null && (
             <span className="text-caption text-txt-muted">
-              {formatarNumero(r.percentualRecebido)} % do prescrito
+              {formatarNumero(r.percentualRecebido)} % {r.referenciaDoRecebido ?? 'do prescrito'}
             </span>
           )}
         </span>

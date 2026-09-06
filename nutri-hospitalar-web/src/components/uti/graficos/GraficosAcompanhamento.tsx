@@ -26,11 +26,15 @@ export function VolumeNoTempo({ dias }: { dias: DiaPlotado[] }) {
     <MetaVersusOfertado
       dados={dias}
       chaveX="data"
-      chaveMeta="volPrescrito24h"
+      chaveMeta="prescritoDeReferencia"
       chaveOfertado="volRecebido24h"
       titulo="Volume de dieta"
       unidade="ml"
-      referencia="Quando o dia não traz prescrito próprio, a referência é o volume da avaliação vigente."
+      /* A meta é o MESMO denominador do gráfico de adesão logo abaixo — antes
+         era o volume digitado no dia, e os dois gráficos irmãos, um sobre o
+         outro, falavam de prescritos diferentes. A frase que estava aqui
+         afirmava a regra ao contrário. */
+      referencia="A meta é o volume prescrito na avaliação vinculada — é o que estava de fato prescrito. Sem avaliação, cai no volume informado no dia."
       rotuloX={rotuloDia}
       formatarX={formatarData}
       vazio="Nenhum dia com volume informado no período."

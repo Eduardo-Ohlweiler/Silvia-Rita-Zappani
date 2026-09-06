@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { IconAdicionar } from '@/assets/icons'
-import { TBotaoImprimir, TButton, TCombo, TEntry, TPage, TPanel } from '@/components/common'
+import {
+  TAviso,
+  TBotaoImprimir,
+  TButton,
+  TCombo,
+  TEntry,
+  TPage,
+  TPanel,
+} from '@/components/common'
 import { CalculoPediatrico } from '@/components/pediatria/CalculoPediatrico'
 import {
   ENTRADAS_VAZIAS,
@@ -333,7 +341,7 @@ export function AvaliacaoPediatricaForm() {
         </TPanel>
 
         {formulaAlterada && retratoDaFormula && (
-          <p className="text-caption rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-warning">
+          <TAviso>
             A composição de <b>{retratoDaFormula.nome}</b> mudou no catálogo depois desta
             avaliação. Os números abaixo foram calculados com o que estava gravado no dia —{' '}
             <b>
@@ -342,7 +350,7 @@ export function AvaliacaoPediatricaForm() {
             </b>{' '}
             — e é essa composição que sai no papel. O combo mostra a de hoje, que é a que valeria
             num cálculo novo.
-          </p>
+          </TAviso>
         )}
 
         <CalculoPediatrico

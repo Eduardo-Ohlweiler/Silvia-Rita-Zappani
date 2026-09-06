@@ -55,19 +55,14 @@ export function DocumentoAcompanhamentoPediatrico({
 
   /*
    * O prescrito CONTRA O QUAL a adesão foi medida — a ordem era a inversa, e
-   * com ela a folha se contradizia: 700 de 880 não é 83,3 %. O servidor mede
-   * contra o volume da avaliação sempre que ele existe (`docs/11 §5`), e o
-   * `DocumentoPainelAcompanhamentoPediatrico` já imprimia nessa ordem.
+   * com ela a folha se contradizia: 700 de 880 não é 83,3 %. Quem resolve a
+   * precedência é o servidor (`docs/11 §5`), e ele manda o número escolhido:
+   * a folha só o mostra.
    */
-  const prescritoDaAdesao =
-    r.avaliacaoVolumeTotal != null && r.avaliacaoVolumeTotal > 0
-      ? r.avaliacaoVolumeTotal
-      : r.volPrescrito24h
-
   const dieta: LinhaValor[] = [
     {
       rotulo: 'Volume prescrito em 24 h',
-      valor: n(prescritoDaAdesao, 0, 'ml'),
+      valor: n(d.prescritoDeReferencia, 0, 'ml'),
       detalhe: d.referenciaDoRecebido ?? '',
     },
     { rotulo: 'Volume recebido em 24 h', valor: n(r.volRecebido24h, 0, 'ml') },

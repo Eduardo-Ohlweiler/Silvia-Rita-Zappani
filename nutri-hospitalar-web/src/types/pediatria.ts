@@ -311,6 +311,14 @@ export interface AcompanhamentoDerivado {
   imcIdade?: Classificacao | null
   motivoEstadoNutricional?: string
 
+  /**
+   * O volume CONTRA O QUAL a adesão foi medida.
+   *
+   * O `volPrescrito24h` do registro é o digitado no dia — registro, não
+   * denominador. Quem mostra prescrito ao lado de percentual mostra ESTE:
+   * o par errado fazia a tela dizer "650 / 700 ml · 90,28 %".
+   */
+  prescritoDeReferencia?: number | null
   percentualRecebido?: number | null
   /** Contra o quê comparou: o prescrito da avaliação ou o informado no dia. */
   referenciaDoRecebido?: string
@@ -341,6 +349,9 @@ export interface RegistroDiarioPediatricoLista {
   pesoKg?: number | null
   volPrescrito24h?: number | null
   volRecebido24h?: number | null
+  /** O denominador da adesão — ver `AcompanhamentoDerivado`. */
+  prescritoDeReferencia?: number | null
+  referenciaDoRecebido?: string
   percentualRecebido?: number | null
   adequacaoCalorica?: number | null
   aceitacaoTomadas?: number | null

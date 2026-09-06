@@ -98,7 +98,16 @@ export function RegistroDiarioUtiList() {
   const colunasExportadas: ColunaExportavel<RegistroDiarioUtiLista>[] = [
     { titulo: 'Paciente', valor: (r) => r.pessoaNome },
     { titulo: 'Data', valor: (r) => formatarData(r.data) },
-    { titulo: 'Prescrito (ml)', numerica: true, valor: (r) => txt(r.volPrescrito24h, 0) },
+    // O prescrito da coluna é o que a adesão usou, e a procedência vem ao lado:
+    // numa planilha lida offline é onde a diferença entre "o que digitei" e
+    // "contra o que mediu" mais precisa estar escrita.
+    { titulo: 'Prescrito (ml)', numerica: true, valor: (r) => txt(r.prescritoDeReferencia, 0) },
+    { titulo: 'Referência do prescrito', valor: (r) => r.referenciaDoPercentual ?? '' },
+    {
+      titulo: 'Prescrito informado no dia (ml)',
+      numerica: true,
+      valor: (r) => txt(r.volPrescrito24h, 0),
+    },
     { titulo: 'Recebido (ml)', numerica: true, valor: (r) => txt(r.volRecebido24h, 0) },
     { titulo: 'Adesão (%)', numerica: true, valor: (r) => txt(r.percentualRecebido, 1) },
     { titulo: 'kcal/kg', numerica: true, valor: (r) => txt(r.caloriasPorQuilo, 1) },
@@ -142,12 +151,15 @@ export function RegistroDiarioUtiList() {
       numerica: true,
       render: (r) => (
         <span className="flex flex-col items-end">
+          {/* O denominador é o que a conta usou, não o digitado no dia — senão
+              a divisão na tela não fecha com a adesão logo abaixo. */}
           <span>
-            {formatarNumero(r.volRecebido24h)} / {formatarNumero(r.volPrescrito24h)} ml
+            {formatarNumero(r.volRecebido24h)} / {formatarNumero(r.prescritoDeReferencia)} ml
           </span>
           {r.percentualRecebido != null && (
             <span className="text-caption text-txt-muted">
-              {formatarNumero(r.percentualRecebido)} % da prescrição
+              {formatarNumero(r.percentualRecebido)} %{' '}
+              {r.referenciaDoPercentual ?? 'da prescrição'}
             </span>
           )}
         </span>

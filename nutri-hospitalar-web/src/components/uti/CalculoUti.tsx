@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  TAviso,
   TEntry,
   TPanel,
   TResult,
@@ -547,11 +548,11 @@ export function CalculoUti({
           )}
 
           {nec?.obeso && (
-            <p className="text-caption mb-4 rounded-md border border-warning/40 bg-warning-bg px-3 py-2 text-warning">
+            <TAviso className="mb-4">
               Obesidade · IMC {formatarNumero(antro?.imc)} — <strong>a fase da terapia não se
               aplica</strong>. As metas vêm do protocolo de obesidade
               {nec.baseDoPeso ? `: ${nec.baseDoPeso}.` : '.'}
-            </p>
+            </TAviso>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
+  TAviso,
   TBotaoImprimir,
   TButton,
   TCombo,
@@ -188,6 +189,24 @@ export function RegistroDiarioPediatricoForm() {
 
   const d = registro?.derivados
 
+  /*
+   * O digitado no dia difere do que a avaliação prescreveu.
+   *
+   * A adesão é medida contra o da avaliação (`docs/11 §5`), então o número
+   * digitado fica registrado mas não entra na conta — e sem dizer isso a tela
+   * mostrava 700 no campo ao lado de um percentual medido contra 720. É ao
+   * vivo, antes de salvar: a sugestão já traz o volume.
+   *
+   * `paraNumero` e não `Number`: o campo é mascarado e o texto vem com vírgula.
+   */
+  const prescritoDaAvaliacao = vincular ? sugestao?.volumeTotal : undefined
+  const prescritoDigitado = paraNumero(campos.volPrescrito24h)
+  const divergeDoDaAvaliacao =
+    prescritoDaAvaliacao != null &&
+    prescritoDaAvaliacao > 0 &&
+    prescritoDigitado != null &&
+    prescritoDigitado !== prescritoDaAvaliacao
+
   return (
     <TPage
       title={editando ? 'Editar acompanhamento' : 'Novo acompanhamento diário'}
@@ -289,9 +308,12 @@ export function RegistroDiarioPediatricoForm() {
               suffix="ml"
               value={campos.volPrescrito24h}
               onChange={(e) => alterar('volPrescrito24h', e.target.value)}
+              /* Dizia "Em branco usa o prescrito da avaliação", o que sugere o
+                 contrário do que o servidor faz: preencher NÃO faz o digitado
+                 vencer. A redação honesta é a que a UTI já usava. */
               ajuda={
                 vincular && sugestao?.volumeTotal != null
-                  ? 'Em branco usa o prescrito da avaliação'
+                  ? 'A avaliação já traz o prescrito, e é contra ele que a adesão é medida'
                   : undefined
               }
             />
@@ -316,6 +338,16 @@ export function RegistroDiarioPediatricoForm() {
               ajuda="Não pode passar das previstas"
             />
           </div>
+
+          {divergeDoDaAvaliacao && (
+            <TAviso className="mt-4">
+              A avaliação vinculada prescreve{' '}
+              <b>{formatarNumero(prescritoDaAvaliacao, 0)} ml/dia</b>, e este dia traz{' '}
+              <b>{formatarNumero(prescritoDigitado, 0)} ml</b>. A adesão é medida contra o volume
+              da avaliação — é o que estava de fato prescrito. O valor do dia fica registrado, mas
+              não entra nessa conta.
+            </TAviso>
+          )}
 
           <div className="mt-4">
             <TTextArea
@@ -377,7 +409,14 @@ export function RegistroDiarioPediatricoForm() {
                     d.percentualRecebido != null ? formatarNumero(d.percentualRecebido) : undefined
                   }
                   unidade="%"
-                  referencia={d.referenciaDoRecebido}
+                  /* O denominador ao lado do percentual, como a Adequação
+                     calórica logo abaixo já fazia com o VET: sem o número, quem
+                     lê compara com o campo digitado acima e a conta não fecha. */
+                  referencia={
+                    d.prescritoDeReferencia != null
+                      ? `de ${formatarNumero(d.prescritoDeReferencia, 0)} ml · ${d.referenciaDoRecebido ?? ''}`
+                      : d.referenciaDoRecebido
+                  }
                   motivoAusencia={d.motivoPercentualRecebido}
                 />
                 <TResult

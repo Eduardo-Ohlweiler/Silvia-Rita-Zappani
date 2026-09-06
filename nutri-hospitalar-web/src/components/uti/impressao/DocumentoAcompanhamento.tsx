@@ -138,7 +138,15 @@ export function DocumentoAcompanhamento({ dados }: { dados: PainelAcompanhamento
           colunas={[
             { titulo: 'Data', celula: (d) => formatarData(d.data) },
             { titulo: 'Dieta', celula: (d) => d.dieta ?? '—' },
-            { titulo: 'Prescrito', numerica: true, celula: (d) => n(d.volPrescrito24h, 0) },
+            /* O prescrito da coluna é o que a adesão usou, não o digitado no
+               dia: a coluna vizinha é medida contra ele, e no papel a divisão
+               precisa poder ser refeita à mão. Este documento ficou com a ordem
+               velha quando os dois do DIA foram corrigidos. */
+            {
+              titulo: 'Prescrito',
+              numerica: true,
+              celula: (d) => n(d.prescritoDeReferencia, 0),
+            },
             { titulo: 'Recebido', numerica: true, celula: (d) => n(d.volRecebido24h, 0) },
             { titulo: 'Adesão', numerica: true, celula: (d) => n(d.percentualRecebido, 1, '%') },
             { titulo: 'kcal/kg', numerica: true, celula: (d) => n(d.caloriasPorQuilo, 1) },

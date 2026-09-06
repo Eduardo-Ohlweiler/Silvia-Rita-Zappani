@@ -1,3 +1,4 @@
+export { TAviso } from './TAviso'
 export { TBadge } from './TBadge'
 export {
   TAcoesDeExportacao,
