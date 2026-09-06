@@ -97,10 +97,11 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **10.1 — Validação da fatia 10** | ✅ o painel de acompanhamento ganhou a impressão que só a UTI tinha, e o `DELETE` do dia ganhou teste (feliz e cross-tenant). A varredura no navegador achou uma legenda que não fechava com o número ao lado |
 | **11 — Tela inicial** | ✅ pronta · migration 029 · a lista de trabalho do dia, e o **encerramento do acompanhamento**, que é a saída dela |
 | **11.1 — Verificação de ponta a ponta** | ✅ pronta · o que foi **preenchido** na tela × o que a tela **enviou** × o que o servidor **persistiu** × o que **reabriu**, em todas as telas. Achou 3 defeitos reais (folha do dia com o prescrito errado ao lado da adesão, eixo de gráfico em notação inglesa, exportação com teto de 100 em vez de 2.000) — nenhum deles visível a `build`, `lint` ou aos 368 testes |
+| **11.2 — Varredura de QA no navegador** | ✅ pronta · achou 3 defeitos que `build`, `lint` e os testes deixam passar: a classificação impressa duas vezes na tela do dia pediátrico, `IMCClassificação` colado em quatro tabelas sem padding, e o prescrito exibido ≠ o prescrito da conta em **sete** pontos — a cauda da fatia 11.1, que consertou só dois deles |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
-**367 testes** no total, contra o banco `nutridb_test`.
+**382 testes** no total, contra o banco `nutridb_test`.
 
 ### O que falta, e por quê
 
@@ -466,7 +467,9 @@ duas.
 `AcompanhamentoCalculator` da UTI divide por **1000**, porque o catálogo enteral
 é declarado por litro (defeito 1 de `docs/10`). A fórmula láctea é declarada por
 **100 ml** (`docs/09 §7`). As quatro contas do acompanhamento são idênticas nos
-dois módulos — `percentualRecebido` é literalmente reusado —, mas
+dois módulos — mas **nenhuma é literalmente reusada**: não há um só `import` de
+`uti` dentro de `pediatria`, e a precedência do prescrito está escrita duas
+vezes, de propósito. E
 `caloriasRecebidas` e `proteinaRecebida` **não podem ser**: reusar a função da
 UTI daria dez vezes o valor, num número que vira adequação calórica na tela de
 quem prescreve. Reuso entre módulos exige conferir a **unidade declarada do
@@ -533,6 +536,28 @@ na avaliação, e não numa tabela de internação, porque ela **já é** o cont
 atendimento, que foi a razão de a fatia 4 ter sido abandonada. Regra geral: toda
 lista que cobra ação precisa de uma saída explícita, e a janela de inatividade é
 rede para o que ninguém encerrou, nunca o critério principal.
+
+**Derivado que a regra escolhe tem de ser publicado, não só a procedência.**
+O servidor escolhia o denominador da adesão corretamente — o da avaliação vence
+o digitado — e nunca dizia **qual número** escolheu: mandava só a procedência em
+texto. Quem exibisse prescrito ao lado de percentual tinha de adivinhar a regra,
+e **sete telas adivinharam errado**: a lista da UTI dizia `855 / 900 ml ·
+45,97 %` (855 de 900 é 95 %), a da pediatria `650 / 700 ml · 90,28 %`, e o papel
+do **período** da UTI imprimia a tabela inteira assim. Pior: a correção anterior
+— a de logo abaixo — mandava *"procurar os irmãos"* e consertou só os dois
+documentos do dia; o irmão do período passou batido, e a cópia do painel
+pediátrico, elogiada por *"já imprimir na ordem certa"*, escolhia por `??`
+enquanto o servidor escolhe por `positivo()` — certa por sorte, errada no dia em
+que uma avaliação tivesse volume zero. A regra chegou a existir em **quatro
+linguagens**: o calculator, o ternário do mapper, o `??` do front e um `COALESCE`
+em SQL, este último divergindo de verdade (escolhe por nulo, some com o dia da
+média). Hoje o número e a procedência saem de **uma decisão só**, num record, e o
+percentual é literalmente `parte / valor dele` — não há caminho que os faça
+divergir. Lição: **procurar os irmãos não escala; publicar o número escolhido,
+sim.** Quando o servidor decide entre dois valores, ele expõe o que decidiu — do
+contrário cada tela reimplementa a decisão, e a enésima erra. O teste que trava
+é a invariante: `recebido / denominador_exposto` tem de reproduzir o percentual
+exposto.
 
 **A folha do dia imprimia o prescrito que ninguém usou na conta.**
 `Volume prescrito em 24 h` saía do valor **digitado no dia**, e a `Adesão` ao
@@ -654,7 +679,7 @@ dirige o `/usr/bin/google-chrome` do sistema: **não instale playwright**.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 367 testes contra nutridb_test
+./run-dev.sh test         # 382 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

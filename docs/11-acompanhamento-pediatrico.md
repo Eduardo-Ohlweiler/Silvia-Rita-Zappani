@@ -104,7 +104,8 @@ para o banco.
 | Derivado | Fórmula | Depende de |
 |---|---|---|
 | `idadeMeses` | §3 | data de nascimento |
-| `percentualRecebido` | `recebido / prescrito × 100` | prescrito — **o da avaliação vence o digitado** |
+| `prescritoDeReferencia` | o da avaliação quando positivo, senão o digitado | as duas colunas |
+| `percentualRecebido` | `recebido / prescritoDeReferencia × 100` | o campo acima, e nenhum outro |
 | `caloriasRecebidas` | `volRecebido × kcalPor100ml / 100` | fórmula da avaliação |
 | `proteinaRecebida` | `volRecebido × proteinaPor100ml / 100` | idem |
 | `caloriasPorKg` | `caloriasRecebidas / peso` | peso do dia |
@@ -117,8 +118,14 @@ para o banco.
 
 **O prescrito preferido é o da avaliação**, não o digitado no dia: é o que estava
 de fato prescrito, e não depende de alguém repetir o número certo. Sem avaliação
-vinculada, cai no digitado — e a tela diz contra o quê comparou. Regra herdada de
-`AcompanhamentoCalculator.percentualRecebido`, que esta fatia **reusa**.
+vinculada, cai no digitado — e a tela diz contra o quê comparou. Mesma regra de
+`AcompanhamentoCalculator.prescritoDeReferencia`, na UTI — escrita duas vezes de
+propósito, porque os módulos não se importam (`§5.1`).
+
+**O número escolhido é publicado**, e não só a procedência. Enquanto ele ficava
+dentro do cálculo, quem exibisse prescrito ao lado de percentual tinha de
+adivinhar a regra — e sete telas adivinharam errado, mostrando o digitado ao
+lado de uma conta feita com outro número. Quem mostra o par mostra este campo.
 
 ### 5.1 O que se reusa, e o que não dá para reusar
 
