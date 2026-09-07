@@ -18,6 +18,7 @@ import {
   type EntradasUti,
 } from '@/components/uti/entradas'
 import { useDebounce } from '@/hooks/useDebounce'
+import axios from 'axios'
 import { handleApiError } from '@/services/api'
 import {
   calculoUtiService,
@@ -100,6 +101,20 @@ export function CalculoUti({
   const [recalculando, setRecalculando] = useState(false)
 
   /**
+   * O que a validação do servidor recusou desta vez.
+   *
+   * <p>Nesta tela um 400 <b>não é evento, é estado do formulário</b>: ela
+   * recalcula a cada 500 ms e na maior parte do tempo está pela metade, então
+   * medida incompleta é o caso normal, não a exceção. Mandar isso para o
+   * `toast` empilha três avisos vermelhos enquanto se digita um único número —
+   * a máscara de centavos passa por 0,05 · 0,53 · 5,30 antes de chegar a 53,00,
+   * e cada pausa acima do debounce dispara um. Medido: 3 toasts para digitar
+   * "5300". Aqui a recusa aparece uma vez, no lugar, e some sozinha quando o
+   * número fica inteiro.
+   */
+  const [recusa, setRecusa] = useState<string | null>(null)
+
+  /**
    * Enquanto true, a tela está mostrando o que o BANCO gravou e ninguém mexeu.
    * `useRef` e não `useState`: isto não pinta nada, só decide se o efeito de
    * recálculo desiste — e como ref não entra na lista de dependências, o efeito
@@ -133,6 +148,7 @@ export function CalculoUti({
 
     if (entradasVazias(atual)) {
       setResultado(null)
+      setRecusa(null)
       return
     }
 
@@ -152,10 +168,21 @@ export function CalculoUti({
     calculoUtiService
       .calcular(paraRequisicao(atual))
       .then((r) => {
-        if (!cancelado) setResultado(r)
+        if (!cancelado) {
+          setResultado(r)
+          setRecusa(null)
+        }
       })
       .catch((erro) => {
-        if (!cancelado) handleApiError(erro)
+        if (cancelado) return
+        // 400 é entrada implausível — inline. Qualquer outra coisa é falha de
+        // verdade (500, sessão, rede) e continua indo para o toast.
+        const mensagem =
+          axios.isAxiosError<{ erro?: string }>(erro) && erro.response?.status === 400
+            ? (erro.response.data?.erro ?? null)
+            : null
+        if (mensagem) setRecusa(mensagem)
+        else handleApiError(erro)
       })
       .finally(() => {
         if (!cancelado) setRecalculando(false)
@@ -204,6 +231,20 @@ export function CalculoUti({
     ...(abaExtra ? [{ id: abaExtra.id, rotulo: abaExtra.rotulo }] : []),
   ]
 
+  /**
+   * A recusa do servidor, em frases legíveis.
+   *
+   * <p>O `GlobalExceptionHandler` prefixa cada erro com o nome do campo em Java
+   * — `circPanturrilhaCm: ...` — e junta tudo com `; `. O prefixo desambigua
+   * mensagem genérica ("No máximo 2 casas decimais") e por isso continua lá no
+   * servidor; aqui ele é ruído, porque estas frases já nomeiam o campo por
+   * extenso. Uma por linha lê melhor que três coladas.
+   */
+  const linhasDaRecusa = (recusa ?? '')
+    .split('; ')
+    .map((linha) => linha.replace(/^[A-Za-z][A-Za-z0-9]*:\s*/, ''))
+    .filter(Boolean)
+
   /** A faixa de dependência: o que esta aba recebeu de outra, e de onde. */
   function dependencias(itens: React.ReactNode) {
     return (
@@ -215,6 +256,24 @@ export function CalculoUti({
 
   return (
     <div className="flex flex-col gap-4">
+      {recusa && (
+        /*
+         * Acima das abas de propósito: o campo recusado pode estar em qualquer
+         * uma delas, e o aviso tem de ser visto de onde quer que se esteja
+         * digitando. `role="status"` e não `alert`: isto acompanha a digitação,
+         * não interrompe.
+         */
+        <div
+          role="status"
+          className="flex flex-col gap-1 rounded-md border border-warning/40 bg-warning-bg
+                     px-3 py-2.5 text-caption text-txt"
+        >
+          {linhasDaRecusa.map((linha) => (
+            <span key={linha}>{linha}</span>
+          ))}
+        </div>
+      )}
+
       <TTabs abas={abas} ativa={aba} onChange={setAba} />
 
       <TPanel>

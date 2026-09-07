@@ -6,6 +6,10 @@ import { Dashboard } from '@/pages/Dashboard'
 import { NaoEncontrado } from '@/pages/NaoEncontrado'
 import { NaoEncontradoPublico } from '@/pages/NaoEncontradoPublico'
 import { Login } from '@/pages/auth/Login'
+import { FichaAnamneseForm } from '@/pages/clinica/FichaAnamneseForm'
+import { FichaAnamneseList } from '@/pages/clinica/FichaAnamneseList'
+import { ModeloFichaForm } from '@/pages/clinica/ModeloFichaForm'
+import { ModeloFichaList } from '@/pages/clinica/ModeloFichaList'
 import { LoginLogList } from '@/pages/loginlog/LoginLogList'
 import { AvaliacaoPediatricaForm } from '@/pages/pediatria/AvaliacaoPediatricaForm'
 import { AvaliacaoPediatricaList } from '@/pages/pediatria/AvaliacaoPediatricaList'
@@ -76,6 +80,15 @@ export function AppRoutes() {
             <Route path="pessoas" element={<PessoaList />} />
             <Route path="pessoas/nova" element={<PessoaForm />} />
             <Route path="pessoas/:id" element={<PessoaForm />} />
+
+            {/* Clínica — o registro do encontro, que antecede o cálculo. */}
+            <Route path="clinica/fichas" element={<FichaAnamneseList />} />
+            <Route path="clinica/fichas/nova" element={<FichaAnamneseForm />} />
+            <Route path="clinica/fichas/:id" element={<FichaAnamneseForm />} />
+            {/* Rota literal antes de /:id — o router prefere o literal */}
+            <Route path="clinica/modelos-ficha" element={<ModeloFichaList />} />
+            <Route path="clinica/modelos-ficha/novo" element={<ModeloFichaForm />} />
+            <Route path="clinica/modelos-ficha/:id" element={<ModeloFichaForm />} />
 
             <Route path="pediatria/painel-paciente" element={<PediatriaPacienteDashboard />} />
             <Route path="pediatria/dashboard" element={<PediatriaDashboard />} />

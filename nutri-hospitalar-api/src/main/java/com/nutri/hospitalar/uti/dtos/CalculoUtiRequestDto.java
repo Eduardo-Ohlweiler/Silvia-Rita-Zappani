@@ -31,6 +31,18 @@ import java.util.UUID;
  * tempo o formulário está pela metade; o que não dá para calcular volta como
  * ausência <b>com o motivo</b>.
  *
+ * <p><b>Toda medida tem piso e teto, e os dois são de plausibilidade — não são
+ * corte clínico.</b> Por muito tempo só houve teto ("acima de 260 cm não é
+ * plausível") e o piso era zero, então valor grande demais voltava 400 com
+ * frase legível e valor <b>pequeno demais</b> entrava na conta. É uma
+ * assimetria cara aqui, porque a máscara de centavos torna o erro pequeno o
+ * mais provável dos dois: quem digita "156" num campo de duas casas obtém
+ * <b>1,56 cm</b>, e as equações de estimativa de peso são lineares com uma
+ * constante grande subtraída — 0,32 cm de braço devolve peso negativo. Os
+ * pisos ficam bem abaixo de qualquer adulto (o P50 de braço da própria
+ * {@code percentil_cb} vai de 26,7 a 33,0 cm) e a mensagem ensina a vírgula,
+ * que é a causa humana.
+ *
  * @param populacaoReferencia coluna de ajuste de CB e CP. Ausente assume
  *                            população clínica, que é o padrão de UTI e o lado
  *                            conservador. Só tem efeito em IMC &lt; 18,5.
@@ -51,37 +63,37 @@ public record CalculoUtiRequestDto(
         @Max(value = 130, message = "Idade acima de 130 anos não é plausível")
         Integer idadeAnos,
 
-        @DecimalMin(value = "0.0", message = "A altura não pode ser negativa")
+        @DecimalMin(value = "50.0", message = "Altura de menos de 50 cm não é plausível em adulto. Confira a vírgula: para 156 cm, digite 15600")
         @DecimalMax(value = "260.0", message = "Altura acima de 260 cm não é plausível")
         @Digits(integer = 4, fraction = 2, message = "No máximo 2 casas decimais")
         BigDecimal alturaCm,
 
-        @DecimalMin(value = "0.0", message = "A altura do joelho não pode ser negativa")
+        @DecimalMin(value = "20.0", message = "Altura do joelho de menos de 20 cm não é plausível. Confira a vírgula: para 53 cm, digite 5300")
         @DecimalMax(value = "100.0", message = "Altura do joelho acima de 100 cm não é plausível")
         @Digits(integer = 4, fraction = 2, message = "No máximo 2 casas decimais")
         BigDecimal alturaJoelhoCm,
 
-        @DecimalMin(value = "0.0", message = "A circunferência do braço não pode ser negativa")
+        @DecimalMin(value = "10.0", message = "Circunferência do braço de menos de 10 cm não é plausível. Confira a vírgula: para 32 cm, digite 3200")
         @DecimalMax(value = "100.0", message = "Circunferência do braço acima de 100 cm não é plausível")
         @Digits(integer = 4, fraction = 2, message = "No máximo 2 casas decimais")
         BigDecimal circBracoCm,
 
-        @DecimalMin(value = "0.0", message = "A circunferência da panturrilha não pode ser negativa")
+        @DecimalMin(value = "10.0", message = "Circunferência da panturrilha de menos de 10 cm não é plausível. Confira a vírgula: para 34 cm, digite 3400")
         @DecimalMax(value = "100.0", message = "Circunferência da panturrilha acima de 100 cm não é plausível")
         @Digits(integer = 4, fraction = 2, message = "No máximo 2 casas decimais")
         BigDecimal circPanturrilhaCm,
 
-        @DecimalMin(value = "0.0", message = "A circunferência abdominal não pode ser negativa")
+        @DecimalMin(value = "20.0", message = "Circunferência abdominal de menos de 20 cm não é plausível. Confira a vírgula: para 90 cm, digite 9000")
         @DecimalMax(value = "250.0", message = "Circunferência abdominal acima de 250 cm não é plausível")
         @Digits(integer = 4, fraction = 2, message = "No máximo 2 casas decimais")
         BigDecimal circAbdominalCm,
 
-        @DecimalMin(value = "0.0", message = "O peso não pode ser negativo")
+        @DecimalMin(value = "1.0", message = "Peso de menos de 1 kg não é plausível. Confira a vírgula: para 56 kg, digite 56000")
         @DecimalMax(value = "500.0", message = "Peso acima de 500 kg não é plausível")
         @Digits(integer = 4, fraction = 3, message = "No máximo 3 casas decimais")
         BigDecimal pesoAtualKg,
 
-        @DecimalMin(value = "0.0", message = "O peso habitual não pode ser negativo")
+        @DecimalMin(value = "1.0", message = "Peso de menos de 1 kg não é plausível. Confira a vírgula: para 72,5 kg, digite 72500")
         @DecimalMax(value = "500.0", message = "Peso acima de 500 kg não é plausível")
         @Digits(integer = 4, fraction = 3, message = "No máximo 3 casas decimais")
         BigDecimal pesoUsualKg,

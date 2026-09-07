@@ -1,6 +1,8 @@
 package com.nutri.hospitalar;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nutri.hospitalar.clinica.repository.FichaAnamneseRepository;
+import com.nutri.hospitalar.clinica.repository.ModeloFichaRepository;
 import com.nutri.hospitalar.loginlog.repository.LoginLogRepository;
 import com.nutri.hospitalar.pediatria.repository.AvaliacaoPediatricaRepository;
 import com.nutri.hospitalar.pediatria.repository.FormulaLacteaRepository;
@@ -59,6 +61,8 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected FormulaEnteralRepository formulaEnteralRepository;
     @Autowired protected RegistroDiarioUtiRepository registroDiarioUtiRepository;
     @Autowired protected ProdutoNutricionalRepository produtoNutricionalRepository;
+    @Autowired protected ModeloFichaRepository modeloFichaRepository;
+    @Autowired protected FichaAnamneseRepository fichaAnamneseRepository;
     @Autowired protected PasswordEncoder passwordEncoder;
 
     protected Tenant tenantA;
@@ -104,6 +108,17 @@ public abstract class AbstractIntegrationTest {
         produtoNutricionalRepository.deleteAll(
                 produtoNutricionalRepository.findAll().stream()
                         .filter(p -> !p.ehGlobal())
+                        .toList());
+        // A ficha de anamnese aponta para pessoa SEM cascade — como as duas
+        // avaliações, é registro clínico e não some junto com um cadastro. Sai
+        // antes de pessoa, senão a suíte inteira quebra por FK. As respostas vão
+        // junto pelo cascade da ficha.
+        fichaAnamneseRepository.deleteAll();
+        // Só os modelos do tenant: os três do sistema são semeados pela
+        // migration 030 e ficam, como as fórmulas globais acima.
+        modeloFichaRepository.deleteAll(
+                modeloFichaRepository.findAll().stream()
+                        .filter(m -> !m.ehGlobal())
                         .toList());
         pessoaRepository.deleteAllInBatch();
         usuarioRepository.deleteAllInBatch();

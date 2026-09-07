@@ -602,6 +602,24 @@ body {
     text-align: left;
   }
 
+  /* Resposta em TEXTO não é valor numérico.
+     A coluna de 22% alinhada à direita foi desenhada para "72,5 kg" — e numa
+     ficha de anamnese, onde toda resposta é prosa, ela espreme "Amendoim e
+     frutos do mar" em duas linhas e deixa um terço da folha vazio à direita.
+     A variante troca a proporção e alinha à esquerda, que é como se lê texto. */
+  .folha-tabela-valores.folha-valores-prosa th {
+    width: 42%;
+  }
+
+  .folha-tabela-valores.folha-valores-prosa td {
+    width: 40%;
+    text-align: left;
+  }
+
+  .folha-tabela-valores.folha-valores-prosa .folha-detalhe {
+    width: 18%;
+  }
+
   .folha-vazio,
   .folha-observacao {
     margin: 0;

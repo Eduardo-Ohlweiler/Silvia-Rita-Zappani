@@ -2,7 +2,9 @@ import { NavLink } from 'react-router-dom'
 import type { ComponentType, SVGProps } from 'react'
 import LogoFull from '@/assets/brand/logo-full.svg?react'
 import {
+  IconCadastroAuxiliar,
   IconDashboard,
+  IconFicha,
   IconFechar,
   IconLog,
   IconPaciente,
@@ -58,6 +60,13 @@ const GRUPOS: Grupo[] = [
     ],
   },
   {
+    // A anamnese é o registro do encontro, e vem antes do cálculo: é onde se
+    // guarda o que o paciente contou — alergia, hábito, objetivo —, que até
+    // aqui vivia em papel, fora do sistema.
+    titulo: 'Clínica',
+    itens: [{ para: '/app/clinica/fichas', rotulo: 'Fichas de anamnese', Icone: IconFicha }],
+  },
+  {
     titulo: 'Pediatria',
     itens: [
       { para: '/app/pediatria/painel-paciente', rotulo: 'Painel do paciente', Icone: IconPediatria },
@@ -93,6 +102,19 @@ const GRUPOS: Grupo[] = [
       { para: '/app/uti/avaliacoes', rotulo: 'Avaliações', Icone: IconTerapiaNutricional },
       { para: '/app/uti/acompanhamento', rotulo: 'Acompanhamento diário', Icone: IconTerapiaNutricional },
       { para: '/app/uti/ferramentas', rotulo: 'Ferramentas clínicas', Icone: IconTerapiaNutricional },
+    ],
+  },
+  {
+    // Os moldes a partir dos quais as telas de Clínica trabalham. Nasce com um
+    // item só e cresce conforme as demais telas do menu Clínica chegarem
+    // (Refeições, Configuração de consulta) — cada uma traz o seu auxiliar.
+    titulo: 'Cadastros auxiliares',
+    itens: [
+      {
+        para: '/app/clinica/modelos-ficha',
+        rotulo: 'Modelos de ficha',
+        Icone: IconCadastroAuxiliar,
+      },
     ],
   },
   {

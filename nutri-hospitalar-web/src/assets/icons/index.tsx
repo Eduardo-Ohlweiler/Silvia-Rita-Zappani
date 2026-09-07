@@ -169,3 +169,54 @@ export const IconVazio = (p: IconProps) => (
     <path d="m3 7.5 9 4.5 9-4.5M12 12v9" />
   </Icon>
 )
+
+/** Fichas de anamnese — a prancheta do encontro clínico. */
+export const IconFicha = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z" />
+    <path d="M8 6H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2" />
+    <path d="M8 11h8" />
+    <path d="M8 15h5" />
+  </Icon>
+)
+
+/** Cadastros auxiliares — o molde a partir do qual as telas trabalham. */
+export const IconCadastroAuxiliar = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 9h18" />
+    <path d="M9 9v11" />
+  </Icon>
+)
+
+/** Clonar: a cópia editável de um modelo do sistema. */
+export const IconClonar = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+  </Icon>
+)
+
+export const IconExcluir = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 7h16" />
+    <path d="M10 11v6M14 11v6" />
+    <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+    <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </Icon>
+)
+
+/** Reordenar a pergunta no construtor do modelo. */
+export const IconSubir = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 19V5" />
+    <path d="m5 12 7-7 7 7" />
+  </Icon>
+)
+
+export const IconDescer = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 5v14" />
+    <path d="m19 12-7 7-7-7" />
+  </Icon>
+)

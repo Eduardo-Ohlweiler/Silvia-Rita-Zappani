@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Fichas de anamnese. Ver docs/12-fichas-de-anamnese.md.
+
+        A FICHA É DIRIGIDA POR MODELO, não por colunas: cada cliente pergunta o
+        que a sua prática pede, sem migration por pergunta nova. São quatro
+        tabelas — `modelo_ficha` e os seus `campo_ficha`, e a `ficha_anamnese`
+        com as suas `resposta_ficha`.
+
+        `modelo_ficha.tenant_id` É NULLABLE, o mesmo catálogo híbrido da fórmula
+        láctea (016) e da enteral (018): NULL = modelo do sistema, visível a todo
+        cliente e editável por nenhum; preenchido = modelo daquele cliente,
+        invisível para os outros. Adapta-se um do sistema CLONANDO.
+
+        A RESPOSTA GUARDA O RETRATO DA PERGUNTA — `secao`, `rotulo`, `tipo`,
+        `opcoes`, `ordem` e `obrigatorio` são copiados para `resposta_ficha` no
+        momento em que a ficha é gravada. É o ponto que sustenta a fatia.
+
+        No eroERP a resposta guarda só o `campo_id`, e a ficha é desenhada lendo
+        os campos VIVOS do template. Ali, trocar "Consome álcool?" por "Consome
+        álcool diariamente?" faz um "Sim" respondido há um ano passar a responder
+        OUTRA PERGUNTA, e desativar um campo faz a resposta sumir da tela sem
+        sumir do banco. Aqui isso é pior que nos módulos de cálculo: uma resposta
+        de anamnese é só texto, e se o rótulo muda NADA denuncia — não há número
+        para conferir. É a armadilha do retrato gravado, que este projeto já pagou
+        duas vezes (a fórmula láctea impressa ao lado de uma oferta calculada com
+        a antiga, e a fórmula alterada no catálogo).
+
+        O `tipo` no retrato é o que mantém o `valor` legível para sempre: `valor`
+        é TEXT para todo tipo, e é o tipo gravado que diz se 'true' é um sim/não,
+        se '2026-09-06' é data e se '["Leite","Ovo"]' é opção múltipla.
+
+        CONSEQUÊNCIA BOA DO RETRATO: `ficha_anamnese.modelo_id` e
+        `resposta_ficha.campo_id` são ANULÁVEIS, com ON DELETE SET NULL. Apagar
+        um modelo do cliente não esvazia prontuário — a ficha continua legível,
+        imprimível e exportável, dizendo de qual modelo veio pelo `modelo_nome`.
+
+        NÃO HÁ COLUNA DE FINALIDADE. No eroERP a ficha escolhe o template por
+        finalidade (Estética, Nutrição, Veterinária...) e o servidor pega o
+        PRIMEIRO ativo daquela finalidade — indeterminado quando há dois. Aqui
+        tudo é nutrição, a coluna seria constante, e o profissional escolhe o
+        modelo explicitamente.
+    -->
+    <changeSet id="030-create-ficha-anamnese" author="eduardo">
+
+        <!-- ═══ MODELO_FICHA — catálogo híbrido ═══════════════════════════ -->
+        <createTable tableName="modelo_ficha">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_modelo_ficha"/>
+            </column>
+
+            <!-- Nullable: NULL = modelo global do sistema, imutável -->
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_modelo_ficha_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="nome" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="descricao" type="TEXT"/>
+
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <createIndex tableName="modelo_ficha" indexName="idx_modelo_ficha_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!--
+            Nome único por tenant, em duas metades: no Postgres NULL nunca é
+            igual a NULL, então uma unique comum sobre (tenant_id, nome)
+            deixaria cadastrar dez modelos globais com o mesmo nome. Mesma
+            solução da 018.
+        -->
+        <sql>
+            CREATE UNIQUE INDEX uk_modelo_ficha_tenant_nome
+            ON modelo_ficha (tenant_id, lower(nome)) WHERE tenant_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX uk_modelo_ficha_global_nome
+            ON modelo_ficha (lower(nome)) WHERE tenant_id IS NULL;
+        </sql>
+
+        <!-- ═══ CAMPO_FICHA — as perguntas do modelo ══════════════════════ -->
+        <!--
+            SEM `tenant_id`, e isso é decisão e não esquecimento: o modelo dono
+            pode ser do sistema, com tenant nulo, então um tenant_id NOT NULL
+            aqui seria impossível, e um anulável seria uma segunda fonte de
+            verdade para a mesma resposta. O campo é sempre alcançado ATRAVÉS do
+            modelo, e o modelo é a guarda.
+        -->
+        <createTable tableName="campo_ficha">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_campo_ficha"/>
+            </column>
+
+            <column name="modelo_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_campo_ficha_modelo"
+                             references="modelo_ficha(id)"
+                             deleteCascade="true"/>
+            </column>
+
+            <column name="secao" type="VARCHAR(200)"/>
+            <column name="rotulo" type="VARCHAR(300)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- JSON array, exigido nos dois tipos de opção -->
+            <column name="opcoes" type="TEXT"/>
+
+            <column name="ordem" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="obrigatorio" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <sql>
+            ALTER TABLE campo_ficha ADD CONSTRAINT ck_campo_ficha_tipo
+            CHECK (tipo IN ('TEXTO', 'TEXTO_LONGO', 'CHECKBOX', 'DATA',
+                            'NUMERO', 'OPCOES', 'MULTIPLAS_OPCOES'));
+        </sql>
+
+        <!-- Pergunta de opção sem opções é campo que não se pode responder. -->
+        <sql>
+            ALTER TABLE campo_ficha ADD CONSTRAINT ck_campo_ficha_opcoes
+            CHECK (tipo NOT IN ('OPCOES', 'MULTIPLAS_OPCOES')
+                   OR (opcoes IS NOT NULL AND length(btrim(opcoes)) &gt; 0));
+        </sql>
+
+        <createIndex tableName="campo_ficha" indexName="idx_campo_ficha_modelo">
+            <column name="modelo_id"/>
+            <column name="ordem"/>
+        </createIndex>
+
+        <!-- ═══ FICHA_ANAMNESE ════════════════════════════════════════════ -->
+        <createTable tableName="ficha_anamnese">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_ficha_anamnese"/>
+            </column>
+
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_ficha_anamnese_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <!-- Paciente e profissional são `pessoa`, como nas duas avaliações. -->
+            <column name="paciente_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_ficha_anamnese_paciente"
+                             references="pessoa(id)"/>
+            </column>
+            <column name="profissional_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_ficha_anamnese_profissional"
+                             references="pessoa(id)"/>
+            </column>
+
+            <column name="data_preenchimento" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+
+            <!--
+                `modelo_id` anulável + `modelo_nome` obrigatório: é o par que
+                permite apagar um modelo do cliente sem esvaziar prontuário. O id
+                é rastro; o nome é o retrato, e sobrevive.
+            -->
+            <column name="modelo_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_ficha_anamnese_modelo"
+                             references="modelo_ficha(id)"/>
+            </column>
+            <column name="modelo_nome" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="observacao" type="TEXT"/>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+
+            <!--
+                Quem digitou, como nas duas avaliações. É diferente do
+                `profissional_id`: aquele é quem conduziu a anamnese e pode não
+                ter login; este é o usuário que gravou. Enquanto o `audit_log`
+                não existe, é o que responde "quem preencheu".
+            -->
+            <column name="created_by" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_ficha_anamnese_created_by"
+                             references="usuario(id)"/>
+            </column>
+            <column name="updated_by" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_ficha_anamnese_updated_by"
+                             references="usuario(id)"/>
+            </column>
+        </createTable>
+
+        <!-- O `deleteCascade` do Liquibase não cobre SET NULL. -->
+        <sql>
+            ALTER TABLE ficha_anamnese DROP CONSTRAINT fk_ficha_anamnese_modelo;
+            ALTER TABLE ficha_anamnese ADD CONSTRAINT fk_ficha_anamnese_modelo
+            FOREIGN KEY (modelo_id) REFERENCES modelo_ficha(id) ON DELETE SET NULL;
+        </sql>
+
+        <createIndex tableName="ficha_anamnese" indexName="idx_ficha_anamnese_tenant_data">
+            <column name="tenant_id"/>
+            <column name="data_preenchimento" descending="true"/>
+        </createIndex>
+
+        <createIndex tableName="ficha_anamnese" indexName="idx_ficha_anamnese_paciente">
+            <column name="tenant_id"/>
+            <column name="paciente_id"/>
+        </createIndex>
+
+        <!-- ═══ RESPOSTA_FICHA — a resposta COM o retrato da pergunta ═════ -->
+        <createTable tableName="resposta_ficha">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_resposta_ficha"/>
+            </column>
+
+            <!--
+                Aqui o tenant_id ENTRA, ao contrário de `campo_ficha`: é dado
+                clínico de paciente, a ficha dona sempre tem tenant, e é a
+                redundância deliberada de docs/01 §5.
+            -->
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_resposta_ficha_tenant"
+                             references="tenant(id)"/>
+            </column>
+
+            <column name="ficha_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_resposta_ficha_ficha"
+                             references="ficha_anamnese(id)"
+                             deleteCascade="true"/>
+            </column>
+
+            <!-- Rastro de procedência. O campo pode sumir; a resposta fica. -->
+            <column name="campo_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_resposta_ficha_campo"
+                             references="campo_ficha(id)"/>
+            </column>
+
+            <!-- ─── O RETRATO DA PERGUNTA ──────────────────────────────── -->
+            <column name="secao" type="VARCHAR(200)"/>
+            <column name="rotulo" type="VARCHAR(300)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="opcoes" type="TEXT"/>
+            <column name="ordem" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="obrigatorio" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="valor" type="TEXT"/>
+
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <sql>
+            ALTER TABLE resposta_ficha DROP CONSTRAINT fk_resposta_ficha_campo;
+            ALTER TABLE resposta_ficha ADD CONSTRAINT fk_resposta_ficha_campo
+            FOREIGN KEY (campo_id) REFERENCES campo_ficha(id) ON DELETE SET NULL;
+        </sql>
+
+        <sql>
+            ALTER TABLE resposta_ficha ADD CONSTRAINT ck_resposta_ficha_tipo
+            CHECK (tipo IN ('TEXTO', 'TEXTO_LONGO', 'CHECKBOX', 'DATA',
+                            'NUMERO', 'OPCOES', 'MULTIPLAS_OPCOES'));
+        </sql>
+
+        <createIndex tableName="resposta_ficha" indexName="idx_resposta_ficha_ficha">
+            <column name="ficha_id"/>
+            <column name="ordem"/>
+        </createIndex>
+
+    </changeSet>
+    <!--
+        Os três modelos do sistema (tenant_id NULL). São de NUTRIÇÃO e só disso:
+        o eroERP semeia seis finalidades (Estética, Clínica Geral, Odontologia,
+        Podologia, Nutrição, Veterinária), e cinco delas não têm uso aqui.
+
+        NENHUM INSTRUMENTO PONTUADO ENTRA NO SEED. NRS-2002, MUST, MNA-SF e
+        STRONGkids são escalas com pontos de corte e validação publicada — o
+        mesmo tipo de conhecimento que docs/09 e docs/10 exigiram documentar
+        antes de virar código. Um questionário descritivo não tem esse problema:
+        ele registra o que foi dito, não calcula um escore.
+
+        O modelo adulto NÃO PEDE PESO E ALTURA, ao contrário do template
+        NUTRICAO do eroERP: o sistema já os coleta na avaliação, e pedir a mesma
+        medida em dois lugares produz dois valores divergentes para o mesmo
+        paciente, sem dizer qual vale.
+    -->
+    <changeSet id="030-seed-modelos-ficha" author="eduardo">
+
+        <!-- ─── 1. Anamnese nutricional adulto ─────────────────────────── -->
+        <sql splitStatements="true">
+            INSERT INTO modelo_ficha (tenant_id, nome, descricao, ativo, created_at)
+            VALUES (NULL, 'Anamnese nutricional adulto',
+                    'Modelo do sistema — história alimentar, hábitos e objetivo do adulto ambulatorial.',
+                    true, NOW());
+
+            INSERT INTO campo_ficha (modelo_id, secao, rotulo, tipo, opcoes, ordem, obrigatorio, ativo, created_at) VALUES
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Tem alergias alimentares?', 'CHECKBOX', NULL, 1, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Quais alergias?', 'TEXTO', NULL, 2, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Tem intolerâncias alimentares?', 'CHECKBOX', NULL, 3, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Quais intolerâncias?', 'TEXTO', NULL, 4, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Tem doenças crônicas?', 'CHECKBOX', NULL, 5, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Quais doenças?', 'TEXTO', NULL, 6, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Usa medicamentos de uso contínuo?', 'CHECKBOX', NULL, 7, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Quais medicamentos?', 'TEXTO', NULL, 8, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Usa suplementos?', 'CHECKBOX', NULL, 9, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Saúde', 'Quais suplementos?', 'TEXTO', NULL, 10, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Quantas refeições faz por dia?', 'NUMERO', NULL, 11, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Quantos litros de água bebe por dia?', 'NUMERO', NULL, 12, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Consome bebida alcoólica?', 'CHECKBOX', NULL, 13, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Consome ultraprocessados regularmente?', 'CHECKBOX', NULL, 14, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Tem restrições alimentares?', 'CHECKBOX', NULL, 15, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Quais restrições?', 'TEXTO', NULL, 16, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Aversões e alimentos que não consome', 'TEXTO_LONGO', NULL, 17, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Nível de atividade física', 'OPCOES', '["Sedentário","Levemente ativo","Moderadamente ativo","Muito ativo"]', 18, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Hábitos alimentares', 'Hábito intestinal', 'OPCOES', '["Normal","Constipado","Diarreico","Alternante"]', 19, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional adulto' AND tenant_id IS NULL), 'Objetivo', 'Objetivo do acompanhamento nutricional', 'TEXTO_LONGO', NULL, 20, true, true, NOW());
+        </sql>
+
+        <!-- ─── 2. Anamnese nutricional pediátrica ─────────────────────── -->
+        <!--
+            A pediátrica pergunta o que a do adulto não tem como perguntar:
+            gestação, aleitamento, introdução alimentar e seletividade. E registra
+            QUEM PRESTOU AS INFORMAÇÕES — numa anamnese pediátrica quem responde
+            quase nunca é o paciente, e isso qualifica cada resposta acima.
+        -->
+        <sql splitStatements="true">
+            INSERT INTO modelo_ficha (tenant_id, nome, descricao, ativo, created_at)
+            VALUES (NULL, 'Anamnese nutricional pediátrica',
+                    'Modelo do sistema — gestação, aleitamento, introdução alimentar e hábitos da criança.',
+                    true, NOW());
+
+            INSERT INTO campo_ficha (modelo_id, secao, rotulo, tipo, opcoes, ordem, obrigatorio, ativo, created_at) VALUES
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Gestação e nascimento', 'Idade gestacional ao nascer (semanas)', 'NUMERO', NULL, 1, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Gestação e nascimento', 'Peso ao nascer (g)', 'NUMERO', NULL, 2, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Gestação e nascimento', 'Tipo de parto', 'OPCOES', '["Vaginal","Cesárea"]', 3, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Gestação e nascimento', 'Intercorrências na gestação ou no parto', 'TEXTO_LONGO', NULL, 4, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Aleitamento e introdução alimentar', 'Recebeu aleitamento materno?', 'CHECKBOX', NULL, 5, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Aleitamento e introdução alimentar', 'Até que idade, em meses?', 'NUMERO', NULL, 6, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Aleitamento e introdução alimentar', 'Recebeu ou recebe fórmula infantil?', 'CHECKBOX', NULL, 7, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Aleitamento e introdução alimentar', 'Qual fórmula?', 'TEXTO', NULL, 8, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Aleitamento e introdução alimentar', 'Idade de introdução alimentar (meses)', 'NUMERO', NULL, 9, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Aleitamento e introdução alimentar', 'Houve dificuldade na introdução alimentar?', 'CHECKBOX', NULL, 10, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Hábitos atuais', 'Quantas refeições faz por dia?', 'NUMERO', NULL, 11, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Hábitos atuais', 'Apresenta seletividade alimentar?', 'CHECKBOX', NULL, 12, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Hábitos atuais', 'Alimentos recusados', 'TEXTO_LONGO', NULL, 13, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Hábitos atuais', 'Consome ultraprocessados?', 'CHECKBOX', NULL, 14, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Hábitos atuais', 'Hábito intestinal', 'OPCOES', '["Normal","Constipado","Diarreico","Alternante"]', 15, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Saúde', 'Tem alergias alimentares?', 'CHECKBOX', NULL, 16, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Saúde', 'Quais alergias?', 'TEXTO', NULL, 17, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Saúde', 'Usa medicamentos ou suplementos?', 'CHECKBOX', NULL, 18, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Saúde', 'Quais?', 'TEXTO', NULL, 19, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Saúde', 'Quem prestou as informações', 'TEXTO', NULL, 20, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional pediátrica' AND tenant_id IS NULL), 'Objetivo', 'Objetivo do acompanhamento nutricional', 'TEXTO_LONGO', NULL, 21, true, true, NOW());
+        </sql>
+
+        <!-- ─── 3. Anamnese nutricional hospitalar (beira-leito) ───────── -->
+        <!--
+            A de beira-leito não pergunta hábito de vida: pergunta o que muda a
+            conduta hoje — por onde o paciente se alimenta, quanto da dieta ele
+            aceita e o que o impede de aceitar mais.
+        -->
+        <sql splitStatements="true">
+            INSERT INTO modelo_ficha (tenant_id, nome, descricao, ativo, created_at)
+            VALUES (NULL, 'Anamnese nutricional hospitalar',
+                    'Modelo do sistema — beira-leito: via de alimentação, aceitação da dieta e sintomas gastrointestinais.',
+                    true, NOW());
+
+            INSERT INTO campo_ficha (modelo_id, secao, rotulo, tipo, opcoes, ordem, obrigatorio, ativo, created_at) VALUES
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Via de alimentação', 'Via de alimentação atual', 'OPCOES', '["Via oral","Enteral por sonda","Parenteral","Oral e enteral","Jejum"]', 1, true, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Via de alimentação', 'Está em jejum?', 'CHECKBOX', NULL, 2, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Via de alimentação', 'Há quantos dias em jejum?', 'NUMERO', NULL, 3, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Via de alimentação', 'Dieta prescrita atualmente', 'TEXTO', NULL, 4, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Aceitação e sintomas', 'Aceitação da dieta', 'OPCOES', '["Boa (acima de 75%)","Parcial (50 a 75%)","Baixa (abaixo de 50%)","Não aceita"]', 5, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Aceitação e sintomas', 'Apresenta náusea?', 'CHECKBOX', NULL, 6, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Aceitação e sintomas', 'Apresenta vômito?', 'CHECKBOX', NULL, 7, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Aceitação e sintomas', 'Apresenta diarreia?', 'CHECKBOX', NULL, 8, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Aceitação e sintomas', 'Apresenta constipação?', 'CHECKBOX', NULL, 9, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Aceitação e sintomas', 'Apresenta disfagia?', 'CHECKBOX', NULL, 10, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Aceitação e sintomas', 'Apresenta inapetência?', 'CHECKBOX', NULL, 11, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Aceitação e sintomas', 'Outros sintomas gastrointestinais', 'TEXTO_LONGO', NULL, 12, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Restrições', 'Tem alergias alimentares?', 'CHECKBOX', NULL, 13, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Restrições', 'Quais alergias?', 'TEXTO', NULL, 14, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Restrições', 'Restrições alimentares (culturais, religiosas ou terapêuticas)', 'TEXTO_LONGO', NULL, 15, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='Anamnese nutricional hospitalar' AND tenant_id IS NULL), 'Restrições', 'Observações da equipe', 'TEXTO_LONGO', NULL, 16, false, true, NOW());
+        </sql>
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -34,13 +34,16 @@ sistema silvia/
 │       ├── baseentity/            # BaseEntity, TenantEntity
 │       ├── jobs/                  # ManutencaoJob
 │       └── {modulo}/              # tenant, usuario, auth, loginlog, refreshtoken,
-│           ├── controller/        # pessoa, contato, catalogo, atendimento,
+│           ├── controller/        # pessoa, contato, catalogo, clinica,
 │           ├── dtos/              # pediatria, uti, ...
 │           ├── entity/
 │           ├── enums/
 │           ├── mapper/
 │           ├── repository/
 │           └── service/
+│                                  # clinica/ = fichas de anamnese:
+│                                  #   ModeloFicha + CampoFicha (catálogo híbrido)
+│                                  #   FichaAnamnese + RespostaFicha (com o RETRATO)
 │                                  # uti/ = terapia nutricional adulto:
 │                                  #   FormulaEnteral (composição SEMPRE por litro)
 │                                  #   ProdutoNutricional (suplemento · módulo · insumo)
@@ -61,6 +64,7 @@ sistema silvia/
         ├── components/common/     # TPage TPanel TDataGrid TDataGridFooter
         │                          # TEntry TSelect TCombo TButton TBadge TModal TThemeToggle
         │                          # TTabs TResult TBotaoImprimir (doc 04 §7)
+        │                          # TCheckBox TRadio (fatia 12)
         ├── components/layout/     # Layout · Sidebar · TenantSwitcher · TProtected
         ├── contexts/              # AuthContext · ThemeContext
         ├── hooks/                 # useAuth · useTheme · useDebounce
@@ -71,6 +75,7 @@ sistema silvia/
         │                          #    diário e os 3 painéis)
         │                          # uti/ (catálogos, cálculo, avaliação,
         │                          #      acompanhamento e os 3 painéis)
+        │                          # clinica/ (fichas de anamnese e modelos)
         ├── components/pessoa/     # PessoaRapidaModal (cadastro rápido)
         ├── types/ utils/
         └── routes/AppRoutes.tsx
@@ -98,10 +103,12 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **11 — Tela inicial** | ✅ pronta · migration 029 · a lista de trabalho do dia, e o **encerramento do acompanhamento**, que é a saída dela |
 | **11.1 — Verificação de ponta a ponta** | ✅ pronta · o que foi **preenchido** na tela × o que a tela **enviou** × o que o servidor **persistiu** × o que **reabriu**, em todas as telas. Achou 3 defeitos reais (folha do dia com o prescrito errado ao lado da adesão, eixo de gráfico em notação inglesa, exportação com teto de 100 em vez de 2.000) — nenhum deles visível a `build`, `lint` ou aos 368 testes |
 | **11.2 — Varredura de QA no navegador** | ✅ pronta · achou 3 defeitos que `build`, `lint` e os testes deixam passar: a classificação impressa duas vezes na tela do dia pediátrico, `IMCClassificação` colado em quatro tabelas sem padding, e o prescrito exibido ≠ o prescrito da conta em **sete** pontos — a cauda da fatia 11.1, que consertou só dois deles |
+| **12 — Clínica: fichas de anamnese** | ✅ pronta · especificação [docs/12](docs/12-fichas-de-anamnese.md) · migration 030 · primeira tela do menu **Clínica** do eroERP · modelo de ficha como catálogo híbrido, com **clonar** · **o retrato da pergunta** em cada resposta · 3 modelos de nutrição semeados · impressão e exportação · dois grupos novos de menu |
+| **12.1 — O 500 da calculadora** | ✅ pronta · incidente em produção, 06/09/2026. Origem de peso escolhida no seletor não checava o sinal, e medida deslocada pela máscara faz Chumlea 1988 devolver peso **negativo** → `IllegalArgumentException` → 500. Corrigido em três camadas: a guarda que faltava, pisos de plausibilidade com frase que ensina a vírgula, e a recusa **inline** em vez de toast numa tela que recalcula sozinha |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
-**382 testes** no total, contra o banco `nutridb_test`.
+**428 testes** no total, contra o banco `nutridb_test`.
 
 ### O que falta, e por quê
 
@@ -599,6 +606,80 @@ exportação **pagina** — 100 por vez até o total ou até o teto —, e o
 pelo cliente não é limite obtido**; quando os dois são declarados em camadas
 diferentes, o menor vence em silêncio, e só contar as linhas do arquivo mostra.
 
+**Componente de folha impressa carrega a forma do dado que o pariu.**
+`LinhasDeValor` nasceu para prontuário de cálculo: rótulo à esquerda, valor numa
+coluna de **22 % alinhada à direita**, classificação em cinza. É o desenho certo
+para "72,5 kg". A ficha de anamnese reusou o componente — e ali **toda resposta é
+prosa**: "Amendoim e frutos do mar" saiu quebrado em duas linhas, espremido à
+direita, com um terço da folha vazio ao lado. Os números estavam certos e a folha
+estava errada, e nada apontava para isso: `build`, `lint` e os 424 testes
+passaram, porque a largura de uma coluna não tem assertiva. **Só apareceu no
+PDF.** O conserto foi uma variante (`prosa`) no componente, e não uma tabela nova
+na tela — mas a lição é anterior: ao reusar um componente de impressão, perguntar
+**de que forma era o dado para o qual ele foi desenhado**. Reuso entre documentos
+exige conferir a forma do conteúdo, como reuso entre módulos exige conferir a
+unidade declarada do catálogo.
+
+**Pergunta editável precisa gravar o retrato, e mais ainda que número.**
+No eroERP a resposta de anamnese guarda só o `campo_id`, e a ficha é desenhada
+lendo os campos vivos do template: trocar *"Consome álcool?"* por *"Consome
+álcool diariamente?"* faz um "Sim" de um ano atrás passar a responder **outra
+pergunta**, e desativar um campo some com a resposta na tela sem sumir do banco.
+É a mesma armadilha do retrato da fórmula, com um agravante: uma resposta de
+anamnese é **só texto**, e não há número ao lado para não fechar — se o rótulo
+muda, **nada denuncia**. Por isso `resposta_ficha` guarda `secao`, `rotulo`,
+`tipo`, `opcoes`, `ordem` e `obrigatorio` como colunas próprias, e a ficha salva
+é desenhada, impressa e exportada a partir das suas próprias linhas. Duas
+consequências boas: o `tipo` gravado é o que mantém o `valor` legível (é ele que
+diz se `"true"` é sim/não e se `["Leite","Ovo"]` é opção múltipla), e **apagar um
+modelo deixa de esvaziar prontuário** — o `modelo_id` é anulável com
+`ON DELETE SET NULL`, e o `modelo_nome` sobrevive na ficha.
+
+**Guarda com teto e sem piso deixa passar exatamente o erro mais provável.**
+Todo campo antropométrico de `CalculoUtiRequestDto` tinha
+`@DecimalMax` com uma frase boa — *"Altura acima de 260 cm não é plausível"* — e
+`@DecimalMin("0.0")`, isto é, **só barrava negativo**. Só que a máscara de
+centavos torna o erro *pequeno* o mais provável dos dois: quem digita `156` num
+campo de duas casas obtém **1,56 cm**, e ninguém digita 26.000. Em produção,
+06/09/2026, isso virou três *"Erro interno"* seguidos na calculadora — uma
+profissional com braço de **0,32 cm** e o seletor em "Estimado — Chumlea 1988".
+As equações de estimativa de peso são **lineares com uma constante grande
+subtraída**, então medida deslocada não devolve número pequeno: devolve
+**negativo**. Com 0,32 cm de braço, Chumlea 1988 dá peso negativo para toda
+combinação de sexo e etnia e **qualquer** altura de joelho, inclusive a correta
+de 53 cm. Lição: **piso e teto são a mesma guarda pela metade cada um**, e o
+lado que a interface torna provável é o que precisa da frase melhor — a nossa
+ensina a vírgula (*"para 156 cm, digite 15600"*).
+
+**O ramo que o usuário escolhe não herda a guarda do ramo automático.**
+`resolverPeso` tinha dois caminhos para o mesmo record. O automático testava
+`positivo(estimado)`; o da origem **escolhida no seletor** testava só
+`escolhido == null`. Todos os outros pontos que constroem `PesoDeTrabalho`
+testam o sinal — só aquele não. O record recusa não-positivo com
+`IllegalArgumentException`, que não tem handler e cai no catch-all: **HTTP 500**,
+*"Erro interno. Referência: …"*, na tela de quem prescreve. E não havia teste:
+`grep -rn origemPesoPreferida src/test` **não retornava nada** — o caminho
+inteiro, quatro origens, estava descoberto. É primo do calculador órfão: lá o
+método público não era chamado por ninguém; aqui o ramo era chamado só por
+usuário, nunca por teste. Vale a mesma varredura: **para cada `if` que separa
+"o sistema escolheu" de "o usuário escolheu", conferir se as duas pernas têm as
+mesmas guardas.**
+
+**Nesta tela um 400 não é evento, é estado do formulário.**
+Corrigido o 500, os pisos novos passaram a devolver 400 — e a calculadora
+recalcula a cada 500 ms, com o formulário pela metade quase o tempo todo. Como
+`handleApiError` manda todo 400 para o `toast`, digitar um único número
+empilhava **três avisos vermelhos**: a máscara passa por `0,05 · 0,53 · 5,30`
+antes de chegar a `53,00`, e cada pausa acima do debounce dispara um. Medido no
+navegador, não deduzido. O `CalculoUti` hoje separa os dois: **400 é recusa de
+entrada e aparece inline**, numa faixa que some sozinha quando o número fica
+inteiro; 500, sessão e rede continuam indo para o toast. Regra geral: **numa
+superfície que recalcula sozinha, erro de validação é estado — quem decide se
+vira toast é a tela, não o interceptor.** E o `GlobalExceptionHandler` prefixa
+cada erro com o nome do campo em Java (`circPanturrilhaCm: …`), que desambigua
+mensagem genérica mas é ruído quando a frase já nomeia o campo: a faixa tira o
+prefixo na exibição.
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -622,6 +703,7 @@ desatualizada — reinicie.
 | [docs/09-calculos-pediatria.md](docs/09-calculos-pediatria.md) | **Especificação numérica** das fórmulas da pediatria — OMS, DRIs, caso de teste |
 | [docs/10-calculos-uti-adulto.md](docs/10-calculos-uti-adulto.md) | **Especificação numérica** da UTI adulto — Chumlea, Jung, Rabito, dieta enteral, hidratação |
 | [docs/11-acompanhamento-pediatrico.md](docs/11-acompanhamento-pediatrico.md) | **Especificação** do acompanhamento diário pediátrico — os derivados, a idade que anda, e por que nenhuma constante nova entrou |
+| [docs/12-fichas-de-anamnese.md](docs/12-fichas-de-anamnese.md) | **Fichas de anamnese** — a ficha dirigida por modelo, o retrato da pergunta, e o que falta do menu Clínica |
 
 ---
 
@@ -679,7 +761,7 @@ dirige o `/usr/bin/google-chrome` do sistema: **não instale playwright**.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 382 testes contra nutridb_test
+./run-dev.sh test         # 428 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

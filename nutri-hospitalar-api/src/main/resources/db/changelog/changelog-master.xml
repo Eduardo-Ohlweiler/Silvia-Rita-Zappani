@@ -46,4 +46,7 @@
     <include file="db/changelog/changes/028-create-registro-diario-pediatrico.xml"/>
     <include file="db/changelog/changes/029-avaliacao-uti-encerramento.xml"/>
 
+    <!-- Fatia 12 — clínica: fichas de anamnese (docs/12) -->
+    <include file="db/changelog/changes/030-create-ficha-anamnese.xml"/>
+
 </databaseChangeLog>

@@ -115,14 +115,30 @@ export interface LinhaValor {
  * folha". O traço aqui é legítimo, ao contrário do da tela — o papel não tem
  * como perguntar de novo, e o motivo, quando existe, vai no detalhe.
  */
-export function LinhasDeValor({ linhas }: { linhas: LinhaValor[] }) {
+export function LinhasDeValor({
+  linhas,
+  prosa,
+}: {
+  linhas: LinhaValor[]
+  /**
+   * O valor é <b>texto</b>, e não número.
+   *
+   * <p>A coluna de valor nasceu para "72,5 kg": 22 % da largura, alinhada à
+   * direita. Numa ficha de anamnese, onde toda resposta é prosa, isso quebra
+   * "Amendoim e frutos do mar" em duas linhas e deixa um terço da folha vazio.
+   * Com esta variante a coluna cresce e alinha à esquerda.
+   */
+  prosa?: boolean
+}) {
   return (
-    <table className="folha-tabela folha-tabela-valores">
+    <table
+      className={`folha-tabela folha-tabela-valores ${prosa ? 'folha-valores-prosa' : ''}`}
+    >
       <tbody>
         {linhas.map((l) => (
           <tr key={l.rotulo}>
             <th scope="row">{l.rotulo}</th>
-            <td className="numeric">{l.valor}</td>
+            <td className={prosa ? undefined : 'numeric'}>{l.valor}</td>
             <td className="folha-detalhe">{l.detalhe ?? ''}</td>
           </tr>
         ))}

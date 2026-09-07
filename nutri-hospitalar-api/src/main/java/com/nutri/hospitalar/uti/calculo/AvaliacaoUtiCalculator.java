@@ -58,6 +58,18 @@ public final class AvaliacaoUtiCalculator {
             "Informe o sexo: as equações de estimativa são separadas por sexo";
     private static final String SEM_MEDIDAS_PARA_ESTIMAR =
             "Informe altura do joelho e circunferência do braço para as estimativas de peso";
+    /**
+     * A origem foi escolhida à mão, a equação rodou, e o que ela devolveu não é
+     * peso.
+     *
+     * <p>Não pode ser {@link #SEM_PESO}: aquele texto manda informar medidas que
+     * o profissional <b>já informou</b>, e culpar o dado que está lá é pior que
+     * não dizer nada. Aqui as medidas existem — é o resultado delas que não
+     * fecha, e o que resolve é conferir a vírgula.
+     */
+    private static final String ESTIMATIVA_IMPLAUSIVEL =
+            "A estimativa escolhida não produziu um peso plausível com estas medidas — "
+                    + "confira a circunferência do braço e a altura do joelho, ou informe o peso";
     private static final String SEM_PESO_USUAL =
             "Informe o peso habitual e a janela de tempo para avaliar a perda";
     private static final String SEM_P50 =
@@ -135,7 +147,21 @@ public final class AvaliacaoUtiCalculator {
     private static PesoDeTrabalho resolverPeso(EntradaUti e) {
         if (e.origemPesoPreferida() != null) {
             BigDecimal escolhido = pesoDaOrigem(e, e.origemPesoPreferida());
-            return escolhido == null ? null : new PesoDeTrabalho(escolhido, e.origemPesoPreferida());
+            /*
+             * `positivo`, e não `!= null`. O ramo automático abaixo sempre
+             * testou o sinal; este, o da origem ESCOLHIDA no seletor, testava
+             * só a nulidade — e as equações de estimativa são lineares com uma
+             * constante grande subtraída, então medida deslocada pela máscara
+             * devolve peso NEGATIVO, não nulo. Com circunferência de braço de
+             * 0,32 cm (digitou "32"), Chumlea 1988 dá peso negativo para toda
+             * combinação de sexo e etnia e qualquer altura de joelho, inclusive
+             * a correta. O record `PesoDeTrabalho` recusa não-positivo com
+             * IllegalArgumentException, que não tem handler: virava HTTP 500,
+             * "Erro interno", em produção, na tela de quem prescreve.
+             */
+            return positivo(escolhido)
+                    ? new PesoDeTrabalho(escolhido, e.origemPesoPreferida())
+                    : null;
         }
 
         if (positivo(e.pesoAtualKg()))
@@ -149,6 +175,21 @@ public final class AvaliacaoUtiCalculator {
         }
 
         return null;
+    }
+
+    /**
+     * Por que não há peso de trabalho — e são dois motivos diferentes.
+     *
+     * <p>Se uma origem foi escolhida e ela <b>produziu</b> um número (não nulo)
+     * e ainda assim não virou peso, o número era não-positivo: as medidas estão
+     * lá e o resultado é que é implausível. Só quando não há sequer o que
+     * calcular é que cabe pedir as medidas.
+     */
+    private static String motivoDoPesoAusente(EntradaUti e) {
+        return e.origemPesoPreferida() != null
+                && pesoDaOrigem(e, e.origemPesoPreferida()) != null
+                ? ESTIMATIVA_IMPLAUSIVEL
+                : SEM_PESO;
     }
 
     private static BigDecimal pesoDaOrigem(EntradaUti e, OrigemValor origem) {
@@ -190,7 +231,8 @@ public final class AvaliacaoUtiCalculator {
         // IMC
         BigDecimal imc = peso == null || altura == null
                 ? null : AntropometriaCalculator.imc(peso.valorKg(), altura);
-        String motivoImc = imc != null ? null : (peso == null ? SEM_PESO : SEM_ALTURA);
+        String motivoImc = imc != null ? null
+                : (peso == null ? motivoDoPesoAusente(e) : SEM_ALTURA);
 
         // Metas de peso
         BigDecimal imcAlvo = e.sexo() == Sexo.FEMININO ? IMC_ALVO_MULHER : IMC_ALVO_HOMEM;
@@ -262,7 +304,7 @@ public final class AvaliacaoUtiCalculator {
                 peso == null ? null : peso.descricaoOrigem(),
                 altura == null ? null : arredondar(altura.emCentimetros()),
                 altura == null ? null : altura.descricaoOrigem(),
-                peso == null ? SEM_PESO : null,
+                peso == null ? motivoDoPesoAusente(e) : null,
 
                 arredondar(imc),
                 AntropometriaCalculator.classificarImcOms(imc),
@@ -318,7 +360,7 @@ public final class AvaliacaoUtiCalculator {
     private static Metas necessidades(EntradaUti e, PesoDeTrabalho peso,
                                       BigDecimal imc, Altura altura) {
         if (peso == null)
-            return vaziaComMotivo(SEM_PESO);
+            return vaziaComMotivo(motivoDoPesoAusente(e));
 
         boolean obeso = NecessidadeCalculator.ehObeso(imc);
         TerapiaRenal renal = e.terapiaRenalOuNenhuma();
@@ -478,7 +520,7 @@ public final class AvaliacaoUtiCalculator {
 
                 progressao,
                 null,
-                peso == null ? SEM_PESO : null);
+                peso == null ? motivoDoPesoAusente(e) : null);
     }
 
     /**
@@ -529,7 +571,7 @@ public final class AvaliacaoUtiCalculator {
                                                       PesoDeTrabalho peso, ResultadoUti.Dieta dieta) {
         if (peso == null)
             return new ResultadoUti.Hidratacao(null, null, null, null, null, null,
-                    null, null, List.of(), List.of(), null, SEM_PESO);
+                    null, null, List.of(), List.of(), null, motivoDoPesoAusente(e));
 
         BigDecimal minima = HidratacaoCalculator.necessidadeMinima(peso);
         BigDecimal ideal = HidratacaoCalculator.necessidadeIdeal(peso);

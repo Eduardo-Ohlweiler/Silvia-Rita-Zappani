@@ -361,6 +361,129 @@ class CalculoUtiEndpointTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * O incidente de 06/09/2026, em produção: três "Erro interno" seguidos na
+     * calculadora.
+     *
+     * <p>A profissional digitou <b>32</b> na circunferência do braço e a máscara
+     * de duas casas gravou <b>0,32 cm</b>; o seletor estava em "Estimado —
+     * Chumlea 1988". A equação é linear com uma constante grande subtraída, e
+     * com 0,32 cm de braço ela devolve peso <b>negativo</b> para toda combinação
+     * de sexo e etnia e qualquer altura de joelho — inclusive a correta de
+     * 53 cm. O ramo da origem escolhida testava só {@code != null}, o record
+     * {@code PesoDeTrabalho} recusava o não-positivo com
+     * {@code IllegalArgumentException}, e o handler catch-all devolvia <b>500</b>.
+     *
+     * <p>Hoje a validação barra antes, com uma frase que ensina a vírgula. Se
+     * alguém afrouxar o piso, o teste seguinte garante que o cálculo continua
+     * sem estourar.
+     */
+    @Test
+    @DisplayName("medida deslocada pela máscara é recusada, e a mensagem ensina a vírgula")
+    void medidaDeslocadaPelaMascara() throws Exception {
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"FEMININO","etnia":"BRANCA","idadeAnos":43,
+                                 "alturaCm":1.56,"alturaJoelhoCm":43,
+                                 "circBracoCm":0.32,"circPanturrilhaCm":0.34,
+                                 "origemPesoPreferida":"ESTIMADO_CHUMLEA"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value(org.hamcrest.Matchers.containsString("vírgula")));
+    }
+
+    /**
+     * A rede de baixo: mesmo que a medida passe pela validação, escolher uma
+     * origem cuja equação não devolve peso plausível <b>não pode</b> estourar.
+     *
+     * <p>Braço de 10 cm passa no piso e ainda é pequeno o bastante para Chumlea
+     * 1988 sair negativo. Antes era 500; agora é 200 com o motivo por escrito —
+     * e o motivo <b>não</b> pode ser o genérico "informe as medidas", porque as
+     * medidas estão lá: culpar o dado que o profissional forneceu é pior que
+     * não dizer nada.
+     */
+    @Test
+    @DisplayName("origem escolhida que não produz peso plausível vira ausência com motivo, nunca 500")
+    void origemEscolhidaComPesoNaoPlausivel() throws Exception {
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"FEMININO","etnia":"BRANCA","idadeAnos":43,
+                                 "alturaCm":156,"alturaJoelhoCm":20,"circBracoCm":10,
+                                 "origemPesoPreferida":"ESTIMADO_CHUMLEA"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.antropometria.pesoDeTrabalhoKg").doesNotExist())
+                .andExpect(jsonPath("$.antropometria.motivoPesoDeTrabalho")
+                        .value(org.hamcrest.Matchers.containsString("não produziu um peso plausível")))
+                // O bloco inteiro cai junto, e cada um repete o mesmo motivo —
+                // nenhum traço mudo, e nenhum culpando medida que existe.
+                .andExpect(jsonPath("$.necessidades.motivo")
+                        .value(org.hamcrest.Matchers.containsString("não produziu um peso plausível")))
+                .andExpect(jsonPath("$.hidratacao.motivo")
+                        .value(org.hamcrest.Matchers.containsString("não produziu um peso plausível")));
+    }
+
+    /**
+     * O irmão do caso acima, no mesmo ramo: origem <b>INFORMADO</b> com o campo
+     * preenchido com zero — que é diferente de vazio, e chegava ao record como
+     * {@code 0.00}, não como {@code null}.
+     *
+     * <p>Hoje o piso do DTO o pega antes de chegar ao cálculo, e é o certo: zero
+     * digitado é erro de digitação, não ausência. A guarda do
+     * {@code resolverPeso} continua valendo como rede de baixo — o caminho da
+     * avaliação <b>salva</b> monta o cálculo a partir de dados do banco, que não
+     * passam por Bean Validation.
+     */
+    @Test
+    @DisplayName("origem informada com peso zero é recusada na validação")
+    void origemInformadaComPesoZero() throws Exception {
+        mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"sexo":"FEMININO","idadeAnos":43,"alturaCm":156,
+                                 "pesoAtualKg":0,"origemPesoPreferida":"INFORMADO"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erro").value(org.hamcrest.Matchers.containsString("não é plausível")));
+    }
+
+    /**
+     * O caso feliz das quatro origens — que não tinha teste nenhum:
+     * {@code grep -rn origemPesoPreferida src/test} não retornava nada, e foi
+     * por aí que o 500 passou.
+     */
+    @Test
+    @DisplayName("as quatro origens de peso respondem, e cada uma diz qual é")
+    void asQuatroOrigensDePeso() throws Exception {
+        record Caso(String origem, String descricao) {}
+        var casos = java.util.List.of(
+                new Caso("INFORMADO", "informado"),
+                new Caso("ESTIMADO_CHUMLEA", "Chumlea"),
+                new Caso("ESTIMADO_JUNG", "Jung"),
+                new Caso("ESTIMADO_RABITO", "Rabito"));
+
+        for (Caso caso : casos) {
+            mockMvc.perform(post("/uti/calculo")
+                            .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                            .contentType("application/json")
+                            .content("""
+                                    {"sexo":"MASCULINO","etnia":"BRANCA","idadeAnos":59,
+                                     "alturaCm":168,"pesoAtualKg":68,"alturaJoelhoCm":53,
+                                     "circBracoCm":25,"circPanturrilhaCm":34,"circAbdominalCm":90,
+                                     "origemPesoPreferida":"%s"}
+                                    """.formatted(caso.origem())))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.antropometria.pesoDeTrabalhoKg").isNotEmpty())
+                    .andExpect(jsonPath("$.antropometria.pesoDeTrabalhoOrigem")
+                            .value(org.hamcrest.Matchers.containsString(caso.descricao())));
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────
 
     // ─── Módulo proteico ────────────────────────────────────────────────
