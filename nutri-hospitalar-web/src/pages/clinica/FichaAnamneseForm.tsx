@@ -285,7 +285,10 @@ export function FichaAnamneseForm() {
                 placeholder="Buscar por nome ou documento"
                 value={pacienteId}
                 rotuloInicial={pacienteRotulo}
-                onChange={setPacienteId}
+                onChange={(v) => {
+                  setPacienteId(v)
+                  if (erro) setErro(undefined)
+                }}
                 buscar={(termo) =>
                   pessoaService.select(termo, tipoPacienteId).then((ps) =>
                     ps.map((p) => ({
@@ -332,7 +335,10 @@ export function FichaAnamneseForm() {
               placeholder="Escolher o modelo"
               value={modeloId}
               rotuloInicial={modeloRotulo}
-              onChange={aoEscolherModelo}
+              onChange={(v) => {
+                if (erro) setErro(undefined)
+                aoEscolherModelo(v)
+              }}
               buscar={modeloFichaService.selectParaCombo}
             />
           </div>

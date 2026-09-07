@@ -232,7 +232,10 @@ export function ModeloFichaForm() {
               autoFocus={!doSistema}
               disabled={doSistema}
               value={nome}
-              onChange={(e) => setNome(e.target.value)}
+              onChange={(e) => {
+                setNome(e.target.value)
+                if (erro) setErro(undefined)
+              }}
             />
             <TTextArea
               label="Descrição"
