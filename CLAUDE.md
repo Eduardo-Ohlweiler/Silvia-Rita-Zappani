@@ -108,7 +108,7 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
-**428 testes** no total, contra o banco `nutridb_test`.
+**431 testes** no total, contra o banco `nutridb_test`.
 
 ### O que falta, e por quê
 
@@ -680,6 +680,48 @@ cada erro com o nome do campo em Java (`circPanturrilhaCm: …`), que desambigua
 mensagem genérica mas é ruído quando a frase já nomeia o campo: a faixa tira o
 prefixo na exibição.
 
+**Regra clínica que uma entrada manual apaga precisa dizer que apagou.**
+A precedência da meta proteica é *alvo digitado → terapia renal → obesidade →
+faixa da fase*, e o alvo vencer é **certo**: é conduta explícita de quem
+prescreve. O que não podia continuar é ele vencer **calado**. Com hemodiálise
+contínua e alvo de 1,3 g/kg num paciente de 64,91 kg, o sistema adotava
+**84,38 g** em vez de 129,82, media a adequação contra os 84,38, declarava *"a
+dieta já cobre a meta proteica"* e **suprimia a sugestão do módulo proteico** —
+até 45 g de déficit sem uma palavra na tela. Enquanto isso a interface prometia
+o oposto em **cinco literais**: dois na tela (`ajuda` do seletor e a
+`referencia` cravada de *"substitui a faixa da fase"*), dois na folha impressa e
+um no javadoc do enum. E o servidor publicava a meta renal como
+`META_POR_FAIXA`, então a tela escreveria *"136,0 · da faixa da fase"* debaixo
+de *"Proteína — máximo 102,0"* — a única pista era a **ausência do `· máximo`**,
+que ninguém procura. Três lições. (1) É a irmã da adesão, com o sinal
+invertido: **quando a regra descarta um valor, publicar o descartado** — a
+procedência do escolhido não diz o que foi calado. (2) **Frase montada no
+servidor só pode levar número que venha de entrada.** A tentação era publicar
+*"a hemodiálise recomenda 129,82 g/dia"*, e o número sairia de
+`getProteinaGKg()`, que é **régua**: corrigir 2,0 para 1,9 faria toda avaliação
+salva reabrir dizendo outro valor ao lado do gravado. `volumeTotalDescricao`
+("62 ml/h × 22 h") escapa porque deriva **só de entradas**. Hoje o servidor
+publica o *status* e a tela põe os números, que vêm de coluna. (3) **Frase de
+estado bloqueado tem de nomear os vencedores, não uma ação a tentar.** A
+primeira versão do texto do seletor travado dizia *"limpe o alvo calórico ou o
+proteico"* — e no navegador, com o alvo proteico já vazio e diálise escolhida,
+ela continuava travada mandando limpar um campo em branco: ali quem tomou a
+proteína era a diálise. Só apareceu porque alguém abriu a tela.
+
+**"Não calcula" pode ser "não há o que calcular", e a forma é que mente.**
+A queixa era que o módulo proteico não calculava na calculadora. A aritmética
+estava certa — lacuna zero, porque a dieta entregava 136,4 g contra uma meta de
+84,38 — e o servidor explicava a frase certa. O que enganava era o **desenho**:
+um grupo intitulado com o produto escolhido, **três traços**, a frase pendurada
+só embaixo do primeiro campo e uma legenda órfã (*"do rótulo do produto"*) ao
+lado de um valor vazio, porque o `TResult` só esconde a referência de quem tem
+motivo para esconder. Sem sugestão não há três resultados a mostrar — há uma
+frase. E *"no acompanhamento está correto"* era ilusão de segunda ordem: a
+avaliação salva **não recalcula ao abrir**, ela exibe os números gravados de um
+dia em que havia lacuna. Antes de caçar defeito de cálculo em duas telas que
+compartilham componente, DTO e calculador, conferir se uma delas está
+mostrando **retrato** em vez de recálculo.
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -761,7 +803,7 @@ dirige o `/usr/bin/google-chrome` do sistema: **não instale playwright**.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 428 testes contra nutridb_test
+./run-dev.sh test         # 431 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

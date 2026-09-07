@@ -18,6 +18,7 @@ import {
   OPCOES_SEXO,
   OPCOES_TERAPIA_RENAL,
   type CalculoUtiRequest,
+  type ResultadoNecessidades,
   type ResultadoUti,
 } from '@/types/uti'
 import { formatarData, formatarNumero, rotuloDe } from '@/utils/format'
@@ -38,6 +39,22 @@ const faixa = (min: number | null | undefined, max: number | null | undefined,
   min == null || max == null
     ? '—'
     : `${formatarNumero(min, casas, casas)} a ${formatarNumero(max, casas, casas)} ${unidade}`
+
+/**
+ * Onde o ponto escolhido na faixa realmente governou.
+ *
+ * A linha imprimia "Máximo da faixa" como ponto **adotado** mesmo quando ponto
+ * nenhum foi adotado: com os dois alvos digitados a posição não governa meta
+ * alguma, e no papel isso é uma afirmação falsa sobre como o número saiu. Quem
+ * sabe onde ela valeu é o servidor, e ele publica — a folha não deduz.
+ */
+const pontoDaFaixaDetalhe = (nec?: ResultadoNecessidades) => {
+  if (!nec) return ''
+  if (nec.posicaoValeParaEnergia && nec.posicaoValeParaProteina) return 'Vale para as duas metas'
+  if (nec.posicaoValeParaEnergia) return 'Valeu só para a energia'
+  if (nec.posicaoValeParaProteina) return 'Valeu só para a proteína'
+  return 'Sem efeito: nenhuma das metas veio de faixa'
+}
 
 /**
  * A avaliação de terapia nutricional como **prontuário**.
@@ -130,6 +147,10 @@ export function DocumentoAvaliacaoUti({
     {
       rotulo: 'Ponto adotado na faixa',
       valor: rotuloDe(OPCOES_POSICAO_FAIXA, entradas.posicaoNaFaixa) ?? 'Máximo da faixa',
+      // Ele imprimia "Máximo da faixa" como ponto ADOTADO mesmo quando nenhum
+      // ponto foi adotado — com os dois alvos digitados a posição não governa
+      // meta nenhuma. Quem sabe onde ela valeu é o servidor.
+      detalhe: pontoDaFaixaDetalhe(nec),
     },
     {
       rotulo: 'Alvo personalizado',
@@ -147,7 +168,7 @@ export function DocumentoAvaliacaoUti({
     {
       rotulo: 'Terapia renal substitutiva',
       valor: rotuloDe(OPCOES_TERAPIA_RENAL, entradas.terapiaRenal) ?? '—',
-      detalhe: 'Substitui a meta proteica por 1,8 ou 2,0 g/kg',
+      detalhe: 'Substitui a faixa proteica da fase por 1,8 ou 2,0 g/kg — o alvo digitado ainda vence',
     },
     {
       rotulo: 'Modo de infusão',
@@ -243,7 +264,11 @@ export function DocumentoAvaliacaoUti({
     {
       rotulo: 'Proteína na terapia renal',
       valor: n(nec?.proteinaTerapiaRenal, 1, 'g/dia'),
-      detalhe: 'Substitui a meta quando há hemodiálise',
+      // Irmão do literal que estava na tela. Num prontuário isto é pior: a
+      // folha afirmava a substituição ao lado de uma meta adotada que era
+      // outra, e quem confere no papel não tem como refazer a conta.
+      detalhe:
+        nec?.referenciaProteinaTerapiaRenal ?? nec?.motivoProteinaTerapiaRenal ?? '',
     },
     {
       // A frase vai no DETALHE, não na coluna numérica: ela é longa e ali sairia

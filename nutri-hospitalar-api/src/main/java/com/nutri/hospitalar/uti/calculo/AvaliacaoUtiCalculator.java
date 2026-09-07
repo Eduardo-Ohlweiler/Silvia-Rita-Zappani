@@ -88,6 +88,18 @@ public final class AvaliacaoUtiCalculator {
             "Escolha um módulo proteico para ver quanto dele cobre a lacuna";
     private static final String MODULO_SEM_COMPOSICAO =
             "%s não tem medida, proteína ou calorias no cadastro — sem elas não há o que sugerir";
+    private static final String SEM_TERAPIA_RENAL =
+            "Nenhuma terapia renal substitutiva informada";
+    /** Ela venceu a faixa da fase, ou o protocolo de obesidade. */
+    private static final String RENAL_ADOTADA = "é esta a meta proteica adotada";
+    /**
+     * Ela <b>não</b> venceu — e a tela jurava que sim, num literal cravado.
+     *
+     * <p>O alvo digitado vence de propósito: é conduta explícita de quem
+     * prescreve. O que não podia continuar é ele vencer <b>calado</b>.
+     */
+    private static final String RENAL_PRETERIDA =
+            "preterida pelo alvo proteico informado";
     private static final String SEM_META_PROTEICA =
             "Sem meta proteica não há lacuna a medir — escolha a fase da terapia, "
                     + "ou informe um alvo em g/kg";
@@ -409,7 +421,8 @@ public final class AvaliacaoUtiCalculator {
         if (positivo(e.proteinaPorKgAlvo()))
             metaProteica = NecessidadeCalculator.proteinaPersonalizada(e.proteinaPorKgAlvo(), peso);
         else if (proteinaRenal != null)
-            metaProteica = new MetaProteica(proteinaRenal, OrigemValor.META_POR_FAIXA);
+            // Valor único, e a origem o diz: 2,0 g/kg não é ponto da faixa da fase
+            metaProteica = new MetaProteica(proteinaRenal, OrigemValor.META_TERAPIA_RENAL);
         else if (proteinaObeso != null)
             metaProteica = new MetaProteica(proteinaObeso, origemProteina);
         else
@@ -419,6 +432,24 @@ public final class AvaliacaoUtiCalculator {
         if (metaEnergetica == null) motivo = SEM_FASE;
         else if (obeso && pesoIdeal == null)
             motivo = "O protocolo de obesidade usa o peso ideal: informe a altura e o sexo";
+
+        // A posição só governa uma meta que veio de faixa — e é a própria meta
+        // que sabe disso: ela carrega a posição, nula quando é valor único.
+        // Deduzir aqui de novo seria a quarta linguagem da mesma regra.
+        boolean posicaoValeEnergia = metaEnergetica != null && metaEnergetica.posicao() != null;
+        boolean posicaoValeProteina = metaProteica != null && metaProteica.posicao() != null;
+
+        // A linha da terapia renal deixa de ter legenda cravada na tela: quem
+        // sabe se aquela coluna venceu é quem escolheu. Aqui `peso` não é nulo
+        // (o método já teria retornado), então proteinaRenal nula significa
+        // exatamente "nenhuma terapia renal" — e o motivo pode dizê-lo.
+        String referenciaRenal = null;
+        String motivoRenal = null;
+        boolean renalPreterida = proteinaRenal != null && positivo(e.proteinaPorKgAlvo());
+        if (proteinaRenal == null)
+            motivoRenal = SEM_TERAPIA_RENAL;
+        else
+            referenciaRenal = renalPreterida ? RENAL_PRETERIDA : RENAL_ADOTADA;
 
         ResultadoUti.Necessidades dto = new ResultadoUti.Necessidades(
                 energia == null ? null : arredondar(energia.minimo()),
@@ -431,14 +462,18 @@ public final class AvaliacaoUtiCalculator {
                 metaProteica == null ? null : arredondar(metaProteica.gramasDia()),
                 metaProteica == null ? null : metaProteica.descricaoOrigem(),
 
-                arredondar(proteinaRenal), obeso, baseDoPeso, motivo);
+                arredondar(proteinaRenal), obeso, baseDoPeso,
+                posicaoValeEnergia, posicaoValeProteina,
+                renalPreterida, referenciaRenal, motivoRenal,
+                motivo);
 
         return new Metas(dto, metaEnergetica, metaProteica);
     }
 
     private static Metas vaziaComMotivo(String motivo) {
         return new Metas(new ResultadoUti.Necessidades(null, null, null, null,
-                null, null, null, null, null, false, null, motivo), null, null);
+                null, null, null, null, null, false, null,
+                false, false, false, null, null, motivo), null, null);
     }
 
     /**

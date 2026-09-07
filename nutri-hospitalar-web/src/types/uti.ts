@@ -421,6 +421,27 @@ export interface ResultadoNecessidades {
   /** Quando verdadeiro, a fase da terapia **não se aplica**. */
   obeso: boolean
   baseDoPeso?: string
+  /**
+   * Se o ponto escolhido na faixa governou cada meta.
+   *
+   * Publicados em vez de deduzidos porque a tela deduzia — e errava: ela
+   * travava o seletor só com os dois alvos digitados, e deixava habilitado
+   * (sem efeito nenhum) o caso "alvo calórico com protocolo de obesidade".
+   */
+  posicaoValeParaEnergia: boolean
+  posicaoValeParaProteina: boolean
+  /**
+   * Se a coluna da terapia renal venceu ou foi preterida pelo alvo digitado.
+   *
+   * Texto sem número, de propósito: os números da frase que a tela monta
+   * (`proteinaTerapiaRenal` e `metaProteica`) vêm de coluna, e por isso não
+   * andam quando a régua da diálise mudar. Nula quando não há terapia renal —
+   * aí quem fala é `motivoProteinaTerapiaRenal`.
+   */
+  /** A decisão, publicada: a tela não casa frase para descobri-la. */
+  alvoProteicoPreteriuTerapiaRenal: boolean
+  referenciaProteinaTerapiaRenal?: string
+  motivoProteinaTerapiaRenal?: string
   motivo?: string
 }
 

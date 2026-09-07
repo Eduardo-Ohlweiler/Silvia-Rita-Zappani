@@ -85,6 +85,21 @@ public record ResultadoUti(
      * @param baseDoPeso qual peso a energia usou: atual até IMC 40, ideal daí em
      *                   diante. É o erro mais fácil de cometer, e por isso vem
      *                   escrito
+     * @param posicaoValeParaEnergia  se o ponto escolhido na faixa governou a
+     *                   energia. Falso quando o alvo calórico foi digitado, e
+     *                   também quando não há faixa nenhuma
+     * @param posicaoValeParaProteina o mesmo para a proteína — e aqui há três
+     *                   caminhos que a atropelam, não um: alvo digitado, terapia
+     *                   renal e protocolo de obesidade
+     * @param alvoProteicoPreteriuTerapiaRenal a decisão que a tela precisa para
+     *                   avisar em voz alta. Booleano, e não a tela comparando o
+     *                   texto de {@code referenciaProteinaTerapiaRenal}: casar
+     *                   frase é a mesma fragilidade que legenda cravada, só
+     *                   invertida
+     * @param referenciaProteinaTerapiaRenal se a coluna da terapia renal venceu
+     *                   ou foi preterida. Nula quando não há terapia renal — aí
+     *                   quem fala é {@code motivoProteinaTerapiaRenal}
+     * @param motivoProteinaTerapiaRenal por que aquela linha está vazia
      */
     public record Necessidades(
             BigDecimal energiaMinima,
@@ -100,6 +115,44 @@ public record ResultadoUti(
             BigDecimal proteinaTerapiaRenal,
             boolean obeso,
             String baseDoPeso,
+
+            /*
+             * Booleanos de APRESENTAÇÃO, como `ajustePeloImcRelevante` acima:
+             * eles decidem se a tela trava o seletor de posição e o que a ajuda
+             * dele diz. Vêm publicados em vez de deduzidos porque a tela deduzia
+             * — e errava: ela travava o seletor só com os dois alvos digitados, e
+             * deixava habilitado (sem efeito nenhum) o caso "alvo calórico com
+             * protocolo de obesidade", em que a energia vem do alvo e a proteína
+             * do protocolo.
+             */
+            boolean posicaoValeParaEnergia,
+            boolean posicaoValeParaProteina,
+
+            /*
+             * A regra que este sistema mais paga por esconder: o alvo proteico
+             * digitado VENCE a terapia renal, e fazia isso calado enquanto três
+             * textos de tela prometiam o oposto. Uma prescrição com hemodiálise
+             * contínua e alvo de 1,3 g/kg adota 84,38 g em vez de 129,82, ainda
+             * declara a meta batida e suprime a sugestão do módulo proteico —
+             * até 45 g de déficit sem uma palavra.
+             *
+             * TEXTO SEM NÚMERO, de propósito. A tentação era publicar a frase
+             * inteira montada aqui ("a hemodiálise contínua recomenda 129,82
+             * g/dia"), e ela tem drift: o número sairia de
+             * `TerapiaRenal.getProteinaGKg()`, que é RÉGUA, não entrada. No dia
+             * em que alguém corrigir 2,0 para 1,9, toda avaliação salva reabriria
+             * com a frase dizendo outro número ao lado da `meta_proteica`
+             * gravada — prontuário que se contradiz. É a diferença entre isto e
+             * `volumeTotalDescricao` ("62 ml/h × 22 h"), que também é texto com
+             * número mas deriva SÓ de entradas, e por isso não anda.
+             *
+             * Então aqui vai o status, e os dois números que a tela põe na frase
+             * (`proteinaTerapiaRenal` e `metaProteica`) já vêm de coluna.
+             */
+            boolean alvoProteicoPreteriuTerapiaRenal,
+            String referenciaProteinaTerapiaRenal,
+            String motivoProteinaTerapiaRenal,
+
             String motivo
     ) {}
 

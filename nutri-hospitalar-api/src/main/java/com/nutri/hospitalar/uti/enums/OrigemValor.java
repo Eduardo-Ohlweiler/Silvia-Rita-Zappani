@@ -29,6 +29,18 @@ public enum OrigemValor {
     META_POR_FAIXA("da faixa da fase"),
     META_PERSONALIZADA("alvo informado"),
     META_OBESIDADE("protocolo de obesidade"),
+    /**
+     * A proteína da terapia renal substitutiva — 1,8 ou 2,0 g/kg, valor único.
+     *
+     * <p>Existe porque a meta renal era publicada como {@link #META_POR_FAIXA},
+     * e 2,0 g/kg <b>não é ponto da faixa da fase</b>: na fase aguda a faixa é
+     * 1,2 a 1,5. A tela escrevia "129,82 · da faixa da fase" logo abaixo de
+     * "Proteína — máximo 97,36" — um número fora do intervalo de onde jurava
+     * ter saído, que é precisamente o que
+     * {@link com.nutri.hospitalar.uti.calculo.cascata.MetaProteica} existe para
+     * impedir. Ver {@code docs/10} §3.2.
+     */
+    META_TERAPIA_RENAL("terapia renal substitutiva"),
     AGUA_LIVRE_ROTULO("água livre do rótulo"),
     AGUA_LIVRE_ESTIMADA("estimada pela densidade");
 

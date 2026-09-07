@@ -628,6 +628,160 @@ class CalculoUtiEndpointTest extends AbstractIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+
+    // ─── A precedência das metas ─────────────────────────────────────────
+
+    /** Um cálculo qualquer, para não repetir o cabeçalho em cada perna. */
+    private org.springframework.test.web.servlet.ResultActions calcular(String corpo)
+            throws Exception {
+        return mockMvc.perform(post("/uti/calculo")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content(corpo))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * As quatro pernas da precedência proteica, cada uma com a sua origem.
+     *
+     * <p>Estava <b>inteiramente descoberta</b>: {@code grep proteinaPorKgAlvo
+     * src/test} não retornava nada, e a perna renal publicava "da faixa da
+     * fase" para 136 g — um número que a faixa da fase (81,6 a 102) não
+     * alcança.
+     *
+     * <p><b>Nenhuma perna afirma só o número, de propósito.</b> A 1 e a 4 dão a
+     * MESMA meta (102 g) por caminhos diferentes; é a origem que as distingue.
+     * Um teste que só olhasse {@code metaProteica} passaria antes e depois de
+     * todo defeito daqui, e não travaria nada.
+     */
+    @Test
+    @DisplayName("as quatro pernas da precedência proteica, cada uma com a sua origem")
+    void precedenciaProteica() throws Exception {
+        // 1. Faixa da fase — 1,5 × 68, o topo, que é o padrão
+        calcular("""
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,"pesoAtualKg":68,"fase":"AGUDA"}
+                """)
+                .andExpect(jsonPath("$.necessidades.metaProteica").value(102.0))
+                .andExpect(jsonPath("$.necessidades.metaProteicaOrigem")
+                        .value("da faixa da fase · máximo"))
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaProteina").value(true))
+                .andExpect(jsonPath("$.necessidades.alvoProteicoPreteriuTerapiaRenal").value(false))
+                // Sem diálise a linha fala pelo motivo, não pela legenda — antes
+                // era um traço mudo debaixo de "substitui a faixa da fase"
+                .andExpect(jsonPath("$.necessidades.motivoProteinaTerapiaRenal")
+                        .value("Nenhuma terapia renal substitutiva informada"));
+
+        // 2. Obesidade vence a fase — IMC 42,3 em 1,68 m, 2,5 g/kg de peso ideal
+        calcular("""
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,"pesoAtualKg":119.5,"fase":"AGUDA"}
+                """)
+                .andExpect(jsonPath("$.necessidades.obeso").value(true))
+                .andExpect(jsonPath("$.necessidades.metaProteicaOrigem")
+                        .value("protocolo de obesidade"))
+                // Valor único: a posição não governa a proteína aqui
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaProteina").value(false))
+                // Mas a energia da obesidade É faixa, e ali ela governa
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaEnergia").value(true));
+
+        // 3. A renal vence a fase E a obesidade — 2,0 × 68
+        calcular("""
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,"pesoAtualKg":68,
+                 "fase":"AGUDA","terapiaRenal":"HEMODIALISE_CONTINUA"}
+                """)
+                .andExpect(jsonPath("$.necessidades.metaProteica").value(136.0))
+                // 136 NÃO é ponto de 81,6 a 102: origem própria, sem posição
+                .andExpect(jsonPath("$.necessidades.metaProteicaOrigem")
+                        .value("terapia renal substitutiva"))
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaProteina").value(false))
+                .andExpect(jsonPath("$.necessidades.referenciaProteinaTerapiaRenal")
+                        .value("é esta a meta proteica adotada"))
+                .andExpect(jsonPath("$.necessidades.alvoProteicoPreteriuTerapiaRenal").value(false));
+
+        // 4. O alvo digitado vence a renal — de propósito, e em voz alta
+        calcular("""
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,"pesoAtualKg":68,
+                 "fase":"AGUDA","terapiaRenal":"HEMODIALISE_CONTINUA","proteinaPorKgAlvo":1.5}
+                """)
+                .andExpect(jsonPath("$.necessidades.metaProteica").value(102.0))
+                .andExpect(jsonPath("$.necessidades.metaProteicaOrigem").value("alvo informado"))
+                // A recomendação de 136 continua na resposta, e a tela põe as
+                // duas lado a lado: sem isto ela desaparecia sem rastro
+                .andExpect(jsonPath("$.necessidades.proteinaTerapiaRenal").value(136.0))
+                .andExpect(jsonPath("$.necessidades.alvoProteicoPreteriuTerapiaRenal").value(true))
+                .andExpect(jsonPath("$.necessidades.referenciaProteinaTerapiaRenal")
+                        .value("preterida pelo alvo proteico informado"));
+    }
+
+    /**
+     * Onde a posição na faixa ainda governa — publicado, não deduzido.
+     *
+     * <p>A tela deduzia dos dois alvos digitados e errava: ela deixava o
+     * seletor habilitado, sem efeito em meta nenhuma, no caso "alvo calórico
+     * com protocolo de obesidade" — a energia vem do alvo, a proteína vem do
+     * protocolo, e nenhuma das duas é ponto de faixa. Controle que não faz nada
+     * é mentir sobre a interface.
+     */
+    @Test
+    @DisplayName("a posição na faixa declara em qual meta ela ainda vale")
+    void posicaoValePorMeta() throws Exception {
+        // Alvo calórico só: a energia sai da faixa, a proteína continua nela
+        calcular("""
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,"pesoAtualKg":68,
+                 "fase":"AGUDA","kcalPorKgAlvo":25}
+                """)
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaEnergia").value(false))
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaProteina").value(true));
+
+        // Os dois alvos: não governa nada — é o caso que a tela já travava
+        calcular("""
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,"pesoAtualKg":68,
+                 "fase":"AGUDA","kcalPorKgAlvo":25,"proteinaPorKgAlvo":1.5}
+                """)
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaEnergia").value(false))
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaProteina").value(false));
+
+        // O caso que a tela ERRAVA: alvo calórico com obesidade. A energia vem
+        // do alvo, a proteína do protocolo, e o seletor ficava habilitado.
+        calcular("""
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,"pesoAtualKg":119.5,
+                 "fase":"AGUDA","kcalPorKgAlvo":25}
+                """)
+                .andExpect(jsonPath("$.necessidades.obeso").value(true))
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaEnergia").value(false))
+                .andExpect(jsonPath("$.necessidades.posicaoValeParaProteina").value(false));
+    }
+
+    /**
+     * A lacuna do módulo é medida contra a meta <b>publicada</b>.
+     *
+     * <p>É a invariante que fechou a adesão na fatia 11.1, aplicada aqui: o
+     * número exposto e o número da conta têm de ser o mesmo. Com alvo digitado
+     * vencendo a diálise, a régua da lacuna é 102 — não 136. Se fosse 136, a
+     * tela mostraria "Proteína ainda em falta" com a meta certa ao lado, e
+     * mandaria suplementar quem já está coberto.
+     */
+    @Test
+    @DisplayName("a lacuna proteica persegue a meta publicada, não a preterida")
+    void lacunaPerseguiAMetaPublicada() throws Exception {
+        UUID peptamen = formulaGlobal("Peptamen Intense");
+
+        // 1200 ml × 92 g/L = 110,4 g. Contra 102 não há lacuna; contra 136 haveria.
+        calcular("""
+                {"sexo":"MASCULINO","idadeAnos":59,"alturaCm":168,"pesoAtualKg":68,
+                 "fase":"AGUDA","terapiaRenal":"HEMODIALISE_CONTINUA","proteinaPorKgAlvo":1.5,
+                 "formulaEnteralId":"%s","modoInfusao":"CONTINUA",
+                 "volumePorTempo":60,"tempo":20}
+                """.formatted(peptamen))
+                .andExpect(jsonPath("$.necessidades.metaProteica").value(102.0))
+                .andExpect(jsonPath("$.dieta.proteinaOfertada").value(110.4))
+                // Zero, porque 110,4 > 102. Contra a renal de 136 daria 25,6.
+                .andExpect(jsonPath("$.dieta.proteinaSuplementar").value(0.0))
+                .andExpect(jsonPath("$.dieta.motivoModulo")
+                        .value("A dieta já cobre a meta proteica — não há lacuna a suplementar"))
+                // E o percentual reproduz a divisão pela meta exposta: 110,4/102
+                .andExpect(jsonPath("$.dieta.percentualDaProteina").value(108.24));
+    }
+
     // ─────────────────────────────────────────────────────────────────────
 
     private UUID produtoGlobal(String nome) {

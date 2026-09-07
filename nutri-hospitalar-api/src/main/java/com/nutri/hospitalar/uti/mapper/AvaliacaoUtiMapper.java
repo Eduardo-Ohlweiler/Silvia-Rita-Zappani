@@ -154,7 +154,20 @@ public final class AvaliacaoUtiMapper {
                         a.getMetaEnergetica(), a.getMetaEnergeticaOrigem(),
                         a.getMetaProteica(), a.getMetaProteicaOrigem(),
                         a.getProteinaTerapiaRenal(),
-                        Boolean.TRUE.equals(a.getObeso()), a.getBaseDoPeso(), mNec.motivo()),
+                        Boolean.TRUE.equals(a.getObeso()), a.getBaseDoPeso(),
+                        // Os dois booleanos e os dois textos da linha renal saem
+                        // do recálculo pela mesma razão que `ajustePeloImcRelevante`:
+                        // dependem só das entradas, e elas estão gravadas. E são
+                        // texto SEM número — a frase que a tela monta usa
+                        // `proteinaTerapiaRenal` e `metaProteica`, que vêm das
+                        // colunas acima. Se o número viesse daqui, corrigir a régua
+                        // da diálise faria a avaliação de hoje reabrir dizendo
+                        // outro valor ao lado do gravado.
+                        mNec.posicaoValeParaEnergia(), mNec.posicaoValeParaProteina(),
+                        mNec.alvoProteicoPreteriuTerapiaRenal(),
+                        mNec.referenciaProteinaTerapiaRenal(),
+                        mNec.motivoProteinaTerapiaRenal(),
+                        mNec.motivo()),
 
                 new ResultadoUti.Dieta(
                         a.getFormulaNome(), a.getFormulaDensidadeKcalMl(), a.getFormulaProteinaGL(),

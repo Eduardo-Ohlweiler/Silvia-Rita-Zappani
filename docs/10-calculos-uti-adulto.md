@@ -417,6 +417,63 @@ O rótulo da proteína em reabilitação é `>1,5` (`C6`), e as fórmulas calcul
 
 Confere, peso 68: **122,4** e **136** g.
 
+#### A substituição, e o único caso em que ela não acontece
+
+A terapia renal substitui a proteína venha ela da fase (§3.1) ou do protocolo de
+obesidade (§3.3) — mas **o alvo proteico digitado vence a renal**, porque alvo
+digitado é conduta explícita de quem prescreve. A precedência completa, do mais
+forte para o mais fraco:
+
+| Ordem | Energia | Origem publicada | Proteína | Origem publicada |
+|---|---|---|---|---|
+| 1 | `kcal/kg alvo` digitado | `alvo informado` | `g/kg alvo` digitado | `alvo informado` |
+| 2 | protocolo de obesidade *(faixa)* | `protocolo de obesidade · {posição}` | terapia renal substitutiva | `terapia renal substitutiva` |
+| 3 | faixa da fase | `da faixa da fase · {posição}` | protocolo de obesidade | `protocolo de obesidade` |
+| 4 | — | — | faixa da fase | `da faixa da fase · {posição}` |
+
+A **posição na faixa** (§3.4) só governa o que veio de faixa: as linhas 2 e 3 da
+energia, e a linha 4 da proteína. Nas demais a meta é **valor único**, e o
+resultado não declara posição.
+
+> ⚠️ **A meta da terapia renal não é ponto da faixa da fase, e por um tempo
+> jurou que era.** A implementação publicava a meta renal como
+> `META_POR_FAIXA`, cuja descrição é *"da faixa da fase"* — então a tela
+> escrevia **"Meta proteica 136,0 · da faixa da fase"** logo abaixo de
+> *"Proteína — máximo 102,0"*, um número que a faixa da fase não alcança. A
+> única pista na tela era a **ausência do `· máximo`**, que ninguém procura.
+> Hoje a origem é `META_TERAPIA_RENAL`, valor único e sem posição.
+
+> ⚠️ **O alvo digitado vencia a diálise em silêncio, e isso mudava dose.** Com
+> hemodiálise contínua e alvo de 1,3 g/kg num paciente de 64,91 kg, o sistema
+> adotava **84,38 g** em vez de 129,82, media a adequação contra os 84,38,
+> declarava *"a dieta já cobre a meta proteica"* e **suprimia a sugestão do
+> módulo proteico** — até 45 g de déficit sem uma palavra. Enquanto isso a
+> interface prometia o contrário em **cinco** literais (dois na tela de cálculo,
+> dois na folha impressa, um no javadoc do enum).
+>
+> A precedência **não mudou** — o alvo continua vencendo, e é o certo. O que
+> mudou é o silêncio: o servidor publica `alvoProteicoPreteriuTerapiaRenal` e
+> `referenciaProteinaTerapiaRenal`, e a tela põe os dois números lado a lado.
+>
+> **A frase não é montada no servidor, de propósito.** Ela levaria o número de
+> `TerapiaRenal.getProteinaGKg()`, que é **régua**, não entrada — e no dia em
+> que alguém corrigisse 2,0 para 1,9, toda avaliação salva reabriria com a frase
+> dizendo outro valor ao lado da `meta_proteica` gravada. É a diferença entre
+> isto e `volumeTotalDescricao` ("62 ml/h × 22 h"), que também é texto com
+> número mas deriva **só de entradas**, e por isso não anda. Então o servidor
+> publica o **status**, e os dois números da frase (`proteinaTerapiaRenal` e
+> `metaProteica`) vêm de coluna.
+
+> **Avaliações gravadas antes desta correção não são reescritas.** Onde a renal
+> venceu, `meta_proteica_origem` guarda *"da faixa da fase"* e continuará
+> guardando: **é prontuário, e o número sempre esteve certo** — 2,0 g/kg × peso.
+> O que estava errado era o rótulo, e corrigi-lo por `UPDATE` exigiria repetir a
+> precedência **em SQL**, uma quinta linguagem da mesma regra.
+
+Travado em `CalculoUtiEndpointTest.precedenciaProteica`, nas quatro pernas — e
+**nenhuma delas afirma só o número**: a perna 1 e a perna 4 dão a mesma meta
+(102 g) por caminhos diferentes, e é a origem que as distingue.
+
 ### 3.3 Obesidade *(`A13:C17`)*
 
 **Cada linha tem o seu próprio corte, e eles não coincidem:**
@@ -491,7 +548,17 @@ na avaliação** (migration 025), não derivada na leitura — sem ela, a meta d
 1360 kcal de hoje não se distingue da de 1190 no dia em que o padrão mudar.
 
 O campo **`kcal/kg alvo` continua vencendo os três**: alvo digitado é
-`META_PERSONALIZADA`, não é ponto de faixa nenhuma e não declara posição.
+`META_PERSONALIZADA`, não é ponto de faixa nenhuma e não declara posição. O
+**`g/kg alvo` faz o mesmo pela proteína — e vence também a terapia renal e o
+protocolo de obesidade** (§3.2).
+
+Daí a assimetria que a tela precisa contar: a posição pode valer para uma meta e
+não para a outra. Ela não é deduzida na tela — o servidor publica
+`posicaoValeParaEnergia` e `posicaoValeParaProteina`, porque a dedução local
+errava: o seletor travava só com os **dois** alvos digitados, e ficava habilitado
+sem efeito nenhum no caso *alvo calórico com protocolo de obesidade*, em que a
+energia vem do alvo e a proteína do protocolo. Controle que não muda nada é
+mentir sobre a interface (§2.9).
 
 ### 3.5 Personalizado *(`F5:G9`)*
 

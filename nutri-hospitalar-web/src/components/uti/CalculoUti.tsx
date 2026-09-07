@@ -198,18 +198,6 @@ export function CalculoUti({
     onChange({ ...entradas, [campo]: valor })
   }
 
-  // O alvo digitado vence a faixa — então a posição só governa o que sobrou.
-  // Dizer isso é melhor do que deixar o seletor mexer sem efeito visível.
-  const alvoCalorico = entradas.kcalPorKgAlvo.trim() !== ''
-  const alvoProteico = entradas.proteinaPorKgAlvo.trim() !== ''
-  const ajudaPosicao = alvoCalorico
-    ? alvoProteico
-      ? 'Sem efeito: os dois alvos digitados vencem a faixa.'
-      : 'Vale para a proteína — o alvo calórico digitado vence a faixa.'
-    : alvoProteico
-      ? 'Vale para a energia — o alvo proteico digitado vence a faixa.'
-      : 'Onde fixar a meta dentro da faixa acima.'
-
   function alternarSegmento(segmento: string) {
     const atuais = entradas.segmentosAmputados
     alterar(
@@ -222,6 +210,50 @@ export function CalculoUti({
   const nec = resultado?.necessidades
   const dieta = resultado?.dieta
   const hidra = resultado?.hidratacao
+
+  /*
+   * Onde a posição na faixa ainda governa — e quem responde isso é o SERVIDOR.
+   *
+   * A versão anterior deduzia aqui, dos dois alvos digitados, e errava por
+   * baixo: a proteína tem TRÊS caminhos que atropelam a posição (alvo digitado,
+   * terapia renal e protocolo de obesidade), não um. O caso "alvo calórico com
+   * obesidade" deixava o seletor habilitado sem efeito em nenhuma das duas
+   * metas — controle que não faz nada, que é o que `docs/10` §2.9 proíbe.
+   *
+   * O fallback só vale antes do primeiro cálculo: sem `nec` não há decisão
+   * publicada, e travar por dedução própria seria reimplementar a regra.
+   */
+  const alvoCalorico = entradas.kcalPorKgAlvo.trim() !== ''
+  const alvoProteico = entradas.proteinaPorKgAlvo.trim() !== ''
+  const valeEnergia = nec ? nec.posicaoValeParaEnergia : !alvoCalorico
+  const valeProteina = nec ? nec.posicaoValeParaProteina : !alvoProteico
+
+  /*
+   * As duas frases do meio INTERPOLAM a procedência do servidor em vez de
+   * repetir "o alvo digitado vence": assim continuam certas quando o vencedor
+   * for a terapia renal ou a obesidade, que é o que a versão anterior não
+   * previa. Literal ao lado de interpolação, no mesmo bloco, é o cheiro.
+   */
+  const ajudaPosicao =
+    valeEnergia && valeProteina
+      ? 'Onde fixar a meta dentro da faixa acima.'
+      : valeEnergia
+        ? `Vale só para a energia — a proteína vem de ${nec?.metaProteicaOrigem ?? 'outra regra'}.`
+        : valeProteina
+          ? `Vale só para a proteína — a energia vem de ${nec?.metaEnergeticaOrigem ?? 'outra regra'}.`
+          : /*
+             * Travado nomeia OS DOIS vencedores, não uma ação a tentar.
+             *
+             * A primeira versão dizia "limpe o alvo calórico ou o proteico" — e
+             * no navegador, com o alvo proteico já limpo e hemodiálise
+             * escolhida, ela continuava travada mandando limpar um campo vazio:
+             * quem tomou a proteína ali é a diálise, não o alvo. Frase que
+             * nomeia a ação errada é a mesma família de "culpar o dado que está
+             * lá", que já custou um motivo inteiro nesta tela. Interpolando a
+             * procedência do servidor ela não tem como envelhecer.
+             */
+            `Sem efeito: a energia vem de ${nec?.metaEnergeticaOrigem ?? 'outra regra'} e a ` +
+            `proteína de ${nec?.metaProteicaOrigem ?? 'outra regra'} — nenhuma das duas é ponto de faixa.`
 
   const abas: Aba[] = [
     { id: ABA_ANTROPOMETRIA, rotulo: 'Antropometria' },
@@ -606,11 +638,45 @@ export function CalculoUti({
             </>,
           )}
 
+          {/*
+            O aviso de obesidade afirmava "As metas vêm do protocolo de
+            obesidade" sempre que `obeso` — e com os dois alvos digitados elas
+            NÃO vêm de lá, vêm dos alvos. Hoje ele fala da base do peso, que é
+            o que o protocolo decide de fato, e quem foi preterido sai no aviso
+            abaixo, com número.
+          */}
           {nec?.obeso && (
             <TAviso className="mb-4">
               Obesidade · IMC {formatarNumero(antro?.imc)} — <strong>a fase da terapia não se
-              aplica</strong>. As metas vêm do protocolo de obesidade
-              {nec.baseDoPeso ? `: ${nec.baseDoPeso}.` : '.'}
+              aplica</strong>: as faixas acima vêm do protocolo de obesidade
+              {nec.baseDoPeso ? `, ${nec.baseDoPeso}.` : '.'}
+            </TAviso>
+          )}
+
+          {/*
+            A regra clínica que uma entrada manual apagou, com os dois números
+            lado a lado.
+
+            É a única mudança desta tela que fecha risco de dose, e por isso não
+            pode ser legenda em cinza: com hemodiálise contínua e alvo de
+            1,3 g/kg o sistema adotava 84,38 g em vez de 129,82, declarava a
+            meta atingida e suprimia a sugestão do módulo proteico — até 45 g de
+            déficit, calado.
+
+            Quem DECIDE é o servidor, e é dele que vem o `referencia...` que
+            dispara este aviso — a tela não reimplementa a precedência, ela só
+            põe na frase os dois números que já recebeu. Compor aqui, e não lá,
+            é o que impede a frase de andar: se o número viesse montado do
+            servidor, ele sairia da régua da diálise, e corrigir 2,0 para 1,9
+            faria toda avaliação salva reabrir dizendo outro valor.
+          */}
+          {nec?.alvoProteicoPreteriuTerapiaRenal && (
+            <TAviso className="mb-4">
+              A terapia renal recomenda{' '}
+              <strong>{formatarNumero(nec.proteinaTerapiaRenal)} g/dia</strong> de proteína. O{' '}
+              <strong>alvo proteico digitado vence</strong>, e a meta adotada é{' '}
+              <strong>{formatarNumero(nec.metaProteica)} g/dia</strong> — é contra ela que a aba
+              da dieta mede a adequação e a lacuna do módulo.
             </TAviso>
           )}
 
@@ -629,7 +695,10 @@ export function CalculoUti({
                 valor: o.valor,
                 rotulo: o.rotulo,
               }))}
-              ajuda="Quando presente, substitui a meta proteica."
+              /* Ressalva obrigatória: o alvo proteico digitado VENCE a renal,
+                 e prometer o contrário aqui foi o que escondeu um déficit de
+                 até 45 g na tela de quem prescreve. */
+              ajuda="Substitui a faixa proteica da fase — mas o alvo proteico digitado ainda vence."
               value={entradas.terapiaRenal}
               onChange={(e) => alterar('terapiaRenal', e.target.value)}
             />
@@ -647,6 +716,7 @@ export function CalculoUti({
               suffix="g/kg"
               mascara="decimal"
               placeholder="Ex.: 1,30"
+              ajuda="Preenchido, vence a faixa, a terapia renal e a obesidade."
               value={entradas.proteinaPorKgAlvo}
               onChange={(e) => alterar('proteinaPorKgAlvo', e.target.value)}
             />
@@ -654,7 +724,7 @@ export function CalculoUti({
               label="Meta na faixa"
               opcoes={OPCOES_POSICAO_FAIXA.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
               ajuda={ajudaPosicao}
-              disabled={alvoCalorico && alvoProteico}
+              disabled={!valeEnergia && !valeProteina}
               value={entradas.posicaoNaFaixa}
               onChange={(e) => alterar('posicaoNaFaixa', e.target.value)}
             />
@@ -663,7 +733,11 @@ export function CalculoUti({
           <hr className="my-5 border-line" />
 
           <div className="flex flex-col gap-6">
-            <TResultGroup titulo="Faixa recomendada" colunas={4}>
+            <TResultGroup
+              titulo="Faixa recomendada"
+              descricao="O intervalo recomendado para este peso e esta fase — a meta abaixo é um ponto dele."
+              colunas={4}
+            >
               <TResult
                 label="Energia — mínimo"
                 valor={formatarNumero(nec?.energiaMinima)}
@@ -691,9 +765,14 @@ export function CalculoUti({
               />
             </TResultGroup>
 
+            {/*
+              "Meta que desce para a dieta" era jargão interno, e a folha
+              impressa já chamava a mesma coisa de "meta adotada" — duas
+              linguagens para um número só. Fica a da folha.
+            */}
             <TResultGroup
-              titulo="Meta que desce para a dieta"
-              descricao="É esta que a aba da dieta persegue — e ela leva a procedência junto."
+              titulo="Meta adotada — o número que a dieta persegue"
+              descricao="A faixa acima é um intervalo; a prescrição precisa de um número. Este é o número adotado, e ao lado dele vai de onde ele saiu."
             >
               <TResult
                 label="Meta energética"
@@ -709,11 +788,19 @@ export function CalculoUti({
                 referencia={nec?.metaProteicaOrigem}
                 recalculando={recalculando}
               />
+              {/*
+                A legenda era o literal "substitui a faixa da fase", ao lado de
+                duas linhas que leem a procedência do servidor — e mentia
+                sempre que o alvo proteico digitado vencia, que é justamente
+                quando alguém confere. Hoje ela DIZ se venceu, lendo a origem
+                publicada, e a ausência ganhou palavra em vez de traço mudo.
+              */}
               <TResult
                 label="Proteína na terapia renal"
                 valor={formatarNumero(nec?.proteinaTerapiaRenal)}
                 unidade="g/dia"
-                referencia="substitui a faixa da fase"
+                referencia={nec?.referenciaProteinaTerapiaRenal}
+                motivoAusencia={nec?.motivoProteinaTerapiaRenal}
                 recalculando={recalculando}
               />
             </TResultGroup>
@@ -869,29 +956,47 @@ export function CalculoUti({
               }
               colunas={3}
             >
-              <TResult
-                label="Medidas por dia"
-                valor={formatarNumero(dieta?.moduloMedidas)}
-                unidade="medidas"
-                /* A nota da própria planilha (`Contínuo!V21`). É conduta: sai da
-                   tela e a prescrição perde o quando. */
-                referencia="iniciar o módulo a partir do 4º dia"
-                motivoAusencia={dieta?.motivoModulo}
-                recalculando={recalculando}
-              />
-              <TResult
-                label="Quantidade"
-                valor={formatarNumero(dieta?.moduloGramas)}
-                unidade="g/dia"
-                recalculando={recalculando}
-              />
-              <TResult
-                label="Calorias que o módulo soma"
-                valor={formatarNumero(dieta?.moduloKcal)}
-                unidade="kcal/dia"
-                referencia="do rótulo do produto — entram no total do dia"
-                recalculando={recalculando}
-              />
+              {/*
+                Sem sugestão não há três resultados a mostrar — há uma frase.
+
+                Três traços com o motivo pendurado só no primeiro campo leem
+                como tela quebrada, e foi assim que "o módulo não calcula" virou
+                queixa de quem usa: a lacuna era zero, o servidor explicava
+                corretamente, e a forma dizia "defeito". Pior, os outros dois
+                campos ficavam com a legenda órfã ("do rótulo do produto") ao
+                lado de um valor vazio, porque o `TResult` só esconde a
+                referência de quem tem motivo para esconder.
+              */}
+              {dieta?.motivoModulo ? (
+                <p className="text-caption text-txt-muted sm:col-span-2 lg:col-span-3">
+                  {dieta.motivoModulo}
+                </p>
+              ) : (
+                <>
+                  <TResult
+                    label="Medidas por dia"
+                    valor={formatarNumero(dieta?.moduloMedidas)}
+                    unidade="medidas"
+                    /* A nota da própria planilha (`Contínuo!V21`). É conduta: sai da
+                       tela e a prescrição perde o quando. */
+                    referencia="iniciar o módulo a partir do 4º dia"
+                    recalculando={recalculando}
+                  />
+                  <TResult
+                    label="Quantidade"
+                    valor={formatarNumero(dieta?.moduloGramas)}
+                    unidade="g/dia"
+                    recalculando={recalculando}
+                  />
+                  <TResult
+                    label="Calorias que o módulo soma"
+                    valor={formatarNumero(dieta?.moduloKcal)}
+                    unidade="kcal/dia"
+                    referencia="do rótulo do produto — entram no total do dia"
+                    recalculando={recalculando}
+                  />
+                </>
+              )}
             </TResultGroup>
 
             <TResultGroup titulo="Demais nutrientes ofertados" colunas={4}>
