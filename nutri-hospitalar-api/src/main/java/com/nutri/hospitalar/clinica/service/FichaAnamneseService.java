@@ -4,14 +4,19 @@ import com.nutri.hospitalar.clinica.dtos.FichaAnamneseCreateDto;
 import com.nutri.hospitalar.clinica.dtos.FichaAnamneseListaDto;
 import com.nutri.hospitalar.clinica.dtos.FichaAnamneseResponseDto;
 import com.nutri.hospitalar.clinica.dtos.FichaAnamneseUpdateDto;
+import com.nutri.hospitalar.clinica.dtos.EscoreDto;
+import com.nutri.hospitalar.clinica.dtos.EscoreRequestDto;
 import com.nutri.hospitalar.clinica.dtos.RespostaFichaDto;
 import com.nutri.hospitalar.clinica.entity.CampoFicha;
 import com.nutri.hospitalar.clinica.entity.FichaAnamnese;
 import com.nutri.hospitalar.clinica.entity.ModeloFicha;
 import com.nutri.hospitalar.clinica.entity.RespostaFicha;
 import com.nutri.hospitalar.clinica.enums.TipoCampoFicha;
+import com.nutri.hospitalar.clinica.escore.EscoreCalculator;
+import com.nutri.hospitalar.clinica.mapper.EscoreJson;
 import com.nutri.hospitalar.clinica.mapper.FichaAnamneseMapper;
 import com.nutri.hospitalar.clinica.mapper.OpcoesJson;
+import com.nutri.hospitalar.clinica.mapper.PontosJson;
 import com.nutri.hospitalar.clinica.repository.FichaAnamneseRepository;
 import com.nutri.hospitalar.config.PageableUtils;
 import com.nutri.hospitalar.config.SecurityUtils;
@@ -212,11 +217,118 @@ public class FichaAnamneseService {
             resposta.setOpcoes(pergunta.getOpcoes());
             resposta.setOrdem(pergunta.getOrdem());
             resposta.setObrigatorio(pergunta.getObrigatorio());
+            /* O ponto é retrato como o rótulo é: editar a pontuação do modelo
+               não pode mexer no escore de uma ficha já gravada. */
+            resposta.setPontos(PontosJson.pontoDe(
+                    pergunta.getOpcoes(), pergunta.getPontos(), valor));
+            resposta.setGrupoEscore(pergunta.getGrupoEscore());
 
             resposta.setValor(valor);
 
             ficha.adicionarResposta(resposta);
         }
+
+        congelarEscore(ficha, modelo, perguntas, valorPorCampo);
+    }
+
+    /**
+     * Calcula o escore e o <b>congela</b> na ficha.
+     *
+     * <p>Por que congelar, e não recalcular ao abrir: o retrato já congela as
+     * entradas, mas {@code pessoa.data_nascimento} é editável fora da ficha —
+     * corrigi-la faria o ponto por idade da NRS-2002 entrar ou sair, calado, em
+     * toda ficha antiga daquele paciente —, e uma faixa corrigida em Java
+     * reclassificaria prontuário retroativamente. Ver docs/13 §5.
+     *
+     * <p>As colunas planas acompanham o JSON porque JSON não se ordena nem se
+     * filtra na native query da listagem.
+     */
+    private void congelarEscore(FichaAnamnese ficha, ModeloFicha modelo,
+                                List<CampoFicha> perguntas, Map<UUID, String> valores) {
+
+        EscoreDto escore = EscoreCalculator.avaliar(
+                modelo.getEscoreCodigo(), perguntas, valores,
+                idadeDoPaciente(ficha));
+
+        ficha.setEscoreCodigo(escore == null ? null : escore.escala());
+        ficha.setEscoreTotal(escore == null ? null : escore.total());
+        ficha.setEscoreClassificacao(escore == null || escore.classificacao() == null
+                ? null : escore.classificacao().rotulo());
+        ficha.setEscoreTom(escore == null || escore.classificacao() == null
+                ? null : escore.classificacao().tom().name());
+        ficha.setEscoreJson(EscoreJson.paraTexto(escore));
+    }
+
+    /**
+     * Anos completos <b>na data de preenchimento</b> — a ficha é o registro de um
+     * dia, e uma ficha de dois anos atrás não pode ganhar hoje o ponto por idade
+     * que o paciente só fez depois.
+     */
+    private Integer idadeDoPaciente(FichaAnamnese ficha) {
+        Pessoa paciente = ficha.getPaciente();
+        return paciente == null ? null
+                : EscoreCalculator.idadeEm(paciente.getDataNascimento(),
+                        ficha.getDataPreenchimento());
+    }
+
+    /**
+     * O escore de um formulário <b>ainda não salvo</b>.
+     *
+     * <p>Mesma classe de cálculo da gravação — {@link EscoreCalculator} é a única
+     * porta pela qual um escore é calculado neste sistema. Não há somador no
+     * front, e isso não é economia de código: a regra do denominador da adesão
+     * chegou a existir em quatro linguagens neste projeto, e sete telas erraram.
+     *
+     * <p><b>Nunca recusa por formulário incompleto.</b> Esta superfície recalcula
+     * sozinha a cada pausa de digitação, e incompleto é <i>estado</i>, não erro —
+     * a resposta vem 200 com escore nulo e o motivo escrito. Por isso também não
+     * roda {@code validarResposta}: um número pela metade não pode virar 400 numa
+     * tela que ainda está sendo preenchida.
+     */
+    @Transactional(readOnly = true)
+    public EscoreDto calcularEscore(EscoreRequestDto dto) {
+        ModeloFicha modelo = modeloFichaService.buscarVisivel(dto.modeloId());
+
+        List<CampoFicha> perguntas = modelo.getCampos().stream()
+                .filter(CampoFicha::getAtivo)
+                .sorted(Comparator.comparing(CampoFicha::getOrdem))
+                .toList();
+
+        /* Id de pergunta que não é deste modelo é IGNORADO aqui, ao contrário da
+           gravação, que devolve 404. A tela troca de modelo e o debounce ainda
+           dispara com as respostas do anterior por alguns milissegundos: um 404
+           nesse instante viraria um toast vermelho por causa de uma corrida que o
+           usuário nem percebeu. Na gravação o rigor continua inteiro. */
+        Set<UUID> doModelo = perguntas.stream().map(CampoFicha::getId)
+                .collect(Collectors.toSet());
+
+        Map<UUID, String> valores = new HashMap<>();
+        if (dto.respostas() != null) {
+            for (RespostaFichaDto resposta : dto.respostas()) {
+                if (doModelo.contains(resposta.campoId()))
+                    valores.put(resposta.campoId(), normalizar(resposta.valor()));
+            }
+        }
+
+        return EscoreCalculator.avaliar(modelo.getEscoreCodigo(), perguntas, valores,
+                idadeParaEscore(dto));
+    }
+
+    /**
+     * Sem paciente escolhido ainda, a idade é desconhecida — e a NRS-2002 diz
+     * isso por escrito em vez de somar zero. A data em branco vale como hoje: o
+     * formulário abre com ela preenchida, e um instante sem data não pode
+     * apagar o escore inteiro da tela.
+     */
+    private Integer idadeParaEscore(EscoreRequestDto dto) {
+        if (dto.pacienteId() == null) return null;
+
+        UUID tenantId = securityUtils.getTenantIdLogado();
+        return pessoaRepository.findByIdAndTenantId(dto.pacienteId(), tenantId)
+                .map(p -> EscoreCalculator.idadeEm(p.getDataNascimento(),
+                        dto.dataPreenchimento() == null
+                                ? LocalDate.now() : dto.dataPreenchimento()))
+                .orElse(null);
     }
 
     /**

@@ -4,6 +4,8 @@ import com.nutri.hospitalar.clinica.dtos.FichaAnamneseCreateDto;
 import com.nutri.hospitalar.clinica.dtos.FichaAnamneseListaDto;
 import com.nutri.hospitalar.clinica.dtos.FichaAnamneseResponseDto;
 import com.nutri.hospitalar.clinica.dtos.FichaAnamneseUpdateDto;
+import com.nutri.hospitalar.clinica.dtos.EscoreDto;
+import com.nutri.hospitalar.clinica.dtos.EscoreRequestDto;
 import com.nutri.hospitalar.clinica.service.FichaAnamneseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -62,6 +64,32 @@ public class FichaAnamneseController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate) {
         return ResponseEntity.ok(fichaAnamneseService.getAll(pageable, pacienteId, modeloId, de, ate));
+    }
+
+    /* Rota literal antes de /{id}, como manda a convenção do projeto. */
+    @PostMapping("/escore")
+    @Operation(summary = "Calcula o escore de um formulário ainda não salvo",
+            description = """
+                    Alimenta o painel de escore enquanto a ficha é preenchida. É
+                    a **mesma** classe de cálculo da gravação: não há somador no
+                    front, porque regra que mora em dois lugares diverge — a do
+                    denominador da adesão chegou a existir em quatro linguagens
+                    neste sistema, e sete telas erraram.
+
+                    **Nunca devolve 400 por formulário incompleto.** Esta
+                    superfície recalcula sozinha a cada pausa de digitação, e
+                    incompleto é *estado*, não erro: a resposta vem 200, com
+                    `total` nulo e `motivoAusencia` escrito. Numa escala, soma
+                    parcial não é escore menor — é escore errado.
+
+                    Devolve **204** quando o modelo não aplica escala.
+
+                    `ajusteIdade` sai separado do total de propósito, para a
+                    conta poder ser refeita à mão: `2 + 2 + 1 = 5`.
+                    """)
+    public ResponseEntity<EscoreDto> escore(@Valid @RequestBody EscoreRequestDto dto) {
+        EscoreDto escore = fichaAnamneseService.calcularEscore(dto);
+        return escore == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(escore);
     }
 
     @GetMapping("/{id}")

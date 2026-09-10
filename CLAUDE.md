@@ -44,6 +44,9 @@ sistema silvia/
 │                                  # clinica/ = fichas de anamnese:
 │                                  #   ModeloFicha + CampoFicha (catálogo híbrido)
 │                                  #   FichaAnamnese + RespostaFicha (com o RETRATO)
+│                                  # clinica/escore/ = escalas pontuadas (docs/13)
+│                                  #   EscalaNutricional · MnaEscala · Nrs2002Escala
+│                                  #   EscalaRegistry · EscoreCalculator · SomaPorGrupo
 │                                  # uti/ = terapia nutricional adulto:
 │                                  #   FormulaEnteral (composição SEMPRE por litro)
 │                                  #   ProdutoNutricional (suplemento · módulo · insumo)
@@ -105,10 +108,11 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **11.2 — Varredura de QA no navegador** | ✅ pronta · achou 3 defeitos que `build`, `lint` e os testes deixam passar: a classificação impressa duas vezes na tela do dia pediátrico, `IMCClassificação` colado em quatro tabelas sem padding, e o prescrito exibido ≠ o prescrito da conta em **sete** pontos — a cauda da fatia 11.1, que consertou só dois deles |
 | **12 — Clínica: fichas de anamnese** | ✅ pronta · especificação [docs/12](docs/12-fichas-de-anamnese.md) · migration 030 · primeira tela do menu **Clínica** do eroERP · modelo de ficha como catálogo híbrido, com **clonar** · **o retrato da pergunta** em cada resposta · 3 modelos de nutrição semeados · impressão e exportação · dois grupos novos de menu |
 | **12.1 — O 500 da calculadora** | ✅ pronta · incidente em produção, 06/09/2026. Origem de peso escolhida no seletor não checava o sinal, e medida deslocada pela máscara faz Chumlea 1988 devolver peso **negativo** → `IllegalArgumentException` → 500. Corrigido em três camadas: a guarda que faltava, pisos de plausibilidade com frase que ensina a vírgula, e a recusa **inline** em vez de toast numa tela que recalcula sozinha |
+| **13 — Escalas nutricionais pontuadas** | ✅ pronta · especificação [docs/13](docs/13-escalas-nutricionais.md) · migration 031 · **MNA®** e **NRS-2002** como modelo do sistema · o ponto é **dado** (`campo_ficha.pontos`), a régua é **código com fonte citada** (`clinica/escore/`) · escore ao vivo, congelado na gravação, impresso e na listagem |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
-**431 testes** no total, contra o banco `nutridb_test`.
+**475 testes** no total, contra o banco `nutridb_test`.
 
 ### O que falta, e por quê
 
@@ -722,6 +726,53 @@ dia em que havia lacuna. Antes de caçar defeito de cálculo em duas telas que
 compartilham componente, DTO e calculador, conferir se uma delas está
 mostrando **retrato** em vez de recálculo.
 
+**Bloco que a régua declara e o modelo não tem conta como completo.**
+`SomaPorGrupo` marcava um grupo como fechado quando a lista de pendências estava
+vazia — e a lista de um grupo **inexistente** também está vazia. Resultado: uma
+MNA sem as perguntas G a R somava só a triagem e publicava aquilo como **escore
+total**, lido pelas faixas de 30: nove pontos viram *"Desnutrido"* para quem
+respondeu tudo o que havia para responder. A guarda do service impede que um
+modelo assim seja **gravado**; a de `completo()` impede que ele seja **somado**, e
+é a que não depende da outra existir. Regra geral: *nada a fazer* e *nada a
+cobrar* não são a mesma coisa — `vazio.completo()` tem de ser falso, e o motivo
+de um bloco ausente é próprio (*"este modelo não tem as perguntas deste bloco"*),
+nunca um `"faltam responder: "` seguido de nada, que é traço mudo com prefixo.
+
+**Verificação ao contrário escolhe o dado errado e não verifica nada.**
+O teste do escore congelado inverte a pontuação de uma pergunta no modelo e exige
+que a ficha salva não se mova. A primeira versão invertia a pergunta **A**, de
+três opções — e o gabarito responde a **opção do meio** dela: `[0,1,2]` invertido
+para `[2,1,0]` continua valendo 1 ali. O teste passava com o defeito e sem ele,
+que é a definição de teste que não trava nada. Trocado para a pergunta **B**, de
+quatro opções com a resposta na terceira, o defeito reintroduzido derruba o teste
+na hora: 20,5 vira 19,5. *Reintroduzir o defeito* só prova alguma coisa quando o
+dado do teste é sensível a ele — e num vetor simétrico, o ponto do meio é
+invariante à inversão. Antes de confiar numa verificação ao contrário, perguntar
+**qual número muda** quando o defeito volta.
+
+**O método órfão era o conserto do defeito que a tela mostrou.**
+`SomaPorGrupo.intocado()` foi escrito com javadoc e **nunca chamado** — o mesmo
+padrão de `DietaEnteralCalculator.moduloProteico`, que passou por duas auditorias
+verde e órfão. Aqui o preço apareceu no navegador: a MNA em branco imprimia as
+**dezoito perguntas** dentro do painel de escore, logo acima do formulário que faz
+exatamente essas dezoito — o questionário duas vezes na mesma tela, com cara de
+diagnóstico. A regra que faltava era a que o método já dizia: *bloco intocado
+conta, bloco começado enumera*. Listar o que falta só informa depois que alguém
+começou; antes disso é ruído, porque o formulário inteiro é a lista. Duas lições:
+`grep` do nome de cada método público novo **antes de dar a fatia por pronta**, e
+— a mais barata — **abrir a tela vazia**, que foi o que revelou este e a
+concordância de *"Nenhuma das 1 perguntas"* nos blocos de uma pergunta só da
+NRS-2002. Nenhuma assertiva de número pega uma frase malfeita.
+
+**`Map.of` numa mensagem que o usuário lê muda de assunto a cada execução.**
+A guarda que confere os máximos de cada bloco iterava `escala.maximoPorGrupo()`,
+que era um `Map.of` — sem ordem definida. A mesma edição errada num modelo
+clonado ora reclamava da `TRIAGEM`, ora da `GLOBAL`, e o teste ficava vermelho de
+forma intermitente. Pior que o teste: quem tenta salvar duas vezes e recebe duas
+queixas diferentes conclui que o sistema está confuso, e não a edição. Coleção que
+alimenta **texto lido por gente** é ordenada — `LinkedHashMap`, na ordem em que a
+publicação apresenta os blocos.
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -746,6 +797,7 @@ desatualizada — reinicie.
 | [docs/10-calculos-uti-adulto.md](docs/10-calculos-uti-adulto.md) | **Especificação numérica** da UTI adulto — Chumlea, Jung, Rabito, dieta enteral, hidratação |
 | [docs/11-acompanhamento-pediatrico.md](docs/11-acompanhamento-pediatrico.md) | **Especificação** do acompanhamento diário pediátrico — os derivados, a idade que anda, e por que nenhuma constante nova entrou |
 | [docs/12-fichas-de-anamnese.md](docs/12-fichas-de-anamnese.md) | **Fichas de anamnese** — a ficha dirigida por modelo, o retrato da pergunta, e o que falta do menu Clínica |
+| [docs/13-escalas-nutricionais.md](docs/13-escalas-nutricionais.md) | **Especificação numérica** da MNA® e da NRS-2002 — pontos item a item, faixas, porta, o ponto por idade, e o que faltava na fonte recebida |
 
 ---
 
@@ -803,7 +855,7 @@ dirige o `/usr/bin/google-chrome` do sistema: **não instale playwright**.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 431 testes contra nutridb_test
+./run-dev.sh test         # 475 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

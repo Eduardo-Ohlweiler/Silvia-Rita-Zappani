@@ -2,6 +2,7 @@ package com.nutri.hospitalar.clinica.dtos;
 
 import com.nutri.hospitalar.clinica.enums.TipoCampoFicha;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,6 +15,9 @@ import java.util.UUID;
  *
  * @param campoId rastro. Nulo quando a pergunta foi apagada do modelo — a
  *                resposta continua inteira.
+ * @param pontos  quanto esta resposta valeu, do retrato. Nulo quando a pergunta
+ *                não pontua ou não foi respondida — nunca zero por omissão, que
+ *                é ponto legítimo em quase todo item das duas escalas.
  */
 public record RespostaFichaResponseDto(
         UUID id,
@@ -24,5 +28,7 @@ public record RespostaFichaResponseDto(
         List<String> opcoes,
         Integer ordem,
         Boolean obrigatorio,
+        BigDecimal pontos,
+        String grupoEscore,
         String valor
 ) {}

@@ -18,6 +18,11 @@ public final class FichaAnamneseMapper {
      *                       modelo vivo. Vem de fora porque é uma decisão, não
      *                       uma leitura de campo — e decisão publicada é decisão
      *                       que a tela não precisa reimplementar.
+     *
+     * <p>O escore é <b>desserializado</b> de {@code escore_json}, e nunca
+     * recalculado: ele é o número do dia, e recalcular ao abrir faria uma data de
+     * nascimento corrigida mexer, calada, no escore NRS de toda ficha antiga
+     * daquele paciente. Ver docs/13 §5.
      */
     public static FichaAnamneseResponseDto toResponse(FichaAnamnese ficha,
                                                       boolean modeloRemovido,
@@ -33,6 +38,7 @@ public final class FichaAnamneseMapper {
                 ficha.getModeloNome(),
                 modeloRemovido,
                 modeloAlterado,
+                EscoreJson.paraDto(ficha.getEscoreJson()),
                 respostasOrdenadas(ficha),
                 ficha.getObservacao(),
                 ficha.getCreatedAt(),
@@ -50,7 +56,10 @@ public final class FichaAnamneseMapper {
                    de qual modelo a ficha veio depois de ele ser apagado. */
                 ficha.getModeloNome(),
                 respondidas,
-                total);
+                total,
+                ficha.getEscoreTotal(),
+                ficha.getEscoreClassificacao(),
+                ficha.getEscoreTom());
     }
 
     public static RespostaFichaResponseDto toResponse(RespostaFicha resposta) {
@@ -63,6 +72,8 @@ public final class FichaAnamneseMapper {
                 OpcoesJson.paraLista(resposta.getOpcoes()),
                 resposta.getOrdem(),
                 resposta.getObrigatorio(),
+                resposta.getPontos(),
+                resposta.getGrupoEscore(),
                 resposta.getValor());
     }
 

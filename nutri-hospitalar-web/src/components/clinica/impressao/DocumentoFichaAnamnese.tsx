@@ -6,8 +6,8 @@ import {
   TiraIndicadores,
   type LinhaValor,
 } from '@/components/impressao/Folha'
-import type { FichaAnamneseResponse, RespostaFichaResponse } from '@/types/clinica'
-import { formatarData } from '@/utils/format'
+import type { Escore, FichaAnamneseResponse, RespostaFichaResponse } from '@/types/clinica'
+import { formatarData, formatarNumero } from '@/utils/format'
 
 /**
  * A ficha de anamnese no papel.
@@ -20,10 +20,17 @@ import { formatarData } from '@/utils/format'
  * <p><b>Pergunta sem resposta não é omitida.</b> Um prontuário que esconde o que
  * não foi perguntado mente por omissão: quem lê não distingue "não tem" de "não
  * coube na folha". É o contrato já escrito no javadoc de {@code LinhasDeValor}.
+ *
+ * <p><b>O escore impresso é o congelado no dia</b>, e a conta sai por extenso —
+ * subtotal de cada bloco, o ajuste por idade e o total —, para poder ser refeita
+ * à mão. Um prontuário que se contradiz faz quem confere concluir que o sistema
+ * errou: foi assim que a folha do dia passou a imprimir "Prescrito 1.500 ·
+ * Recebido 1.200 · Adesão 88 %".
  */
 export function DocumentoFichaAnamnese({ ficha }: { ficha: FichaAnamneseResponse }) {
   const secoes = agrupar(ficha.respostas)
   const respondidas = ficha.respostas.filter((r) => temValor(r)).length
+  const escore = ficha.escore
 
   return (
     <Folha
@@ -36,16 +43,26 @@ export function DocumentoFichaAnamnese({ ficha }: { ficha: FichaAnamneseResponse
         </>
       }
     >
+      {/* Com escala, os números da escala são o que se lê primeiro — e o nome
+          do modelo já está na linha de referência, sob o cabeçalho. A tira
+          aceita cinco: as duas escalas cabem exatas. */}
       <TiraIndicadores
         itens={[
           { rotulo: 'Data', valor: formatarData(ficha.dataPreenchimento) },
-          { rotulo: 'Modelo', valor: ficha.modeloNome },
+          ...(escore ? [] : [{ rotulo: 'Modelo', valor: ficha.modeloNome }]),
           {
             rotulo: 'Respondidas',
             valor: `${respondidas} de ${ficha.respostas.length}`,
           },
-        ]}
+          ...(escore ? indicadoresDoEscore(escore) : []),
+        ].slice(0, 5)}
       />
+
+      {escore && (
+        <Secao titulo="Escore" nota={`${escore.escalaNome} · ${escore.referencia}`}>
+          <LinhasDeValor linhas={linhasDoEscore(escore)} />
+        </Secao>
+      )}
 
       {secoes.map((secao) => (
         <Secao key={secao.titulo ?? '__sem-secao'} titulo={secao.titulo ?? 'Anamnese'}>
@@ -57,6 +74,78 @@ export function DocumentoFichaAnamnese({ ficha }: { ficha: FichaAnamneseResponse
       <Observacao texto={ficha.observacao} />
     </Folha>
   )
+}
+
+/**
+ * A tira: um subtotal por bloco que pontua, e o total.
+ *
+ * <p>A pré-triagem da NRS-2002 não entra — ela é porta, não soma, e um "0 de 0"
+ * ao lado dela seria número onde não há conta.
+ */
+function indicadoresDoEscore(escore: Escore): { rotulo: string; valor: string }[] {
+  const grupos = escore.grupos
+    .filter((g) => g.subtotal != null && g.maximo != null)
+    .map((g) => ({
+      rotulo: g.rotulo,
+      valor: `${formatarNumero(g.subtotal, 1, 1)} de ${g.maximo}`,
+    }))
+
+  return [
+    ...grupos,
+    {
+      rotulo: 'Escore total',
+      valor:
+        escore.total != null
+          ? `${formatarNumero(escore.total, 1, 1)} de ${escore.totalMaximo}`
+          : formatarNumero(null),
+    },
+  ]
+}
+
+/**
+ * A conta inteira, na ordem em que se soma.
+ *
+ * <p>O <b>ajuste por idade sai como linha própria</b> sempre que existe. Somado
+ * calado dentro do total, ele tornaria a folha impossível de conferir: quem
+ * recontasse 2 + 2 acharia 4 debaixo de um 5 impresso, e concluiria que o
+ * sistema errou.
+ *
+ * <p>E cada linha sem número leva o <b>motivo</b> ao lado, porque numa escala a
+ * ausência é a informação: soma parcial não é escore menor, é escore errado.
+ */
+function linhasDoEscore(escore: Escore): LinhaValor[] {
+  const linhas: LinhaValor[] = escore.grupos.map((g) => ({
+    rotulo: g.rotulo,
+    valor:
+      g.subtotal != null
+        ? `${formatarNumero(g.subtotal, 1, 1)}${g.maximo != null ? ` de ${g.maximo}` : ''}`
+        : formatarNumero(null),
+    detalhe: g.classificacao?.rotulo ?? g.motivoAusencia ?? undefined,
+  }))
+
+  if (escore.ajusteIdade != null) {
+    linhas.push({
+      rotulo: 'Ajuste por idade',
+      valor: `+ ${formatarNumero(escore.ajusteIdade, 1, 1)}`,
+      detalhe: escore.ajusteIdadeDescricao ?? undefined,
+    })
+  }
+
+  linhas.push({
+    rotulo: 'Escore total',
+    valor:
+      escore.total != null
+        ? `${formatarNumero(escore.total, 1, 1)} de ${escore.totalMaximo}`
+        : formatarNumero(null),
+    detalhe: escore.classificacao?.rotulo ?? escore.motivoAusencia ?? undefined,
+  })
+
+  /* A conduta que a publicação prescreve — a MNA não prescreve nenhuma. */
+  if (escore.conclusao) {
+    linhas.push({ rotulo: 'Conduta', valor: escore.conclusao })
+  }
+
+  return linhas
 }
 
 interface SecaoImpressa {

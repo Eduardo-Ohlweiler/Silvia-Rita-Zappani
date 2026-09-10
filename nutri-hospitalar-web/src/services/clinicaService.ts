@@ -11,6 +11,8 @@ import type {
   ModeloFichaResponse,
   ModeloFichaSelect,
   ModeloFichaUpdate,
+  Escore,
+  EscoreRequest,
 } from '@/types/clinica'
 
 /**
@@ -79,4 +81,19 @@ export const fichaAnamneseService = {
     api.put<FichaAnamneseResponse>(`/fichas-anamnese/${id}`, dto).then((r) => r.data),
 
   delete: (id: string) => api.delete<void>(`/fichas-anamnese/${id}`).then((r) => r.data),
+
+  /**
+   * O escore de um formulário ainda não salvo.
+   *
+   * <p>**204 quando o modelo não aplica escala** — vira `undefined`, e a tela
+   * simplesmente não desenha o painel.
+   *
+   * <p>Este endpoint não devolve 400 por formulário incompleto: incompleto é
+   * estado, e vem 200 com `total` nulo e o motivo escrito. Por isso a tela pode
+   * chamá-lo a cada pausa de digitação sem empilhar toast vermelho.
+   */
+  escore: (dto: EscoreRequest) =>
+    api
+      .post<Escore | ''>('/fichas-anamnese/escore', dto)
+      .then((r) => (r.status === 204 || !r.data ? undefined : (r.data as Escore))),
 }

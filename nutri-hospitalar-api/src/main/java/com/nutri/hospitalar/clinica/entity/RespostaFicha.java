@@ -14,6 +14,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 /**
  * Uma resposta — <b>com o retrato da pergunta que a produziu</b>.
  *
@@ -73,6 +75,23 @@ public class RespostaFicha extends TenantEntity {
 
     @Column(name = "obrigatorio", nullable = false)
     private Boolean obrigatorio = false;
+
+    /**
+     * Quanto esta resposta valeu — o retrato do <b>ponto</b>.
+     *
+     * <p>Irmão de {@code rotulo} e {@code tipo}, e pela mesma razão: editar os
+     * pontos de um modelo não pode mudar o escore de uma ficha já gravada. Sem
+     * esta coluna, o retrato explicaria a pergunta e não explicaria o número.
+     *
+     * <p>{@code NUMERIC}, nunca ponto flutuante: quatro itens da MNA valem 0,5, e
+     * a faixa intermediária dela vai de 17 a <b>23,5</b>.
+     */
+    @Column(name = "pontos", precision = 3, scale = 1)
+    private BigDecimal pontos;
+
+    /** O retrato do grupo. É por ele que o subtotal é refeito. */
+    @Column(name = "grupo_escore", length = 30)
+    private String grupoEscore;
 
     // ─── A RESPOSTA ─────────────────────────────────────────────────────────
 

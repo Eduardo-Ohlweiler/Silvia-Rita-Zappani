@@ -162,7 +162,13 @@ vale. Travado em `ModeloFichaTest.adultoNaoDuplicaMedida`.
 quem responde quase nunca é o paciente, e isso qualifica todas as respostas
 acima.
 
-### 5.1 Nenhum instrumento pontuado entra no seed
+### 5.1 Nenhum instrumento pontuado entrou *nesta* fatia
+
+> **A condição foi cumprida.** A cliente pediu duas escalas em 07/09/2026, e elas
+> vieram como fatia própria, com fonte citada, em
+> [docs/13](13-escalas-nutricionais.md): **MNA®** e **NRS-2002**. O parágrafo
+> abaixo continua valendo como o registro de *por que* elas não entraram aqui —
+> não havia mecanismo de pontuação no módulo, nem bibliografia levantada.
 
 NRS-2002, MUST, MNA-SF e STRONGkids são escalas com pontos de corte e validação
 publicada — o mesmo tipo de conhecimento que `docs/09` e `docs/10` exigiram
@@ -172,6 +178,9 @@ com fonte citada.
 Um questionário **descritivo** não tem esse problema: ele registra o que foi
 dito, não calcula um escore. É o que justifica semear estes três sem levantar
 bibliografia.
+
+Os três desta fatia continuam descritivos: `escore_codigo` é nulo nos três, e há
+teste que reprova quem pendurar pontuação neles.
 
 ---
 

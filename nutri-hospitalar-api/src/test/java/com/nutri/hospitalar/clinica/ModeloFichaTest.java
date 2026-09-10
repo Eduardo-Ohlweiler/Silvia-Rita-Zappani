@@ -4,12 +4,20 @@ import com.nutri.hospitalar.AbstractIntegrationTest;
 import com.nutri.hospitalar.clinica.entity.CampoFicha;
 import com.nutri.hospitalar.clinica.repository.CampoFichaRepository;
 import com.nutri.hospitalar.clinica.entity.ModeloFicha;
+import com.nutri.hospitalar.clinica.enums.TipoCampoFicha;
+import com.nutri.hospitalar.clinica.escore.EscalaNutricional;
+import com.nutri.hospitalar.clinica.escore.EscalaRegistry;
+import com.nutri.hospitalar.clinica.mapper.OpcoesJson;
+import com.nutri.hospitalar.clinica.mapper.PontosJson;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -43,20 +51,88 @@ class ModeloFichaTest extends AbstractIntegrationTest {
 
 
     @Nested
-    @DisplayName("Carga da migration 030")
+    @DisplayName("Carga das migrations 030 e 031")
     class Carga {
 
         @Test
-        @DisplayName("os três modelos de nutrição entram, e todos são do sistema")
-        void tresDoSistema() {
+        @DisplayName("os cinco modelos entram, e todos são do sistema")
+        void cincoDoSistema() {
             List<ModeloFicha> todos = modeloFichaRepository.findAll();
 
-            assertThat(todos).hasSize(3);
+            assertThat(todos).hasSize(5);
             assertThat(todos).allMatch(ModeloFicha::ehGlobal);
             assertThat(todos).extracting(ModeloFicha::getNome).containsExactlyInAnyOrder(
                     "Anamnese nutricional adulto",
                     "Anamnese nutricional pediátrica",
-                    "Anamnese nutricional hospitalar");
+                    "Anamnese nutricional hospitalar",
+                    "MNA — Mini Nutritional Assessment",
+                    "NRS-2002 — Triagem de risco nutricional");
+        }
+
+        /**
+         * Os três da fatia 12 são <b>descritivos</b>, e continuam sendo.
+         *
+         * <p>A migration 030 recusou semear instrumento pontuado por escrito, e a
+         * fatia 13 não voltou atrás disso — ela abriu uma porta ao lado. Se
+         * alguém pendurar pontuação num questionário descritivo, é aqui que
+         * aparece.
+         */
+        @Test
+        @DisplayName("os três da fatia 12 continuam sem escala, e os dois novos têm")
+        void escalaSoNosDoisNovos() {
+            assertThat(modeloFichaRepository.findAll())
+                    .filteredOn(m -> m.getNome().startsWith("Anamnese nutricional"))
+                    .allMatch(m -> m.getEscoreCodigo() == null);
+
+            assertThat(modeloFichaRepository.findAll())
+                    .filteredOn(ModeloFicha::temEscore)
+                    .extracting(ModeloFicha::getEscoreCodigo)
+                    .containsExactlyInAnyOrder("MNA", "NRS_2002");
+        }
+
+        /**
+         * <b>Roda o limite contra os dados que o sistema distribui.</b>
+         *
+         * <p>Cada bloco do seed tem de somar exatamente o máximo que a publicação
+         * declara — MNA 14 + 16, NRS 0 + 3 + 3. É o teste que reprova quem
+         * apertar a régua depois: mexer numa faixa da {@code MnaEscala} sem mexer
+         * no seed, ou vice-versa, fica vermelho aqui.
+         */
+        @Test
+        @DisplayName("cada bloco do seed soma o máximo que a escala declara")
+        void seedCoerenteEscore() {
+            for (ModeloFicha modelo : modeloFichaRepository.findAll()) {
+                if (!modelo.temEscore()) continue;
+
+                EscalaNutricional escala = EscalaRegistry.de(modelo.getEscoreCodigo()).orElseThrow();
+                Map<String, BigDecimal> somado = new HashMap<>();
+
+                for (CampoFicha campo : camposDe(modelo)) {
+                    List<BigDecimal> pontos = PontosJson.paraLista(campo.getPontos());
+
+                    if (!pontos.isEmpty()) {
+                        assertThat(campo.getTipo()).as("tipo de %s", campo.getRotulo())
+                                .isEqualTo(TipoCampoFicha.OPCOES);
+                        assertThat(pontos).as("cardinalidade de %s", campo.getRotulo())
+                                .hasSameSizeAs(OpcoesJson.paraLista(campo.getOpcoes()));
+                        assertThat(campo.getGrupoEscore()).as("bloco de %s", campo.getRotulo())
+                                .isNotBlank();
+                    }
+                    if (campo.getGrupoEscore() != null) {
+                        somado.merge(campo.getGrupoEscore(),
+                                pontos.stream().max(BigDecimal::compareTo).orElse(BigDecimal.ZERO),
+                                BigDecimal::add);
+                    }
+                }
+
+                assertThat(somado.keySet()).as("blocos de %s", modelo.getNome())
+                        .isEqualTo(escala.maximoPorGrupo().keySet());
+
+                escala.maximoPorGrupo().forEach((grupo, maximo) ->
+                        assertThat(somado.get(grupo)).as("máximo do bloco %s de %s",
+                                        grupo, modelo.getNome())
+                                .isEqualByComparingTo(maximo));
+            }
         }
 
         @Test
@@ -92,12 +168,12 @@ class ModeloFichaTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("os três aparecem para os dois tenants — são do sistema")
+        @DisplayName("os cinco aparecem para os dois tenants — são do sistema")
         void visiveisParaTodoTenant() throws Exception {
             for (String email : List.of("admin.a@teste.local", "admin.b@teste.local")) {
                 mockMvc.perform(get("/modelos-ficha").header(AUTHORIZATION, autenticar(email)))
                         .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.totalElements").value(3));
+                        .andExpect(jsonPath("$.totalElements").value(5));
             }
         }
     }
@@ -145,7 +221,8 @@ class ModeloFichaTest extends AbstractIntegrationTest {
                             .header(AUTHORIZATION, autenticar("admin.a@teste.local")))
                     .andExpect(status().isNotFound());
 
-            assertThat(modeloFichaRepository.findAll()).hasSize(3);
+            /* Os cinco do sistema continuam lá — 030 semeou três, 031 mais dois. */
+            assertThat(modeloFichaRepository.findAll()).hasSize(5);
         }
 
         @Test
@@ -229,12 +306,12 @@ class ModeloFichaTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/modelos-ficha")
                             .header(AUTHORIZATION, autenticar("admin.a@teste.local")))
-                    .andExpect(jsonPath("$.totalElements").value(4));
+                    .andExpect(jsonPath("$.totalElements").value(6));
 
-            /* Para a B, só os três do sistema. */
+            /* Para a B, só os cinco do sistema. */
             mockMvc.perform(get("/modelos-ficha")
                             .header(AUTHORIZATION, autenticar("admin.b@teste.local")))
-                    .andExpect(jsonPath("$.totalElements").value(3));
+                    .andExpect(jsonPath("$.totalElements").value(5));
         }
 
         @Test
@@ -245,7 +322,7 @@ class ModeloFichaTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/modelos-ficha/select").header(AUTHORIZATION, tokenB))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.length()").value(3));
+                    .andExpect(jsonPath("$.length()").value(5));
 
             mockMvc.perform(get("/modelos-ficha/" + id).header(AUTHORIZATION, tokenB))
                     .andExpect(status().isNotFound());

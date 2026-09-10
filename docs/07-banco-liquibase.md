@@ -3,7 +3,6 @@
 > Leia antes de criar entidade, tabela, índice, constraint, foreign key ou
 > migration.
 
----
 
 ## 1. Regras de base
 
@@ -47,6 +46,14 @@ Verbos: `create`, `add`, `alter`, `drop`, `insert`, `enable`.
     <!-- ... -->
 </databaseChangeLog>
 ```
+
+> **O `schemaLocation` repete `/dbchangelog/`.** A URL certa é
+> `…/xml/ns/dbchangelog/dbchangelog-4.29.xsd` — o segmento aparece duas vezes.
+> Omitir o segundo derruba **a aplicação inteira** na subida, com *"Unable to
+> resolve xml entity … secureParsing is set to 'true'"*, e a mensagem culpa a
+> versão do XSD, que está certa e vem empacotada no `liquibase-core`. O sintoma é
+> a suíte toda vermelha por **erro de contexto**, e não uma migration falhando —
+> nada aponta para o arquivo novo. Copie este cabeçalho em vez de digitá-lo.
 
 ### ChangeSet
 

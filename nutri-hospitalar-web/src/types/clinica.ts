@@ -35,6 +35,91 @@ export function exigeOpcoes(tipo: TipoCampoFicha): boolean {
   return tipo === 'OPCOES' || tipo === 'MULTIPLAS_OPCOES'
 }
 
+// ── Escalas nutricionais pontuadas (docs/13) ───────────────────────────────
+
+/**
+ * As escalas que o servidor sabe interpretar. Espelha `EscalaRegistry`.
+ *
+ * O código é só o **nome** da régua: a porta, as faixas, o corte e o ajuste por
+ * idade moram no servidor, com fonte citada. A tela não soma nada — a regra do
+ * denominador da adesão já existiu em quatro linguagens neste projeto, e sete
+ * telas erraram.
+ */
+export type EscoreCodigo = 'MNA' | 'NRS_2002'
+
+/** Espelha `TomResultado` do backend. Igual ao que o `TResult` já consome. */
+export type TomEscore = 'NEUTRO' | 'ADEQUADO' | 'ATENCAO' | 'CRITICO'
+
+/**
+ * Do tom do servidor para o tom do `TBadge`.
+ *
+ * <p>São **dois vocabulários diferentes**, e por isso existe este mapa. O
+ * backend fala `TomResultado` — maiúsculas, quatro gravidades clínicas, o mesmo
+ * que o `TResult` consome. O `TBadge` fala em cor de interface: `sucesso`,
+ * `alerta`, `erro`. Um `toLowerCase()` casaria só `neutro` e devolveria selo sem
+ * cor nos outros três, calado. Mapa explícito, num lugar só.
+ */
+export const TOM_DO_ESCORE = {
+  NEUTRO: 'neutro',
+  ADEQUADO: 'sucesso',
+  ATENCAO: 'alerta',
+  CRITICO: 'erro',
+} as const satisfies Record<TomEscore, string>
+
+export interface ClassificacaoEscore {
+  rotulo: string
+  tom: TomEscore
+}
+
+export interface GrupoEscore {
+  grupo: string
+  rotulo: string
+  /** **Nulo enquanto o grupo estiver incompleto** — soma parcial de escala é escore errado. */
+  subtotal: number | null
+  /** Nulo no grupo que não pontua: a pré-triagem da NRS-2002 é porta, não soma. */
+  maximo: number | null
+  classificacao: ClassificacaoEscore | null
+  motivoAusencia: string | null
+  /** Os rótulos inteiros, para a tela listar sem recortar a frase do motivo. */
+  perguntasSemResposta: string[]
+}
+
+export interface Escore {
+  escala: EscoreCodigo | string
+  escalaNome: string
+  referencia: string
+  grupos: GrupoEscore[]
+  /** Publicado **separado** do total, para a conta poder ser refeita: 2 + 2 + 1 = 5. */
+  ajusteIdade: number | null
+  ajusteIdadeDescricao: string | null
+  total: number | null
+  totalMaximo: number
+  classificacao: ClassificacaoEscore | null
+  /** A conduta que a publicação prescreve. A MNA não prescreve nenhuma. */
+  conclusao: string | null
+  motivoAusencia: string | null
+}
+
+export interface EscoreRequest {
+  modeloId: string
+  pacienteId?: string
+  dataPreenchimento?: string
+  respostas: RespostaFicha[]
+}
+
+/** Os blocos de escore, para o seletor do editor de um modelo clonado. */
+export const GRUPOS_ESCORE: Record<EscoreCodigo, { valor: string; rotulo: string }[]> = {
+  MNA: [
+    { valor: 'TRIAGEM', rotulo: 'Triagem' },
+    { valor: 'GLOBAL', rotulo: 'Avaliação global' },
+  ],
+  NRS_2002: [
+    { valor: 'PRE_TRIAGEM', rotulo: 'Pré-triagem' },
+    { valor: 'ESTADO_NUTRICIONAL', rotulo: 'Estado nutricional' },
+    { valor: 'GRAVIDADE_DOENCA', rotulo: 'Gravidade da doença' },
+  ],
+}
+
 // ── Modelo de ficha ────────────────────────────────────────────────────────
 
 export interface CampoFicha {
@@ -44,6 +129,10 @@ export interface CampoFicha {
   rotulo: string
   tipo: TipoCampoFicha
   opcoes?: string[]
+  /** Quanto vale cada opção, **na mesma ordem**. Só em modelo com escala. */
+  pontos?: number[]
+  /** Em qual bloco da escala esta pergunta soma. */
+  grupoEscore?: string
   obrigatorio?: boolean
   ativo?: boolean
 }
@@ -54,6 +143,9 @@ export interface CampoFichaResponse {
   rotulo: string
   tipo: TipoCampoFicha
   opcoes: string[]
+  /** Paralelo a `opcoes`. Vazio na pergunta que não pontua. */
+  pontos: number[]
+  grupoEscore: string | null
   ordem: number
   obrigatorio: boolean
   ativo: boolean
@@ -66,6 +158,11 @@ export interface ModeloFichaResponse {
   ativo: boolean
   /** Do sistema: visível a todo cliente, editável por nenhum. Clone para adaptar. */
   doSistema: boolean
+  /** Qual escala pontuada o modelo aplica. Nulo = questionário descritivo. */
+  escoreCodigo: EscoreCodigo | null
+  /** O nome e a procedência vêm do servidor — a tela não monta citação à mão. */
+  escalaNome: string | null
+  escalaReferencia: string | null
   campos: CampoFichaResponse[]
   createdAt: string
   updatedAt: string | null
@@ -76,6 +173,7 @@ export interface ModeloFichaSelect {
   nome: string
   descricao: string | null
   doSistema: boolean
+  escoreCodigo: EscoreCodigo | null
   totalCampos: number
 }
 
@@ -117,6 +215,9 @@ export interface RespostaFichaResponse {
   opcoes: string[]
   ordem: number
   obrigatorio: boolean
+  /** Quanto esta resposta valeu, do retrato. Nulo quando não pontua ou não foi respondida. */
+  pontos: number | null
+  grupoEscore: string | null
   valor: string | null
 }
 
@@ -134,6 +235,8 @@ export interface FichaAnamneseResponse {
   modeloRemovido: boolean
   /** O modelo existe, mas não é mais o que gerou esta ficha. */
   modeloAlterado: boolean
+  /** O escore **congelado no dia**, e não recalculado ao abrir. Nulo sem escala. */
+  escore: Escore | null
   respostas: RespostaFichaResponse[]
   observacao: string | null
   createdAt: string
@@ -149,6 +252,9 @@ export interface FichaAnamneseLista {
   modeloNome: string
   respondidas: number
   totalPerguntas: number
+  escoreTotal: number | null
+  escoreClassificacao: string | null
+  escoreTom: TomEscore | null
 }
 
 export interface FichaAnamneseCreate {

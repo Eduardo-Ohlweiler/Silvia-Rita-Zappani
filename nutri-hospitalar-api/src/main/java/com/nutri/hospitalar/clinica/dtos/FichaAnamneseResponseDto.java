@@ -20,6 +20,11 @@ import java.util.UUID;
  *                       desenha pelo retrato. Fórmula alterada engana mais que
  *                       fórmula removida, e pergunta alterada engana mais ainda,
  *                       porque não há número ao lado para não fechar.
+ * @param escore         o escore <b>congelado no dia</b>, desserializado de
+ *                       {@code escore_json}. Nulo quando o modelo não aplica
+ *                       escala. Ele não é recalculado ao abrir: corrigir a data
+ *                       de nascimento de um paciente mudaria, calado, o escore
+ *                       NRS de toda ficha antiga dele. Ver docs/13 §5.
  */
 public record FichaAnamneseResponseDto(
         UUID id,
@@ -32,6 +37,7 @@ public record FichaAnamneseResponseDto(
         String modeloNome,
         boolean modeloRemovido,
         boolean modeloAlterado,
+        EscoreDto escore,
         List<RespostaFichaResponseDto> respostas,
         String observacao,
         Instant createdAt,

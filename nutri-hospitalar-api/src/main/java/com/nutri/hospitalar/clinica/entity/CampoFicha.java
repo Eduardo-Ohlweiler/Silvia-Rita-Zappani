@@ -59,6 +59,30 @@ public class CampoFicha extends BaseEntity {
     @Column(name = "obrigatorio", nullable = false)
     private Boolean obrigatorio = false;
 
+    // ─── ESCORE (fatia 13, docs/13) ─────────────────────────────────────────
+
+    /**
+     * JSON array de decimais, <b>paralelo por índice</b> a {@code opcoes}: a
+     * terceira opção vale o terceiro ponto. Nulo na pergunta que não pontua.
+     *
+     * <p>Duas listas alinhadas, e não uma lista de objetos, para {@code opcoes}
+     * ficar exatamente como estava — nenhuma das telas que já o leem mudou.
+     */
+    @Column(name = "pontos", columnDefinition = "TEXT")
+    private String pontos;
+
+    /**
+     * Em qual bloco da escala esta pergunta soma — {@code TRIAGEM},
+     * {@code PRE_TRIAGEM}, {@code ESTADO_NUTRICIONAL}… Nulo fica fora do escore.
+     *
+     * <p>Sem CHECK de valores no banco, e isso é decisão: os grupos são de cada
+     * escala, e uma lista fixa faria toda escala nova ser uma migration a mais só
+     * para ampliar a restrição. Quem valida o nome é a
+     * {@code EscalaNutricional}, que é quem o conhece.
+     */
+    @Column(name = "grupo_escore", length = 30)
+    private String grupoEscore;
+
     @Column(name = "ativo", nullable = false)
     private Boolean ativo = true;
 }

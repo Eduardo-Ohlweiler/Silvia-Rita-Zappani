@@ -56,6 +56,23 @@ public class ModeloFicha extends BaseEntity {
     private Boolean ativo = true;
 
     /**
+     * Qual escala pontuada este modelo aplica — {@code MNA}, {@code NRS_2002} —,
+     * ou nulo para o questionário descritivo, que é o caso dos três da fatia 12.
+     *
+     * <p>É só o <b>código</b>: a régua (porta, faixa, corte, ajuste por idade)
+     * mora em {@code clinica/escore/}, com fonte citada, porque é conhecimento
+     * clínico publicado. Os <b>pontos</b>, esses sim, são dado, e ficam em
+     * {@code CampoFicha}. Ver docs/13 §1.2.
+     */
+    @Column(name = "escore_codigo", length = 30)
+    private String escoreCodigo;
+
+    /** Aplica uma escala pontuada. */
+    public boolean temEscore() {
+        return escoreCodigo != null && !escoreCodigo.isBlank();
+    }
+
+    /**
      * As perguntas, sempre na ordem em que se responde.
      *
      * <p>{@code orphanRemoval} porque a lista é o estado completo: o campo que

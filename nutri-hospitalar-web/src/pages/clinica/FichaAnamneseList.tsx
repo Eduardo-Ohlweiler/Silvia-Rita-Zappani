@@ -22,8 +22,8 @@ import { catalogoService } from '@/services/catalogoService'
 import { fichaAnamneseService, modeloFichaService } from '@/services/clinicaService'
 import { pessoaService } from '@/services/pessoaService'
 import type { Page } from '@/types/comum'
-import type { FichaAnamneseLista } from '@/types/clinica'
-import { formatarData, formatarDocumento } from '@/utils/format'
+import { TOM_DO_ESCORE, type FichaAnamneseLista } from '@/types/clinica'
+import { formatarData, formatarDocumento, formatarNumero } from '@/utils/format'
 import type { ColunaExportavel } from '@/utils/planilha'
 
 /**
@@ -94,6 +94,14 @@ export function FichaAnamneseList() {
     { titulo: 'Modelo', valor: (f) => f.modeloNome },
     { titulo: 'Respondidas', numerica: true, valor: (f) => String(f.respondidas) },
     { titulo: 'Perguntas', numerica: true, valor: (f) => String(f.totalPerguntas) },
+    {
+      titulo: 'Escore',
+      numerica: true,
+      /* Vazio, e não zero: a ficha sem escala não tem escore, e a com escala
+         incompleta tem escore ausente. Zero seria um resultado. */
+      valor: (f) => (f.escoreTotal != null ? formatarNumero(f.escoreTotal, 1, 1) : ''),
+    },
+    { titulo: 'Classificação', valor: (f) => f.escoreClassificacao ?? '' },
   ]
 
   const filtrosAplicados = [
@@ -121,6 +129,25 @@ export function FichaAnamneseList() {
       secundaria: true,
       render: (f) =>
         f.profissionalNome ?? <span className="text-txt-muted">Não informado</span>,
+    },
+    {
+      /*
+       * Só as fichas de escala têm o que mostrar aqui, e a coluna é secundária
+       * porque a maioria das fichas é descritiva. O tom vem do SERVIDOR: colorir
+       * por `texto.includes('adequado')` é como o eroERP quebrava ao mudar uma
+       * palavra do rótulo.
+       */
+      chave: 'escore',
+      cabecalho: 'Escore',
+      secundaria: true,
+      render: (f) =>
+        f.escoreClassificacao ? (
+          <TBadge tom={TOM_DO_ESCORE[f.escoreTom ?? 'NEUTRO']}>
+            {f.escoreTotal != null
+              ? `${formatarNumero(f.escoreTotal, 1, 1)} · ${f.escoreClassificacao}`
+              : f.escoreClassificacao}
+          </TBadge>
+        ) : null,
     },
     {
       chave: 'preenchimento',

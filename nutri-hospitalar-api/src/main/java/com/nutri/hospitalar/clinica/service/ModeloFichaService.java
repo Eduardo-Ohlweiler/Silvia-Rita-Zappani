@@ -8,8 +8,11 @@ import com.nutri.hospitalar.clinica.dtos.ModeloFichaUpdateDto;
 import com.nutri.hospitalar.clinica.entity.CampoFicha;
 import com.nutri.hospitalar.clinica.entity.ModeloFicha;
 import com.nutri.hospitalar.clinica.enums.TipoCampoFicha;
+import com.nutri.hospitalar.clinica.escore.EscalaNutricional;
+import com.nutri.hospitalar.clinica.escore.EscalaRegistry;
 import com.nutri.hospitalar.clinica.mapper.ModeloFichaMapper;
 import com.nutri.hospitalar.clinica.mapper.OpcoesJson;
+import com.nutri.hospitalar.clinica.mapper.PontosJson;
 import com.nutri.hospitalar.clinica.repository.ModeloFichaRepository;
 import com.nutri.hospitalar.config.PageableUtils;
 import com.nutri.hospitalar.config.SecurityUtils;
@@ -23,11 +26,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -99,6 +105,10 @@ public class ModeloFichaService {
         ModeloFicha modelo = new ModeloFicha();
         /* Sempre do tenant: não há como criar modelo do sistema pela API. */
         modelo.setTenant(securityUtils.getTenantReference());
+        /* E sempre SEM escala: escoreCodigo não é aceito de fora. Um modelo de
+           três perguntas que se declarasse MNA receberia as faixas da MNA sobre
+           um total de cinco pontos, e a classificação sairia errada com cara de
+           certa. A escala vem do seed, e só o clone a herda. */
         modelo.setNome(nome);
         modelo.setDescricao(textoOuNulo(dto.descricao()));
         modelo.setAtivo(dto.ativo() == null || dto.ativo());
@@ -149,6 +159,11 @@ public class ModeloFichaService {
         copia.setNome(nomeLivreParaCopia(origem.getNome(), tenantId));
         copia.setDescricao(origem.getDescricao());
         copia.setAtivo(true);
+        /* A escala acompanha a cópia. Uma MNA clonada que perdesse o escore
+           viraria um questionário de dezoito perguntas sem propósito — e clonar
+           é o único caminho para adaptar um modelo do sistema. O que protege a
+           aritmética depois é validarEscala, no PUT. */
+        copia.setEscoreCodigo(origem.getEscoreCodigo());
 
         origem.getCampos().stream()
                 .sorted(Comparator.comparing(CampoFicha::getOrdem))
@@ -158,6 +173,8 @@ public class ModeloFichaService {
                     novo.setRotulo(c.getRotulo());
                     novo.setTipo(c.getTipo());
                     novo.setOpcoes(c.getOpcoes());
+                    novo.setPontos(c.getPontos());
+                    novo.setGrupoEscore(c.getGrupoEscore());
                     novo.setOrdem(c.getOrdem());
                     novo.setObrigatorio(c.getObrigatorio());
                     novo.setAtivo(c.getAtivo());
@@ -215,6 +232,7 @@ public class ModeloFichaService {
      * mão produz duas perguntas com o número 3 e uma tela que desempata sozinha.
      */
     private void sincronizarCampos(ModeloFicha modelo, List<CampoFichaDto> enviados) {
+        Optional<EscalaNutricional> escala = EscalaRegistry.de(modelo.getEscoreCodigo());
         Map<UUID, CampoFicha> existentes = modelo.getCampos().stream()
                 .collect(Collectors.toMap(CampoFicha::getId, Function.identity()));
 
@@ -223,7 +241,7 @@ public class ModeloFichaService {
 
         int ordem = 1;
         for (CampoFichaDto dto : enviados) {
-            validarCampo(dto);
+            validarCampo(dto, escala);
 
             if (!perguntasVistas.add(chaveDeDuplicata(dto)))
                 throw new BadRequestException(
@@ -245,6 +263,8 @@ public class ModeloFichaService {
             campo.setOpcoes(dto.tipo().exigeOpcoes()
                     ? OpcoesJson.paraTexto(limpar(dto.opcoes()))
                     : null);
+            campo.setPontos(PontosJson.paraTexto(dto.pontos()));
+            campo.setGrupoEscore(textoOuNulo(dto.grupoEscore()));
             campo.setOrdem(ordem++);
             campo.setObrigatorio(dto.obrigatorio() != null && dto.obrigatorio());
             campo.setAtivo(dto.ativo() == null || dto.ativo());
@@ -255,6 +275,56 @@ public class ModeloFichaService {
         /* O que não veio foi removido pelo usuário: orphanRemoval o apaga. */
         modelo.getCampos().clear();
         modelo.getCampos().addAll(resultado);
+
+        escala.ifPresent(e -> validarEscala(e, resultado));
+    }
+
+    /**
+     * <b>Roda o limite contra os dados</b> antes de gravar um modelo com escala:
+     * cada bloco tem de somar exatamente o máximo que a publicação declara.
+     *
+     * <p>É o que torna o clone seguro. Sem esta checagem, clonar a MNA e apagar
+     * dez perguntas produziria um total máximo de 8 lido pelas faixas de 30 —
+     * "desnutrido" para quem respondeu tudo, com cara de resultado. Reescrever o
+     * enunciado de uma pergunta continua permitido, e é o que um cliente
+     * legitimamente quer ao clonar: isso não move a aritmética.
+     *
+     * <p>Mesma lição do Codex contra o catálogo de fórmulas lácteas — a faixa
+     * "óbvia" reprovava três das dez que o próprio sistema distribui. Aqui o seed
+     * é reprovado por {@code seedCoerenteEscore} se alguém apertar a régua.
+     */
+    private void validarEscala(EscalaNutricional escala, List<CampoFicha> campos) {
+        Map<String, BigDecimal> esperado = escala.maximoPorGrupo();
+        Map<String, BigDecimal> obtido = new LinkedHashMap<>();
+
+        for (CampoFicha campo : campos) {
+            String grupo = campo.getGrupoEscore();
+            if (grupo == null) continue;
+
+            if (!esperado.containsKey(grupo))
+                throw new BadRequestException("A escala " + escala.nome()
+                        + " não tem o bloco " + entreAspas(grupo));
+
+            obtido.merge(grupo, maiorPontoDe(campo), BigDecimal::add);
+        }
+
+        esperado.forEach((grupo, maximo) -> {
+            BigDecimal soma = obtido.getOrDefault(grupo, BigDecimal.ZERO);
+            if (soma.compareTo(maximo) != 0)
+                throw new BadRequestException("As perguntas do bloco " + entreAspas(grupo)
+                        + " somam no máximo " + soma.stripTrailingZeros().toPlainString()
+                        + " pontos, e a escala " + escala.nome() + " exige "
+                        + maximo.stripTrailingZeros().toPlainString()
+                        + ". Reescrever o texto de uma pergunta é permitido; mudar a"
+                        + " pontuação faria a classificação sair errada.");
+        });
+    }
+
+    /** O teto de uma pergunta é a sua maior opção. Sem pontos, zero. */
+    private BigDecimal maiorPontoDe(CampoFicha campo) {
+        return PontosJson.paraLista(campo.getPontos()).stream()
+                .max(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
     }
 
     /**
@@ -262,9 +332,10 @@ public class ModeloFichaService {
      * opção pendurada em campo de texto é lixo que reaparece se o tipo mudar — os
      * dois são recusados, e não ignorados em silêncio.
      */
-    private void validarCampo(CampoFichaDto dto) {
+    private void validarCampo(CampoFichaDto dto, Optional<EscalaNutricional> escala) {
         TipoCampoFicha tipo = dto.tipo();
         List<String> opcoes = limpar(dto.opcoes());
+        List<BigDecimal> pontos = dto.pontos() == null ? List.of() : dto.pontos();
 
         if (tipo.exigeOpcoes()) {
             if (opcoes.size() < 2)
@@ -276,6 +347,49 @@ public class ModeloFichaService {
         } else if (!opcoes.isEmpty()) {
             throw new BadRequestException("A pergunta " + entreAspas(dto.rotulo())
                     + " não é de opções e não aceita uma lista");
+        }
+
+        validarPontuacao(dto, tipo, opcoes, pontos, escala);
+    }
+
+    /**
+     * As guardas da pontuação, e cada uma tem uma frase.
+     *
+     * <p>A da <b>cardinalidade</b> é a que o banco não faz: casar ponto com opção
+     * por índice só é honesto quando as duas listas têm o mesmo comprimento, e um
+     * CHECK que fizesse {@code cast} de texto para JSON derrubaria a linha inteira
+     * diante de um {@code UPDATE} de manutenção malfeito — enquanto o
+     * {@code PontosJson} foi escrito para nunca explodir ao ler. O banco garante o
+     * que não pode variar; o service garante o que precisa de frase.
+     *
+     * <p>{@code MULTIPLAS_OPCOES} pontuado é recusado: nas duas escalas cada item
+     * é escolha única, e somar N opções marcadas abre uma aritmética que nenhuma
+     * publicação define.
+     */
+    private void validarPontuacao(CampoFichaDto dto, TipoCampoFicha tipo, List<String> opcoes,
+                                  List<BigDecimal> pontos, Optional<EscalaNutricional> escala) {
+
+        boolean temPontos = !pontos.isEmpty();
+        String grupo = textoOuNulo(dto.grupoEscore());
+
+        if ((temPontos || grupo != null) && escala.isEmpty())
+            throw new BadRequestException("A pergunta " + entreAspas(dto.rotulo())
+                    + " tem pontuação, e este modelo não aplica uma escala pontuada");
+
+        if (temPontos) {
+            if (tipo != TipoCampoFicha.OPCOES)
+                throw new BadRequestException("A pergunta " + entreAspas(dto.rotulo())
+                        + " só pode pontuar se for de opção única");
+            if (pontos.size() != opcoes.size())
+                throw new BadRequestException("A pergunta " + entreAspas(dto.rotulo())
+                        + " tem " + opcoes.size() + " opções e " + pontos.size()
+                        + " pontos: cada opção precisa do seu");
+            if (pontos.stream().anyMatch(p -> p.signum() < 0))
+                throw new BadRequestException("A pergunta " + entreAspas(dto.rotulo())
+                        + " não pode ter pontuação negativa");
+            if (grupo == null)
+                throw new BadRequestException("A pergunta " + entreAspas(dto.rotulo())
+                        + " pontua e precisa dizer em qual bloco da escala ela soma");
         }
     }
 

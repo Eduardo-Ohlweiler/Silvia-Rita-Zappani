@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +23,11 @@ import java.util.UUID;
  * @param opcoes lista de opções, obrigatória nos dois tipos de opção e recusada
  *               nos outros cinco — opção pendurada em campo de texto é lixo que
  *               reaparece se o tipo mudar.
+ * @param pontos quanto vale cada opção, <b>na mesma ordem</b>. Só existe em
+ *               modelo que aplica escala, e o service recusa lista de tamanho
+ *               diferente do de {@code opcoes}: casar ponto com opção por índice
+ *               só é honesto quando os dois têm o mesmo comprimento.
+ * @param grupoEscore em qual bloco da escala esta pergunta soma. Nulo fica fora.
  */
 public record CampoFichaDto(
 
@@ -38,6 +44,11 @@ public record CampoFichaDto(
         TipoCampoFicha tipo,
 
         List<@NotBlank(message = "Opção em branco") @Size(max = 200) String> opcoes,
+
+        List<BigDecimal> pontos,
+
+        @Size(max = 30, message = "O grupo do escore deve ter no máximo 30 caracteres")
+        String grupoEscore,
 
         Boolean obrigatorio,
 

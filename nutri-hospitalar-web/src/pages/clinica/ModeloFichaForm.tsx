@@ -22,12 +22,15 @@ import {
 import { handleApiError } from '@/services/api'
 import { modeloFichaService } from '@/services/clinicaService'
 import {
+  GRUPOS_ESCORE,
   TIPOS_CAMPO,
   exigeOpcoes,
   type CampoFicha,
+  type EscoreCodigo,
   type ModeloFichaResponse,
   type TipoCampoFicha,
 } from '@/types/clinica'
+import { formatarNumero, paraNumero } from '@/utils/format'
 
 /** Uma linha do construtor. `opcoesTexto` é o que se digita: uma por linha. */
 interface LinhaPergunta {
@@ -36,6 +39,9 @@ interface LinhaPergunta {
   rotulo: string
   tipo: TipoCampoFicha
   opcoesTexto: string
+  /** Os pontos, um por linha, **na mesma ordem das opções**. Só com escala. */
+  pontosTexto: string
+  grupoEscore: string
   obrigatorio: boolean
   ativo: boolean
 }
@@ -45,6 +51,8 @@ const LINHA_NOVA: LinhaPergunta = {
   rotulo: '',
   tipo: 'TEXTO',
   opcoesTexto: '',
+  pontosTexto: '',
+  grupoEscore: '',
   obrigatorio: false,
   ativo: true,
 }
@@ -71,6 +79,15 @@ export function ModeloFichaForm() {
   const [perguntas, setPerguntas] = useState<LinhaPergunta[]>([{ ...LINHA_NOVA }])
   const [doSistema, setDoSistema] = useState(false)
 
+  /*
+   * A escala do modelo (docs/13). Não é editável em lugar nenhum: ela vem do
+   * seed e o clone a herda. Um modelo de três perguntas que se declarasse MNA
+   * receberia as faixas da MNA sobre um total de cinco pontos, e a classificação
+   * sairia errada com cara de certa — por isso o servidor nem aceita o campo.
+   */
+  const [escoreCodigo, setEscoreCodigo] = useState<EscoreCodigo | null>(null)
+  const [escalaNome, setEscalaNome] = useState<string | null>(null)
+
   const [carregando, setCarregando] = useState(editando)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string>()
@@ -90,6 +107,8 @@ export function ModeloFichaForm() {
     setDescricao(modelo.descricao ?? '')
     setAtivo(modelo.ativo)
     setDoSistema(modelo.doSistema)
+    setEscoreCodigo(modelo.escoreCodigo)
+    setEscalaNome(modelo.escalaNome)
     setPerguntas(
       modelo.campos.map((c) => ({
         id: c.id,
@@ -97,6 +116,8 @@ export function ModeloFichaForm() {
         rotulo: c.rotulo,
         tipo: c.tipo,
         opcoesTexto: c.opcoes.join('\n'),
+        pontosTexto: c.pontos.map((n) => formatarNumero(n, 1)).join('\n'),
+        grupoEscore: c.grupoEscore ?? '',
         obrigatorio: c.obrigatorio,
         ativo: c.ativo,
       })),
@@ -130,6 +151,14 @@ export function ModeloFichaForm() {
       rotulo: linha.rotulo.trim(),
       tipo: linha.tipo,
       opcoes: exigeOpcoes(linha.tipo) ? linhasDe(linha.opcoesTexto) : undefined,
+      /*
+       * Os pontos VOLTAM inteiros, e isso não é detalhe: sem enviá-los, salvar
+       * um modelo clonado apagaria a pontuação em silêncio, e a validação do
+       * servidor recusaria com "somam no máximo 0, e a escala exige 14" — uma
+       * frase certa sobre um erro que a própria tela teria acabado de cometer.
+       */
+      pontos: escoreCodigo ? numerosDe(linha.pontosTexto) : undefined,
+      grupoEscore: escoreCodigo ? linha.grupoEscore.trim() || undefined : undefined,
       obrigatorio: linha.obrigatorio,
       ativo: linha.ativo,
     }))
@@ -143,6 +172,17 @@ export function ModeloFichaForm() {
 
     const semOpcoes = campos.find((c) => exigeOpcoes(c.tipo) && (c.opcoes?.length ?? 0) < 2)
     if (semOpcoes) return setErro(`A pergunta "${semOpcoes.rotulo}" precisa de ao menos duas opções`)
+
+    /* Espelha a guarda de cardinalidade do servidor: casar ponto com opção por
+       índice só é honesto quando as duas listas têm o mesmo comprimento. */
+    const desalinhada = campos.find(
+      (c) => (c.pontos?.length ?? 0) > 0 && c.pontos?.length !== (c.opcoes?.length ?? 0),
+    )
+    if (desalinhada)
+      return setErro(
+        `A pergunta "${desalinhada.rotulo}" tem ${desalinhada.opcoes?.length ?? 0} opções e ` +
+          `${desalinhada.pontos?.length ?? 0} pontos: cada opção precisa do seu`,
+      )
 
     const carga = { nome: nome.trim(), descricao: descricao.trim() || undefined, campos, ativo }
 
@@ -222,6 +262,23 @@ export function ModeloFichaForm() {
             Este é um modelo do sistema: ele vem pronto, é igual para todos os clientes e não pode
             ser alterado nem excluído. Para adaptá-lo à sua prática, clique em{' '}
             <strong>Clonar para editar</strong> — a cópia nasce sua, com estas mesmas perguntas.
+          </TAviso>
+        )}
+
+        {/*
+          Um modelo com escala não é um questionário: a pontuação é o que a
+          classificação lê. O servidor confere, a cada gravação, se cada bloco
+          ainda soma o máximo que a publicação declara — sem isso, apagar dez
+          perguntas da MNA daria um total máximo de 8 lido pelas faixas de 30, e
+          "desnutrido" sairia para quem respondeu tudo.
+        */}
+        {escoreCodigo && !doSistema && (
+          <TAviso>
+            Este modelo aplica a escala <strong>{escalaNome ?? escoreCodigo}</strong>. Reescrever o
+            texto de uma pergunta ou de uma opção é livre — isso não muda a conta. Já{' '}
+            <strong>alterar a pontuação, remover perguntas ou trocar o bloco</strong> faz a
+            classificação sair errada, e a gravação será recusada enquanto cada bloco não somar o
+            máximo que a publicação define.
           </TAviso>
         )}
 
@@ -351,7 +408,7 @@ export function ModeloFichaForm() {
                 {/* Só aparece para os dois tipos que a exigem — e o servidor
                     recusa opção pendurada em campo de texto. */}
                 {exigeOpcoes(linha.tipo) && (
-                  <div className="mt-4">
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <TTextArea
                       label="Opções"
                       rows={4}
@@ -359,6 +416,33 @@ export function ModeloFichaForm() {
                       ajuda="Uma por linha. São necessárias ao menos duas."
                       value={linha.opcoesTexto}
                       onChange={(e) => alterar(i, { opcoesTexto: e.target.value })}
+                    />
+
+                    {/* Só em modelo com escala — e a pontuação é o que a
+                        classificação lê, então mexer nela muda o resultado. */}
+                    {escoreCodigo && (
+                      <TTextArea
+                        label="Pontos"
+                        rows={4}
+                        disabled={doSistema}
+                        ajuda="Um por linha, na mesma ordem das opções."
+                        value={linha.pontosTexto}
+                        onChange={(e) => alterar(i, { pontosTexto: e.target.value })}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {escoreCodigo && (
+                  <div className="mt-4 sm:max-w-xs">
+                    <TSelect
+                      label="Bloco do escore"
+                      vazio="Fora do escore"
+                      disabled={doSistema}
+                      ajuda="Em qual etapa da escala esta pergunta soma."
+                      value={linha.grupoEscore}
+                      onChange={(e) => alterar(i, { grupoEscore: e.target.value })}
+                      opcoes={GRUPOS_ESCORE[escoreCodigo] ?? []}
                     />
                   </div>
                 )}
@@ -419,4 +503,18 @@ function linhasDe(texto: string): string[] {
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
+}
+
+/**
+ * Os pontos digitados, uma linha por opção.
+ *
+ * <p>Passa por `paraNumero`, que é a única porta por onde texto vira número
+ * neste front: digitar `0,5` tem de valer meio ponto, e não cinco. Linha que não
+ * é número vira `NaN` e é descartada — o desalinhamento resultante é recusado
+ * pela guarda de cardinalidade, com frase, em vez de virar uma soma errada.
+ */
+function numerosDe(texto: string): number[] {
+  return linhasDe(texto)
+    .map((l) => paraNumero(l))
+    .filter((n): n is number => typeof n === 'number' && !Number.isNaN(n))
 }

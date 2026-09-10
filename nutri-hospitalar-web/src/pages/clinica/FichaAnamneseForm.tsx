@@ -16,18 +16,22 @@ import {
   TTextArea,
 } from '@/components/common'
 import { DocumentoFichaAnamnese } from '@/components/clinica/impressao/DocumentoFichaAnamnese'
+import { PainelEscore } from '@/components/clinica/PainelEscore'
 import { PessoaRapidaModal } from '@/components/pessoa/PessoaRapidaModal'
+import { useDebounce } from '@/hooks/useDebounce'
 import { handleApiError } from '@/services/api'
 import { catalogoService } from '@/services/catalogoService'
 import { fichaAnamneseService, modeloFichaService } from '@/services/clinicaService'
 import { pessoaService } from '@/services/pessoaService'
 import type {
+  Escore,
+  EscoreCodigo,
   FichaAnamneseResponse,
   ModeloFichaResponse,
   RespostaFicha,
   TipoCampoFicha,
 } from '@/types/clinica'
-import { formatarDocumento, hojeIso } from '@/utils/format'
+import { formatarData, formatarDocumento, hojeIso } from '@/utils/format'
 
 /**
  * Uma pergunta como a tela a desenha.
@@ -82,6 +86,23 @@ export function FichaAnamneseForm() {
   const [ficha, setFicha] = useState<FichaAnamneseResponse>()
   const [fonte, setFonte] = useState<'retrato' | 'modelo'>('modelo')
 
+  /* Escore (docs/13). `escoreCodigo` diz se há painel a desenhar; `escore` é o
+     resultado, que vem SEMPRE do servidor — a tela não soma nada. */
+  const [escoreCodigo, setEscoreCodigo] = useState<EscoreCodigo | null>(null)
+  const [escore, setEscore] = useState<Escore>()
+  const [recalculando, setRecalculando] = useState(false)
+
+  /*
+   * A ficha salva abre com o escore CONGELADO no dia, e não com um recálculo.
+   * Sem esta trava, hidratar o formulário dispararia o recálculo e a tela
+   * mostraria o escore de hoje debaixo dos números de então — que é exatamente
+   * o defeito da fórmula editada, com outra roupa: uma pontuação corrigida no
+   * modelo, ou uma data de nascimento acertada no cadastro, reescreveria em
+   * silêncio o resultado de um prontuário. Só quando alguém MEXE é que a conta
+   * passa a ser de agora.
+   */
+  const [tocado, setTocado] = useState(false)
+
   const [tipoPacienteId, setTipoPacienteId] = useState<string>()
   const [tipoProfissionalId, setTipoProfissionalId] = useState<string>()
   const [modalAberto, setModalAberto] = useState(false)
@@ -119,6 +140,9 @@ export function FichaAnamneseForm() {
         setObservacao(f.observacao ?? '')
 
         setFonte('retrato')
+        /* O congelado, como ele ficou. Ver docs/13 §5. */
+        setEscore(f.escore ?? undefined)
+        setEscoreCodigo((f.escore?.escala as EscoreCodigo) ?? null)
         setPerguntas(
           f.respostas.map((r) => ({
             campoId: r.campoId,
@@ -151,6 +175,8 @@ export function FichaAnamneseForm() {
         .then((m: ModeloFichaResponse) => {
           setFonte('modelo')
           setModeloRotulo(m.nome)
+          setEscoreCodigo(m.escoreCodigo)
+          if (!m.escoreCodigo) setEscore(undefined)
           setPerguntas(
             m.campos
               .filter((c) => c.ativo)
@@ -176,10 +202,13 @@ export function FichaAnamneseForm() {
    * metade das perguntas de um modelo e metade de outro. Quem troca é avisado.
    */
   function aoEscolherModelo(novo: string) {
+    setTocado(true)
     if (!novo) {
       setModeloId('')
       setPerguntas([])
       setValores({})
+      setEscoreCodigo(null)
+      setEscore(undefined)
       return
     }
     const trocando = !!modeloId && novo !== modeloId
@@ -191,13 +220,65 @@ export function FichaAnamneseForm() {
   }
 
   const valor = (chave: string) => valores[chave] ?? ''
-  const definir = (chave: string, v: string) =>
+  const definir = (chave: string, v: string) => {
+    setTocado(true)
     setValores((atuais) => {
       const copia = { ...atuais }
       if (v === '') delete copia[chave]
       else copia[chave] = v
       return copia
     })
+  }
+
+  // ── Escore ao vivo ────────────────────────────────────────────────────────
+
+  /*
+   * Só os VALORES são adiados. Paciente, data e modelo mudam por um clique — um
+   * evento só, que não precisa de espera —, enquanto responder é digitar.
+   */
+  const valoresAdiados = useDebounce(valores, 500)
+
+  useEffect(() => {
+    if (!modeloId || !escoreCodigo) return
+    /* Ficha salva e intocada mostra o escore congelado, não um recálculo. */
+    if (editando && !tocado) return
+
+    /*
+     * `cancelado` descarta a resposta de uma chamada que já foi ultrapassada.
+     * Numa tela que recalcula sozinha, duas respostas fora de ordem deixariam
+     * na tela o escore de um formulário anterior — e ele pareceria atual.
+     */
+    let cancelado = false
+    setRecalculando(true)
+
+    fichaAnamneseService
+      .escore({
+        modeloId,
+        pacienteId: pacienteId || undefined,
+        dataPreenchimento: data || undefined,
+        respostas: perguntas
+          .filter((p) => p.campoId)
+          .map((p) => ({ campoId: p.campoId as string, valor: valoresAdiados[p.chave] })),
+      })
+      .then((e) => {
+        if (!cancelado) setEscore(e)
+      })
+      /*
+       * O 400 continua indo para o toast, e não some daqui: por desenho este
+       * endpoint NÃO recusa formulário incompleto — incompleto volta 200 com o
+       * motivo escrito. Um 400 aqui é erro de verdade, e merece ser visto.
+       */
+      .catch((e) => {
+        if (!cancelado) handleApiError(e)
+      })
+      .finally(() => {
+        if (!cancelado) setRecalculando(false)
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [modeloId, escoreCodigo, pacienteId, data, valoresAdiados, perguntas, editando, tocado])
 
   // ── Gravação ──────────────────────────────────────────────────────────────
 
@@ -287,6 +368,9 @@ export function FichaAnamneseForm() {
                 rotuloInicial={pacienteRotulo}
                 onChange={(v) => {
                   setPacienteId(v)
+                  /* A NRS-2002 calcula a idade do paciente na data da ficha:
+                     trocar qualquer um dos dois muda o escore. */
+                  setTocado(true)
                   if (erro) setErro(undefined)
                 }}
                 buscar={(termo) =>
@@ -327,7 +411,10 @@ export function FichaAnamneseForm() {
               type="date"
               max={hojeIso()}
               value={data}
-              onChange={(e) => setData(e.target.value)}
+              onChange={(e) => {
+                setData(e.target.value)
+                setTocado(true)
+              }}
             />
 
             <TCombo
@@ -373,6 +460,19 @@ export function FichaAnamneseForm() {
             Estas são as perguntas <strong>do modelo de hoje</strong>. Salvar substitui as que
             estavam gravadas nesta ficha.
           </TAviso>
+        )}
+
+        {escore && (
+          <TPanel
+            title={escore.escalaNome}
+            subtitle={
+              editando && !tocado
+                ? `Escore como foi gravado em ${formatarData(data)}. Responder qualquer pergunta refaz a conta com os dados de agora.`
+                : undefined
+            }
+          >
+            <PainelEscore escore={escore} recalculando={recalculando} />
+          </TPanel>
         )}
 
         {perguntas.length === 0 ? (

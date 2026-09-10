@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,6 +63,38 @@ public class FichaAnamnese extends TenantEntity {
 
     @Column(name = "observacao", columnDefinition = "TEXT")
     private String observacao;
+
+    // ─── O ESCORE CONGELADO (fatia 13, docs/13 §5) ──────────────────────────
+
+    /**
+     * O escore como ficou no dia — e não como seria recalculado hoje.
+     *
+     * <p>O retrato de cada resposta já congela as <b>entradas</b>, mas duas
+     * coisas ainda moveriam o número de uma ficha salva: {@code
+     * pessoa.data_nascimento} é editável fora da ficha, e corrigi-la faria o
+     * ponto por idade da NRS-2002 entrar ou sair, calado, em toda ficha antiga
+     * daquele paciente; e uma faixa corrigida em Java reclassificaria prontuário
+     * retroativamente.
+     *
+     * <p>Por isso o {@code EscoreDto} inteiro é serializado em
+     * {@code escoreJson}, e é ele que a ficha salva devolve. As colunas planas
+     * existem porque JSON não se ordena nem se filtra na native query da
+     * listagem.
+     */
+    @Column(name = "escore_codigo", length = 30)
+    private String escoreCodigo;
+
+    @Column(name = "escore_total", precision = 4, scale = 1)
+    private BigDecimal escoreTotal;
+
+    @Column(name = "escore_classificacao", length = 120)
+    private String escoreClassificacao;
+
+    @Column(name = "escore_tom", length = 20)
+    private String escoreTom;
+
+    @Column(name = "escore_json", columnDefinition = "TEXT")
+    private String escoreJson;
 
     @OneToMany(mappedBy = "ficha", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ordem ASC")

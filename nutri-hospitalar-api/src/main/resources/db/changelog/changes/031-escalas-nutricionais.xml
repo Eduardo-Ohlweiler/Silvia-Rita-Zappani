@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Fatia 13 — escalas nutricionais pontuadas (docs/13).
+
+        A fatia 12 recusou semear instrumento pontuado, e escreveu o porquê na
+        030: escala com ponto de corte é conhecimento com publicação atrás, do
+        mesmo tipo que docs/09 e docs/10 exigiram documentar antes de virar
+        código. docs/12 §5.1 deixou a condição: "se a cliente pedir, entram como
+        fatia própria, com fonte citada". A cliente pediu duas, em 07/09/2026, e
+        a fonte citada é docs/13 — que VENCE este arquivo. Nenhum ponto ou faixa
+        muda aqui sem mudar lá primeiro.
+
+        A DIVISÃO: o ponto de cada opção é DADO (campo_ficha.pontos), porque são
+        dezenas de números e porque assim eles entram no RETRATO da resposta. A
+        porta, a faixa, o corte e o ajuste por idade são CÓDIGO
+        (clinica/escore/), porque são conhecimento clínico que precisa de teste e
+        de citação, não configuração num JSON que ninguém revisa.
+    -->
+    <changeSet id="031-add-escore-ficha" author="eduardo">
+
+        <!-- ─── O ponto, como dado, na pergunta ────────────────────────── -->
+        <addColumn tableName="campo_ficha">
+            <!-- JSON array de decimais, PARALELO POR ÍNDICE a opcoes. -->
+            <column name="pontos" type="TEXT"/>
+            <!-- NULL = pergunta não pontuada. 'TRIAGEM', 'PRE_TRIAGEM'… -->
+            <column name="grupo_escore" type="VARCHAR(30)"/>
+        </addColumn>
+
+        <!-- ─── O ponto, como retrato, na resposta ─────────────────────── -->
+        <!--
+            Irmãos de rotulo e tipo: editar os pontos de um modelo não pode mudar
+            o escore de uma ficha já gravada. Sem estas duas colunas, o retrato
+            explicaria a pergunta e não explicaria o número.
+        -->
+        <addColumn tableName="resposta_ficha">
+            <column name="pontos" type="NUMERIC(3,1)"/>
+            <column name="grupo_escore" type="VARCHAR(30)"/>
+        </addColumn>
+
+        <!-- ─── Qual escala o modelo aplica ────────────────────────────── -->
+        <addColumn tableName="modelo_ficha">
+            <!-- NULL = questionário descritivo. 'MNA' | 'NRS_2002'. -->
+            <column name="escore_codigo" type="VARCHAR(30)"/>
+        </addColumn>
+
+        <!-- ─── O escore congelado na ficha ────────────────────────────── -->
+        <!--
+            Por que congelar em vez de recalcular ao abrir (docs/13 §5): o
+            retrato congela as ENTRADAS, mas pessoa.data_nascimento é editável
+            fora da ficha — corrigi-la mudaria, calado, o escore NRS de toda
+            ficha antiga daquele paciente, porque o ponto por idade entraria ou
+            sairia. E uma faixa corrigida em Java reclassificaria prontuário
+            retroativamente.
+
+            escore_json guarda o EscoreDto inteiro; as colunas planas existem
+            porque JSON não se ordena nem se filtra na native query da listagem.
+        -->
+        <addColumn tableName="ficha_anamnese">
+            <column name="escore_codigo" type="VARCHAR(30)"/>
+            <column name="escore_total" type="NUMERIC(4,1)"/>
+            <column name="escore_classificacao" type="VARCHAR(120)"/>
+            <column name="escore_tom" type="VARCHAR(20)"/>
+            <column name="escore_json" type="TEXT"/>
+        </addColumn>
+
+        <!--
+            Só pergunta de OPÇÃO ÚNICA pontua.
+
+            MULTIPLAS_OPCOES pontuado fica proibido de propósito: nas duas
+            escalas cada item é uma escolha única, e somar N opções marcadas abre
+            uma aritmética que nenhuma publicação define. Proibir agora custa uma
+            linha; liberar depois é uma migration, e nessa hora existirá a
+            publicação que diga como somar.
+
+            E pergunta pontuada sem grupo é ponto que não entra em subtotal
+            nenhum — soma que se perde sem ninguém notar.
+        -->
+        <sql>
+            ALTER TABLE campo_ficha ADD CONSTRAINT ck_campo_ficha_pontos
+            CHECK (pontos IS NULL
+                   OR (tipo = 'OPCOES' AND opcoes IS NOT NULL AND grupo_escore IS NOT NULL));
+        </sql>
+
+        <!--
+            A CARDINALIDADE pontos × opcoes NÃO é checada aqui, e isso é decisão.
+
+            Seria escrevível — json_array_length(pontos::json) = json_array_length(opcoes::json)
+            — mas um CHECK que faz cast de texto para JSON derruba a linha inteira
+            se alguém gravar JSON inválido num UPDATE de manutenção, e o
+            OpcoesJson foi escrito justamente para NUNCA explodir ao ler. A
+            checagem é do service, que devolve 400 nomeando a pergunta.
+
+            O banco garante o que não pode variar; o service garante o que precisa
+            de frase.
+        -->
+
+        <sql>
+            ALTER TABLE ficha_anamnese ADD CONSTRAINT ck_ficha_anamnese_escore_tom
+            CHECK (escore_tom IS NULL
+                   OR escore_tom IN ('NEUTRO', 'ADEQUADO', 'ATENCAO', 'CRITICO'));
+        </sql>
+
+        <rollback>
+            <sql>
+                ALTER TABLE ficha_anamnese DROP CONSTRAINT IF EXISTS ck_ficha_anamnese_escore_tom;
+                ALTER TABLE campo_ficha DROP CONSTRAINT IF EXISTS ck_campo_ficha_pontos;
+            </sql>
+            <dropColumn tableName="ficha_anamnese" columnName="escore_json"/>
+            <dropColumn tableName="ficha_anamnese" columnName="escore_tom"/>
+            <dropColumn tableName="ficha_anamnese" columnName="escore_classificacao"/>
+            <dropColumn tableName="ficha_anamnese" columnName="escore_total"/>
+            <dropColumn tableName="ficha_anamnese" columnName="escore_codigo"/>
+            <dropColumn tableName="modelo_ficha" columnName="escore_codigo"/>
+            <dropColumn tableName="resposta_ficha" columnName="grupo_escore"/>
+            <dropColumn tableName="resposta_ficha" columnName="pontos"/>
+            <dropColumn tableName="campo_ficha" columnName="grupo_escore"/>
+            <dropColumn tableName="campo_ficha" columnName="pontos"/>
+        </rollback>
+
+    </changeSet>
+
+    <!--
+        As duas escalas, como modelo do sistema (tenant_id NULL).
+
+        SER DO SISTEMA É TER TENANT NULO — não há flag padrao_sistema neste
+        projeto. O bloqueio de edição é a ausência do "OR tenant IS NULL" em
+        ModeloFichaService.buscarEditavel, que devolve 404. Então estes dois
+        nascem imutáveis sem uma linha de código nova.
+
+        A transcrição é de docs/13 §2.2, §2.3, §3.2, §3.3 e §3.4, item a item.
+    -->
+    <changeSet id="031-seed-escalas-nutricionais" author="eduardo">
+
+        <!-- ─── 1. MNA® — Mini Nutritional Assessment ──────────────────── -->
+        <!--
+            MNA® é MARCA REGISTRADA da Société des Produits Nestlé SA, de uso
+            clínico livre MEDIANTE ATRIBUIÇÃO. O sistema redistribui o
+            instrumento a todo cliente, então o crédito não é cortesia: vai na
+            descrição do modelo e no rodapé da folha impressa, como o sistema já
+            faz com Chumlea e Gonzalez.
+
+            O item K são três sim/não no papel cuja CONTAGEM vale 0 · 0,5 · 1.
+            Vira UMA pergunta com os três níveis, e não três CHECKBOX mais um
+            item somado: guardar o mesmo fato em dois lugares do prontuário é o
+            que docs/12 evita ao não pedir peso na anamnese do adulto.
+
+            F, Q e R pedem IMC e circunferências, que a avaliação de UTI coleta —
+            e mesmo assim entram, porque aqui são FAIXA PONTUADA e não medida.
+            Nada daqui sai para lugar nenhum.
+        -->
+        <sql splitStatements="true">
+            INSERT INTO modelo_ficha (tenant_id, nome, descricao, escore_codigo, ativo, created_at)
+            VALUES (NULL, 'MNA — Mini Nutritional Assessment',
+                    'Modelo do sistema — escala pontuada de triagem e avaliação do estado nutricional do idoso. Triagem (máximo 14) e avaliação global (máximo 16), total de 30 pontos. MNA® é marca da Société des Produits Nestlé SA, © 1994, revisão 2009; Vellas et al., J Nutr Health Aging 2006. Especificação em docs/13.',
+                    'MNA', true, NOW());
+
+            INSERT INTO campo_ficha (modelo_id, secao, rotulo, tipo, opcoes, pontos, grupo_escore, ordem, obrigatorio, ativo, created_at) VALUES
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Triagem', 'A. Nos últimos três meses houve diminuição da ingesta alimentar devido a perda de apetite, problemas digestivos ou dificuldade para mastigar ou deglutir?', 'OPCOES', '["Diminuição severa da ingesta","Diminuição moderada da ingesta","Sem diminuição da ingesta"]', '[0,1,2]', 'TRIAGEM', 1, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Triagem', 'B. Perda de peso nos últimos três meses', 'OPCOES', '["Superior a três quilos","Não sabe informar","Entre um e três quilos","Sem perda de peso"]', '[0,1,2,3]', 'TRIAGEM', 2, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Triagem', 'C. Mobilidade', 'OPCOES', '["Restrito ao leito ou à cadeira de rodas","Deambula mas não é capaz de sair de casa","Normal"]', '[0,1,2]', 'TRIAGEM', 3, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Triagem', 'D. Passou por algum estresse psicológico ou doença aguda nos últimos três meses?', 'OPCOES', '["Sim","Não"]', '[0,2]', 'TRIAGEM', 4, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Triagem', 'E. Problemas neuropsicológicos', 'OPCOES', '["Demência ou depressão graves","Demência leve","Sem problemas psicológicos"]', '[0,1,2]', 'TRIAGEM', 5, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Triagem', 'F. Índice de massa corporal (peso em kg dividido pela estatura em metros ao quadrado)', 'OPCOES', '["IMC menor que 19","IMC de 19 a menos de 21","IMC de 21 a menos de 23","IMC de 23 ou mais"]', '[0,1,2,3]', 'TRIAGEM', 6, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'G. O paciente vive em sua própria casa (não em casa geriátrica ou hospital)?', 'OPCOES', '["Sim","Não"]', '[1,0]', 'GLOBAL', 7, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'H. Utiliza mais de três medicamentos diferentes por dia?', 'OPCOES', '["Sim","Não"]', '[0,1]', 'GLOBAL', 8, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'I. Lesões de pele ou escaras?', 'OPCOES', '["Sim","Não"]', '[0,1]', 'GLOBAL', 9, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'J. Quantas refeições faz por dia?', 'OPCOES', '["Uma refeição","Duas refeições","Três refeições"]', '[0,1,2]', 'GLOBAL', 10, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'K. O paciente consome pelo menos uma porção diária de leite ou derivados, duas ou mais porções semanais de leguminosas ou ovos, e carne, peixe ou aves todos os dias?', 'OPCOES', '["Nenhuma ou uma resposta sim","Duas respostas sim","Três respostas sim"]', '[0,0.5,1]', 'GLOBAL', 11, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'L. O paciente consome duas ou mais porções diárias de fruta ou produtos hortícolas?', 'OPCOES', '["Não","Sim"]', '[0,1]', 'GLOBAL', 12, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'M. Quantos copos de líquidos (água, suco, café, chá, leite) o paciente consome por dia?', 'OPCOES', '["Menos de três copos","Três a cinco copos","Mais de cinco copos"]', '[0,0.5,1]', 'GLOBAL', 13, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'N. Modo de se alimentar', 'OPCOES', '["Não é capaz de se alimentar sozinho","Alimenta-se sozinho, porém com dificuldade","Alimenta-se sozinho sem dificuldade"]', '[0,1,2]', 'GLOBAL', 14, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'O. O paciente acredita ter algum problema nutricional?', 'OPCOES', '["Acredita estar desnutrido","Não sabe dizer","Acredita não ter um problema nutricional"]', '[0,1,2]', 'GLOBAL', 15, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'P. Em comparação a outras pessoas da mesma idade, como o paciente considera a sua própria saúde?', 'OPCOES', '["Pior","Não sabe","Igual","Melhor"]', '[0,0.5,1,2]', 'GLOBAL', 16, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'Q. Perímetro braquial (PB) em cm', 'OPCOES', '["PB menor que 21","PB de 21 a 22","PB maior que 22"]', '[0,0.5,1]', 'GLOBAL', 17, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='MNA — Mini Nutritional Assessment' AND tenant_id IS NULL), 'Avaliação global', 'R. Perímetro da perna (PP) em cm', 'OPCOES', '["PP menor que 31","PP de 31 ou mais"]', '[0,1]', 'GLOBAL', 18, false, true, NOW());
+        </sql>
+
+        <!-- ─── 2. NRS-2002 — Triagem de risco nutricional ─────────────── -->
+        <!--
+            Kondrup et al., ESPEN. Clin Nutr 2003;22(3):321-336. Publicação
+            científica, sem restrição de marca.
+
+            A PRÉ-TRIAGEM NÃO PONTUA: ela é uma PORTA. Quatro "não" encerram o
+            instrumento com a conduta "repetir a triagem semanalmente" — o que é
+            RESULTADO DA ESCALA, e não falta de dado. A diferença aparece na
+            tela: a porta fechada produz uma conclusão, não uma queixa de campo
+            em branco.
+
+            O +1 POR IDADE (70 anos ou mais) e o CORTE ≥ 3 não estavam na
+            descrição recebida da cliente, e entram por serem da publicação
+            original — decisão registrada em docs/13 §3.7. A idade é CALCULADA de
+            pessoa.data_nascimento, não perguntada: um campo respondido à mão
+            pode dizer "não" para um paciente de 81 anos, e nada denunciaria.
+            Por isso não há pergunta de idade neste seed.
+        -->
+        <sql splitStatements="true">
+            INSERT INTO modelo_ficha (tenant_id, nome, descricao, escore_codigo, ativo, created_at)
+            VALUES (NULL, 'NRS-2002 — Triagem de risco nutricional',
+                    'Modelo do sistema — triagem de risco nutricional do adulto hospitalizado. Pré-triagem de quatro critérios, estado nutricional e gravidade da doença, com um ponto adicional para 70 anos ou mais; escore de 3 ou mais indica risco nutricional. Kondrup et al., ESPEN. Clin Nutr 2003;22(3):321-336. Especificação em docs/13.',
+                    'NRS_2002', true, NOW());
+
+            INSERT INTO campo_ficha (modelo_id, secao, rotulo, tipo, opcoes, pontos, grupo_escore, ordem, obrigatorio, ativo, created_at) VALUES
+            ((SELECT id FROM modelo_ficha WHERE nome='NRS-2002 — Triagem de risco nutricional' AND tenant_id IS NULL), 'Pré-triagem', 'IMC menor que 20,5 kg/m²?', 'CHECKBOX', NULL, NULL, 'PRE_TRIAGEM', 1, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='NRS-2002 — Triagem de risco nutricional' AND tenant_id IS NULL), 'Pré-triagem', 'Houve perda de peso nos últimos três meses?', 'CHECKBOX', NULL, NULL, 'PRE_TRIAGEM', 2, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='NRS-2002 — Triagem de risco nutricional' AND tenant_id IS NULL), 'Pré-triagem', 'Houve redução da ingestão alimentar na última semana?', 'CHECKBOX', NULL, NULL, 'PRE_TRIAGEM', 3, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='NRS-2002 — Triagem de risco nutricional' AND tenant_id IS NULL), 'Pré-triagem', 'O paciente apresenta doença grave, por exemplo necessidade de terapia intensiva?', 'CHECKBOX', NULL, NULL, 'PRE_TRIAGEM', 4, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='NRS-2002 — Triagem de risco nutricional' AND tenant_id IS NULL), 'Estado nutricional', 'Comprometimento do estado nutricional', 'OPCOES', '["Ausente — estado nutricional normal","Leve — perda de peso acima de 5% em três meses, ou ingestão de 50 a 75% das necessidades na última semana","Moderado — perda acima de 5% em dois meses, ou IMC de 18,5 a 20,5 com pior condição geral, ou ingestão de 25 a 60%","Grave — perda acima de 5% em um mês ou acima de 15% em três meses, ou IMC abaixo de 18,5 com pior condição geral, ou ingestão de 0 a 25%"]', '[0,1,2,3]', 'ESTADO_NUTRICIONAL', 5, false, true, NOW()),
+            ((SELECT id FROM modelo_ficha WHERE nome='NRS-2002 — Triagem de risco nutricional' AND tenant_id IS NULL), 'Gravidade da doença', 'Gravidade da doença e aumento das necessidades nutricionais', 'OPCOES', '["Ausente — necessidades nutricionais habituais","Leve — doença crônica com complicação aguda: DPOC, cirrose, diabetes, câncer, hemodiálise","Moderada — cirurgia abdominal de grande porte, AVC, pneumonia grave, neoplasias hematológicas","Grave — paciente crítico, trauma craniano, transplante de medula, UTI com APACHE acima de 10"]', '[0,1,2,3]', 'GRAVIDADE_DOENCA', 6, false, true, NOW());
+        </sql>
+
+        <!-- O deleteCascade de campo_ficha limpa as perguntas junto. -->
+        <rollback>
+            <sql>
+                DELETE FROM modelo_ficha
+                WHERE tenant_id IS NULL
+                  AND nome IN ('MNA — Mini Nutritional Assessment',
+                               'NRS-2002 — Triagem de risco nutricional');
+            </sql>
+        </rollback>
+
+    </changeSet>
+
+</databaseChangeLog>

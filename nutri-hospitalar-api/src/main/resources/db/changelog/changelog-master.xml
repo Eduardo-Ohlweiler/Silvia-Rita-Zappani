@@ -49,4 +49,7 @@
     <!-- Fatia 12 — clínica: fichas de anamnese (docs/12) -->
     <include file="db/changelog/changes/030-create-ficha-anamnese.xml"/>
 
+    <!-- Fatia 13 — escalas nutricionais pontuadas: MNA e NRS-2002 (docs/13) -->
+    <include file="db/changelog/changes/031-escalas-nutricionais.xml"/>
+
 </databaseChangeLog>
