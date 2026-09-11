@@ -2,8 +2,11 @@ package com.nutri.hospitalar.clinica;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.nutri.hospitalar.AbstractIntegrationTest;
+import com.nutri.hospitalar.clinica.dtos.EscoreDto;
+import com.nutri.hospitalar.clinica.dtos.GrupoEscoreDto;
 import com.nutri.hospitalar.clinica.entity.CampoFicha;
 import com.nutri.hospitalar.clinica.entity.ModeloFicha;
+import com.nutri.hospitalar.clinica.mapper.EscoreJson;
 import com.nutri.hospitalar.clinica.mapper.OpcoesJson;
 import com.nutri.hospitalar.clinica.repository.CampoFichaRepository;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
@@ -311,6 +314,45 @@ class EscoreFichaTest extends AbstractIntegrationTest {
             mockMvc.perform(get("/fichas-anamnese/" + id).header(AUTHORIZATION, token))
                     .andExpect(jsonPath("$.escore.total").value(5.0))
                     .andExpect(jsonPath("$.escore.ajusteIdade").value(1.0));
+        }
+
+        /**
+         * Uma ficha congelada <b>antes</b> de {@code naoSeAplica} existir não pode
+         * reabrir com bloco dispensado.
+         *
+         * <p>É o motivo de o campo ser {@code Boolean} e nomeado pela negativa. Um
+         * {@code boolean} primitivo chamado {@code aplicavel} desserializaria o
+         * JSON antigo como {@code false} e marcaria <b>todo bloco de toda ficha
+         * já gravada</b> como dispensado — em prontuário, e sem nada na tela
+         * denunciando. Ausente tem de significar "aplica-se", que é o que essas
+         * fichas são.
+         *
+         * <p>O JSON abaixo é o formato de ontem, transcrito à mão de propósito:
+         * gerá-lo com o serializador de hoje incluiria o campo novo e o teste
+         * deixaria de testar o que diz testar.
+         */
+        @Test
+        @DisplayName("escore gravado antes do campo novo reabre com os blocos valendo")
+        void escoreAntigoSemONovoCampoContinuaAplicavel() {
+            String congeladoOntem = """
+                    {"escala":"NRS_2002","escalaNome":"NRS-2002","referencia":"Kondrup 2003",
+                     "grupos":[{"grupo":"ESTADO_NUTRICIONAL","rotulo":"Estado nutricional",
+                                "subtotal":2.0,"maximo":3,"classificacao":null,
+                                "motivoAusencia":null,"perguntasSemResposta":[]}],
+                     "ajusteIdade":1.0,"ajusteIdadeDescricao":"Idade de 70 anos ou mais",
+                     "total":5.0,"totalMaximo":7,"classificacao":null,
+                     "conclusao":null,"motivoAusencia":null}
+                    """;
+
+            EscoreDto escore = EscoreJson.paraDto(congeladoOntem);
+
+            assertThat(escore).isNotNull();
+            assertThat(escore.total()).isEqualByComparingTo("5.0");
+
+            GrupoEscoreDto bloco = escore.grupos().get(0);
+            assertThat(bloco.naoSeAplica()).isNull();
+            assertThat(bloco.dispensado()).isFalse();
+            assertThat(bloco.subtotal()).isEqualByComparingTo("2.0");
         }
     }
 

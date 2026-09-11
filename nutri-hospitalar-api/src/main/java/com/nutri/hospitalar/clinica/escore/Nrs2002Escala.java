@@ -66,10 +66,19 @@ public final class Nrs2002Escala implements EscalaNutricional {
 
         boolean portaAberta = algumCriterioPresente(itens);
 
+        /*
+         * Fechada é diferente de "ainda não aberta": só se dispensa uma etapa
+         * depois que as QUATRO perguntas da pré-triagem foram respondidas. Com
+         * o formulário pela metade nada é dispensado — a porta ainda não foi
+         * decidida, e desligar as etapas ali faria a tela mudar de ideia a cada
+         * clique.
+         */
+        boolean portaFechada = pre.completo() && !portaAberta;
+
         List<GrupoEscoreDto> grupos = List.of(
                 grupoPreTriagem(pre, portaAberta),
-                etapa(ESTADO, "Estado nutricional", estado),
-                etapa(GRAVIDADE, "Gravidade da doença", gravidade));
+                etapa(ESTADO, "Estado nutricional", estado, portaFechada),
+                etapa(GRAVIDADE, "Gravidade da doença", gravidade, portaFechada));
 
         return montarTotal(pre, estado, gravidade, portaAberta, idadeAnos, grupos);
     }
@@ -97,7 +106,28 @@ public final class Nrs2002Escala implements EscalaNutricional {
                 null, List.of());
     }
 
-    private GrupoEscoreDto etapa(String grupo, String rotulo, Subtotal subtotal) {
+    /**
+     * Uma etapa de pontuação — e, antes disso, a pergunta se ela vale.
+     *
+     * <p>Com a porta fechada a etapa <b>não se aplica</b>: a NRS-2002 encerra na
+     * pré-triagem e manda repetir a triagem em uma semana (Kondrup 2003). O
+     * subtotal sai <b>nulo mesmo que as perguntas tenham sido respondidas</b> —
+     * quem preencheu as etapas antes de marcar os quatro "não" veria "2 de 3" ao
+     * lado de "nenhum critério" e de um total vazio, e somaria por conta própria.
+     * Número exibido sem a regra que o governa é a armadilha do denominador da
+     * adesão, que já fez sete telas errarem aqui.
+     *
+     * <p>As respostas <b>não</b> são apagadas: elas continuam na ficha e na folha,
+     * porque são o que a profissional registrou. O que some é o ponto, que não
+     * entra em conta nenhuma.
+     */
+    private GrupoEscoreDto etapa(String grupo, String rotulo, Subtotal subtotal,
+                                 boolean portaFechada) {
+        if (portaFechada) {
+            return new GrupoEscoreDto(grupo, rotulo, null, MAX_ETAPA, null,
+                    "Não se aplica — a pré-triagem não encontrou critério.",
+                    List.of(), true);
+        }
         if (subtotal.completo()) {
             return new GrupoEscoreDto(grupo, rotulo, subtotal.soma(), MAX_ETAPA,
                     null, null, List.of());

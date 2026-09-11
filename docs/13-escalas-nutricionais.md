@@ -219,6 +219,23 @@ aplicam-se as etapas 2 e 3.
 Isto é **resultado da escala, não falta de dado** — e a diferença importa na tela:
 a porta fechada produz uma **conclusão**, não uma queixa de campo em branco.
 
+**E a porta fechada desliga as etapas 2 e 3.** Elas voltam com
+`naoSeAplica = true`, subtotal **nulo** e o motivo *"Não se aplica — a pré-triagem
+não encontrou critério."* — mesmo que tenham sido respondidas.
+
+Isso é consequência de quem preenche de baixo para cima: respondidas as etapas e
+marcados depois os quatro "não", a tela publicava *"Estado nutricional 2 de 3"* e
+*"Gravidade da doença 2 de 3"* ao lado de *"nenhum critério"* e de um total vazio.
+Nenhum dos dois números estava errado; os dois estavam **fora de qualquer conta**,
+esperando que quem confere os somasse. É a armadilha do denominador da adesão —
+número exibido sem a regra que o governa.
+
+As respostas **não** são apagadas: continuam na ficha, na folha e no retrato,
+porque são o que a profissional registrou. O que some é o ponto. E o formulário
+**desabilita** as duas seções em vez de escondê-las: esconder tiraria da vista
+respostas que continuam sendo gravadas, e dado invisível em prontuário é pior que
+uma seção a mais na tela.
+
 ### 3.3 Etapa 2 — estado nutricional, grupo `ESTADO_NUTRICIONAL`, máximo 3
 
 | Pontos | Situação |

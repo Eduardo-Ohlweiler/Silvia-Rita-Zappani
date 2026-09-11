@@ -112,7 +112,7 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
-**475 testes** no total, contra o banco `nutridb_test`.
+**479 testes** no total, contra o banco `nutridb_test`.
 
 ### O que falta, e por quê
 
@@ -764,6 +764,26 @@ começou; antes disso é ruído, porque o formulário inteiro é a lista. Duas l
 concordância de *"Nenhuma das 1 perguntas"* nos blocos de uma pergunta só da
 NRS-2002. Nenhuma assertiva de número pega uma frase malfeita.
 
+**A régua concluiu, e o formulário continuou pedindo.**
+A NRS-2002 encerra na pré-triagem quando as quatro respostas são "não", e o
+painel dizia isso corretamente — *"nenhum critério, repetir a triagem
+semanalmente"*. Só que as seções **Estado nutricional** e **Gravidade da doença**
+continuavam abertas e preenchíveis logo abaixo, porque o formulário de ficha é
+**dirigido pelo modelo** e não conhece escala nenhuma: ele desenha as seções que
+`campo_ficha` declara. Quem preenchia de baixo para cima levava o defeito adiante:
+com as etapas respondidas antes dos quatro "não", a tela publicava *"2 de 3"* em
+dois blocos ao lado de um total vazio — números verdadeiros, **fora de qualquer
+conta**, esperando que quem confere os somasse. O conserto **não** foi um `if` na
+tela: a decisão é da régua, e ela passou a **publicar** o bloco dispensado
+(`GrupoEscoreDto.naoSeAplica`), que painel, folha e formulário leem igual — um
+somador de porta em TypeScript seria a quinta linguagem da regra do denominador.
+Três detalhes que custam caro se invertidos: **desabilitar, não esconder** (o que
+some da tela continua gravado e impresso, e dado invisível em prontuário é pior
+que seção a mais); o campo é nomeado **pela negativa e é `Boolean`**, porque
+`EscoreDto` é congelado em coluna e um `aplicavel` primitivo leria toda ficha
+antiga — que não tem o campo — como dispensada; e a porta só fecha com a
+pré-triagem **completa**, senão a seção piscaria a cada clique.
+
 **`Map.of` numa mensagem que o usuário lê muda de assunto a cada execução.**
 A guarda que confere os máximos de cada bloco iterava `escala.maximoPorGrupo()`,
 que era um `Map.of` — sem ordem definida. A mesma edição errada num modelo
@@ -855,7 +875,7 @@ dirige o `/usr/bin/google-chrome` do sistema: **não instale playwright**.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 475 testes contra nutridb_test
+./run-dev.sh test         # 479 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

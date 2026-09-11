@@ -49,6 +49,8 @@ interface Pergunta {
   tipo: TipoCampoFicha
   opcoes: string[]
   obrigatorio: boolean
+  /** Em qual bloco da escala esta pergunta soma. Nulo fora de escala. */
+  grupoEscore: string | null
 }
 
 const SIM_NAO = [
@@ -152,6 +154,7 @@ export function FichaAnamneseForm() {
             tipo: r.tipo,
             opcoes: r.opcoes,
             obrigatorio: r.obrigatorio,
+            grupoEscore: r.grupoEscore,
           })),
         )
         setValores(
@@ -188,6 +191,7 @@ export function FichaAnamneseForm() {
                 tipo: c.tipo,
                 opcoes: c.opcoes,
                 obrigatorio: c.obrigatorio,
+                grupoEscore: c.grupoEscore,
               })),
           )
           if (limparValores) setValores({})
@@ -346,6 +350,32 @@ export function FichaAnamneseForm() {
 
   const secoes = agruparPorSecao(perguntas)
 
+  /*
+   * Os blocos que a ESCALA dispensou — hoje só a NRS-2002, quando a pré-triagem
+   * fecha com os quatro "não" e o instrumento encerra ali (Kondrup 2003).
+   *
+   * Quem decide é o servidor, e esta tela só lê a decisão junto com a frase que
+   * a explica. Reimplementar a porta em TypeScript seria a quinta linguagem da
+   * regra do denominador da adesão, que já fez sete telas errarem neste sistema.
+   */
+  const dispensados = new Map<string, string>()
+  for (const g of escore?.grupos ?? [])
+    if (g.naoSeAplica) dispensados.set(g.grupo, g.motivoAusencia ?? 'Não se aplica.')
+
+  /**
+   * A frase que desliga a seção, ou nada.
+   *
+   * Só desliga quando **todas** as perguntas da seção são de bloco dispensado:
+   * uma seção mista continua inteira, porque desabilitar pergunta que ainda
+   * conta seria pior que o defeito que isto conserta.
+   */
+  const dispensaDaSecao = (secao: Secao): string | undefined => {
+    if (dispensados.size === 0) return undefined
+    const grupos = secao.perguntas.map((p) => p.grupoEscore)
+    if (grupos.some((g) => g == null || !dispensados.has(g))) return undefined
+    return dispensados.get(grupos[0] as string)
+  }
+
   return (
     <TPage
       title={editando ? 'Ficha de anamnese' : 'Nova ficha de anamnese'}
@@ -482,20 +512,36 @@ export function FichaAnamneseForm() {
             </p>
           </TPanel>
         ) : (
-          secoes.map((secao) => (
-            <TPanel key={secao.titulo ?? '__sem-secao'} title={secao.titulo ?? 'Perguntas'}>
-              <div className="grid gap-5 sm:grid-cols-2">
-                {secao.perguntas.map((p) => (
-                  <CampoDaPergunta
-                    key={p.chave}
-                    pergunta={p}
-                    valor={valor(p.chave)}
-                    onChange={(v) => definir(p.chave, v)}
-                  />
-                ))}
-              </div>
-            </TPanel>
-          ))
+          secoes.map((secao) => {
+            /*
+             * Desabilitada, e NÃO escondida. Quem responde as etapas antes de
+             * marcar os quatro "não" perderia de vista respostas que continuam
+             * gravadas na ficha e impressas na folha — dado invisível em
+             * prontuário é pior que uma seção a mais na tela. E a frase ensina
+             * o instrumento, que um sumiço não faz.
+             */
+            const dispensa = dispensaDaSecao(secao)
+            return (
+              <TPanel
+                key={secao.titulo ?? '__sem-secao'}
+                title={secao.titulo ?? 'Perguntas'}
+                subtitle={dispensa}
+                className={dispensa ? 'opacity-60' : ''}
+              >
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {secao.perguntas.map((p) => (
+                    <CampoDaPergunta
+                      key={p.chave}
+                      pergunta={p}
+                      valor={valor(p.chave)}
+                      onChange={(v) => definir(p.chave, v)}
+                      dispensada={dispensa != null}
+                    />
+                  ))}
+                </div>
+              </TPanel>
+            )
+          })
         )}
 
         <TPanel title="Observações">
@@ -559,16 +605,22 @@ function CampoDaPergunta({
   pergunta,
   valor,
   onChange,
+  dispensada = false,
 }: {
   pergunta: Pergunta
   valor: string
   onChange: (valor: string) => void
+  /** A escala dispensou o bloco desta pergunta — ver `dispensaDaSecao`. */
+  dispensada?: boolean
 }) {
   const rotulo = pergunta.obrigatorio ? `${pergunta.rotulo} *` : pergunta.rotulo
 
-  /* Pergunta apagada do modelo: dá para ler o que foi respondido, não para
-     responder de novo — não há a que campo enviar a resposta. */
-  const orfa = pergunta.campoId == null
+  /*
+   * Duas razões para ler sem responder, e as duas preservam o que já está
+   * escrito: a pergunta foi apagada do modelo (não há a que campo enviar a
+   * resposta) ou a escala dispensou o bloco dela.
+   */
+  const bloqueado = pergunta.campoId == null || dispensada
 
   switch (pergunta.tipo) {
     case 'TEXTO_LONGO':
@@ -577,7 +629,7 @@ function CampoDaPergunta({
           label={rotulo}
           className="sm:col-span-2"
           rows={3}
-          disabled={orfa}
+          disabled={bloqueado}
           value={valor}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -589,7 +641,7 @@ function CampoDaPergunta({
           label={rotulo}
           opcoes={SIM_NAO}
           vazio="Não informado"
-          disabled={orfa}
+          disabled={bloqueado}
           value={valor}
           onChange={onChange}
         />
@@ -600,7 +652,7 @@ function CampoDaPergunta({
         <TEntry
           label={rotulo}
           type="date"
-          disabled={orfa}
+          disabled={bloqueado}
           value={valor}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -611,7 +663,7 @@ function CampoDaPergunta({
         <TEntry
           label={rotulo}
           inputMode="decimal"
-          disabled={orfa}
+          disabled={bloqueado}
           value={valor}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -623,7 +675,7 @@ function CampoDaPergunta({
           label={rotulo}
           vazio="Não informado"
           opcoes={pergunta.opcoes.map((o) => ({ valor: o, rotulo: o }))}
-          disabled={orfa}
+          disabled={bloqueado}
           value={valor}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -639,7 +691,7 @@ function CampoDaPergunta({
               <TCheckBox
                 key={o}
                 label={o}
-                disabled={orfa}
+                disabled={bloqueado}
                 checked={escolhidas.includes(o)}
                 onChange={(e) => {
                   const novas = e.target.checked
@@ -658,7 +710,7 @@ function CampoDaPergunta({
       return (
         <TEntry
           label={rotulo}
-          disabled={orfa}
+          disabled={bloqueado}
           value={valor}
           onChange={(e) => onChange(e.target.value)}
         />

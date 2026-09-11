@@ -80,6 +80,13 @@ export interface GrupoEscore {
   maximo: number | null
   classificacao: ClassificacaoEscore | null
   motivoAusencia: string | null
+  /**
+   * A escala **dispensou** este bloco — a pré-triagem da NRS-2002 não encontrou
+   * critério, e as etapas 2 e 3 não se aplicam. Não é o mesmo que incompleto:
+   * não falta responder, não há o que responder. Nulo nas fichas gravadas antes
+   * de o campo existir, e nulo é "aplica-se".
+   */
+  naoSeAplica: boolean | null
   /** Os rótulos inteiros, para a tela listar sem recortar a frase do motivo. */
   perguntasSemResposta: string[]
 }

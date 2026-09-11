@@ -392,6 +392,69 @@ class EscalaNutricionalTest {
         }
 
         /**
+         * O defeito que a varredura no navegador achou: com a porta fechada, as
+         * etapas 2 e 3 continuavam vivas.
+         *
+         * <p>Quem preenche as etapas <b>antes</b> de marcar os quatro "não" via
+         * "Estado nutricional 2 de 3" ao lado de "nenhum critério" e de um total
+         * vazio — dois números verdadeiros que não entram em conta nenhuma, à
+         * espera de que quem confere os some. É a armadilha do denominador da
+         * adesão: número exibido sem a regra que o governa.
+         *
+         * <p>As respostas continuam gravadas; o que some é o <b>ponto</b>.
+         */
+        @Test
+        @DisplayName("porta fechada dispensa as etapas 2 e 3, mesmo respondidas")
+        void portaFechadaDispensaAsEtapas() {
+            List<ItemRespondido> itens = new ArrayList<>(
+                    preTriagem("false", "false", "false", "false"));
+            itens.addAll(etapas("2", "2"));
+
+            EscoreDto escore = nrs.avaliar(itens, 81);
+
+            for (String bloco : List.of(Nrs2002Escala.ESTADO, Nrs2002Escala.GRAVIDADE)) {
+                GrupoEscoreDto etapa = grupo(escore, bloco);
+                assertThat(etapa.dispensado()).isTrue();
+                assertThat(etapa.subtotal()).isNull();
+                assertThat(etapa.motivoAusencia()).contains("Não se aplica");
+                assertThat(etapa.perguntasSemResposta()).isEmpty();
+            }
+
+            /* E o instrumento segue concluindo, não reclamando. */
+            assertThat(escore.total()).isNull();
+            assertThat(escore.motivoAusencia()).isNull();
+            assertThat(escore.conclusao()).contains("repetir a triagem semanalmente");
+        }
+
+        /**
+         * A guarda não pode ligar sozinha: com um critério presente as etapas
+         * valem, e a soma tem de continuar exatamente a mesma de antes.
+         */
+        @Test
+        @DisplayName("porta aberta não dispensa nada, e a soma não se move")
+        void portaAbertaNaoDispensaNada() {
+            EscoreDto escore = nrs.avaliar(completo("2", "2"), 81);
+
+            assertThat(grupo(escore, Nrs2002Escala.ESTADO).dispensado()).isFalse();
+            assertThat(grupo(escore, Nrs2002Escala.GRAVIDADE).dispensado()).isFalse();
+            assertThat(escore.total()).isEqualByComparingTo("5.0");
+        }
+
+        /**
+         * Pré-triagem pela metade não é porta fechada — e, portanto, não
+         * dispensa etapa nenhuma. Sem esta distinção a tela desligaria as
+         * seções no primeiro "não" e as religaria no clique seguinte.
+         */
+        @Test
+        @DisplayName("pré-triagem incompleta não dispensa as etapas")
+        void preTriagemIncompletaNaoDispensa() {
+            EscoreDto escore = nrs.avaliar(preTriagem("false", "false"), 81);
+
+            assertThat(grupo(escore, Nrs2002Escala.ESTADO).dispensado()).isFalse();
+            assertThat(grupo(escore, Nrs2002Escala.GRAVIDADE).dispensado()).isFalse();
+        }
+
+        /**
          * Uma pré-triagem em branco <b>não</b> é uma pré-triagem toda "não": o
          * sim/não deste sistema tem três estados, e ausência não é negativa. Sem
          * essa distinção, o formulário recém-aberto se declararia sem risco.

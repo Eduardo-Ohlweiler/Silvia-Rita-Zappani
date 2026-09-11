@@ -61,6 +61,19 @@ export function DocumentoFichaAnamnese({ ficha }: { ficha: FichaAnamneseResponse
       {escore && (
         <Secao titulo="Escore" nota={`${escore.escalaNome} · ${escore.referencia}`}>
           <LinhasDeValor linhas={linhasDoEscore(escore)} />
+          {/*
+            A conduta sai numa tabela `prosa`, e não como mais uma linha da de
+            cima. A coluna de valor daquela tem 22 % e alinha à direita, porque
+            nasceu para "2,0 de 3" — e "Nenhum critério da pré-triagem, repetir
+            a triagem semanalmente" saía quebrada em quatro linhas espremidas
+            contra a margem, com dois terços da folha vazios ao lado. É a mesma
+            armadilha que a fatia 12 pagou com as respostas da anamnese: ao
+            reusar componente de impressão, conferir a forma do dado para o qual
+            ele foi desenhado.
+          */}
+          {escore.conclusao && (
+            <LinhasDeValor linhas={[{ rotulo: 'Conduta', valor: escore.conclusao }]} prosa />
+          )}
         </Secao>
       )}
 
@@ -139,11 +152,6 @@ function linhasDoEscore(escore: Escore): LinhaValor[] {
         : formatarNumero(null),
     detalhe: escore.classificacao?.rotulo ?? escore.motivoAusencia ?? undefined,
   })
-
-  /* A conduta que a publicação prescreve — a MNA não prescreve nenhuma. */
-  if (escore.conclusao) {
-    linhas.push({ rotulo: 'Conduta', valor: escore.conclusao })
-  }
 
   return linhas
 }
