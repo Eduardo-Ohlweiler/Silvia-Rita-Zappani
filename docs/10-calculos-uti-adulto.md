@@ -167,16 +167,67 @@ IMC = peso_kg / altura_m²
 
 *Origem: `Estimativas!B51`.* Confere: (62; 1,75) → **20,2449**.
 
-**OMS 1997** *(`A43:B49`)* e **OPAS 2002** *(`C43:C47`)*, para idoso:
+**OMS 1997** *(`A43:B49`)* para o adulto, e **duas réguas concorrentes** para o
+idoso — **Lipschitz 1994** (o padrão) e **OPAS 2002** *(`C43:C47`)*:
 
-| Classificação | OMS 1997 | OPAS 2002 (idoso) |
-|---|---|---|
-| Desnutrição / baixo peso | < 18,5 | **< 23** |
-| Eutrofia | 18,5 – 24,9 | **23 – 28** |
-| Sobrepeso / excesso de peso | 25 – 29,9 | **28 – 30** |
-| Obesidade grau I | 30 – 34,9 | **> 30** (obesidade) |
-| Obesidade grau II | 35 – 39,9 | — |
-| Obesidade grau III | ≥ 40 | — |
+| Classificação | OMS 1997 | Lipschitz 1994 (idoso) | OPAS 2002 (idoso) |
+|---|---|---|---|
+| Desnutrição / baixo peso | < 18,5 | **< 22** | **< 23** |
+| Eutrofia | 18,5 – 24,9 | **22 – 27** | **23 – 28** |
+| Sobrepeso / excesso de peso | 25 – 29,9 | **> 27** | **28 – 30** |
+| Obesidade grau I | 30 – 34,9 | — | **> 30** (obesidade) |
+| Obesidade grau II | 35 – 39,9 | — | — |
+| Obesidade grau III | ≥ 40 | — | — |
+
+> ⚠️ **As duas réguas de idoso discordam, e não é detalhe de rótulo.** Um IMC de
+> **22,5** é *eutrofia* por Lipschitz e *baixo peso* pela OPAS; **27,5** é
+> *excesso de peso* por Lipschitz e *eutrofia* pela OPAS. É o diagnóstico
+> nutricional mudando de lado — por isso a tela mostra **uma** linha de
+> classificação do idoso, com a régua ao lado, e não as duas empilhadas.
+>
+> A escolha é do profissional (`regua_imc_idoso`, entrada gravada) e o **padrão é
+> Lipschitz 1994**, que é a régua do SISVAN / Ministério da Saúde. A OPAS
+> continua disponível, e é a única das duas que separa *excesso de peso* de
+> *obesidade* no idoso.
+>
+> Fonte de Lipschitz: Lipschitz DA. *Screening for nutritional status in the
+> elderly.* Prim Care. 1994;21(1):55-67 · [PMID 8197257](https://pubmed.ncbi.nlm.nih.gov/8197257/).
+> **Não está na planilha** — é literatura, como as faixas de referência dos
+> gráficos.
+
+> ⚠️ **Os rótulos das três colidem.** "Baixo peso", "Eutrofia" e "Excesso de
+> peso" servem às duas réguas de idoso, e "Eutrofia" é `[18,5;25)` pela OMS,
+> `[22;27)` por Lipschitz e `[23;28)` pela OPAS. Consequência prática: o rótulo
+> gravado **não é interpretável sozinho**, e toda agregação sobre
+> `classif_imc_idoso` tem de agrupar por `(regua_imc_idoso, classif_imc_idoso)`.
+> É por isso que o `% em eutrofia` do painel gerencial é **só pela OMS**, e está
+> escrito no javadoc de `percentualEutrofia`.
+
+> ⚠️ **A régua do idoso vale a partir de 60 anos**, pela convenção do §2.2
+> (Estatuto do Idoso). Abaixo disso, e com a idade em branco, a linha **não
+> produz valor e produz motivo** — "a régua do idoso aplica-se a partir de 60
+> anos" e "informe a idade". Antes da fatia 14 a classificação da OPAS era
+> calculada e exibida para **qualquer** idade, inclusive num paciente de 30 anos.
+> As avaliações gravadas naquela época mantêm o rótulo: classificação é retrato.
+
+#### 2.6.1 Faixa de peso do idoso
+
+```
+peso_min = IMC_eutrofia_min × altura_m²
+peso_max = IMC_eutrofia_max × altura_m²
+```
+
+Os dois limites saem da **mesma régua** que classifica — 22 e 27 por Lipschitz,
+23 e 28 pela OPAS —, e é isso que impede a faixa de discordar do rótulo exibido
+ao lado dela. Reusa `pesoIdealPorImc`, do §2.8.
+
+Confere, altura **1,68 m**: **62,0928 a 76,2048 kg** por Lipschitz ·
+**64,9152 a 79,0272 kg** pela OPAS. Em 1,75 m: **67,375 a 82,6875** ·
+**70,4375 a 85,75**.
+
+> ⚠️ Para **homem**, o piso por Lipschitz coincide com o `pesoIdealKg`, que já é
+> IMC 22 (§2.8). São coisas diferentes — alvo de peso ideal por sexo × piso da
+> eutrofia do idoso — e a tela precisa da referência ao lado de cada um.
 
 > ✅ **A OPAS 2002 tem quatro faixas, e a planilha está certa.** O eroERP
 > implementou só dois cortes (`<23` · `≤28` · resto) e **perde a distinção entre
@@ -186,6 +237,10 @@ IMC = peso_kg / altura_m²
 >
 > Fontes: [Rev. Bras. Geriatr. Gerontol. — pontos de corte de IMC em idosos](https://www.scielo.br/j/rbgg/a/qXgVGH3dqzw6cK36qM4RBCD/?format=html&lang=pt)
 > · [Pontos de corte do IMC para classificar o estado nutricional em idosos](https://www.redalyc.org/journal/4979/497950365004/html/)
+>
+> A comparação entre as três — OMS, OPAS e Lipschitz — sobre a mesma população
+> está em [Body mass index: different nutritional status according to WHO, OPAS
+> and Lipschitz classifications](https://www.academia.edu/54203810/Body_mass_index_different_nutritional_status_according_to_WHO_OPAS_and_Lipschitz_classifications_in_gastrointestinal_cancer_patients).
 
 > ⚠️ **As fronteiras da planilha excluem o valor exato.** Os rótulos são
 > "Sobrepeso >25 <30" e "Obesidade Grau I >30 a 34,9": IMC 25,0 e 30,0 exatos não
@@ -1004,6 +1059,12 @@ intermediárias, e arredondamento uma vez na saída com a escala declarada.
 
 **Pesquisadas para completar o que a planilha não traz em célula:**
 
+- **Lipschitz DA.** "Screening for nutritional status in the elderly."
+  *Prim Care* 1994;21(1):55-67 · PMID
+  [8197257](https://pubmed.ncbi.nlm.nih.gov/8197257/) — **as três faixas de IMC
+  do idoso (§2.6)**: baixo peso < 22 · eutrofia 22 a 27 · excesso > 27. É a régua
+  adotada pelo SISVAN, e o **padrão** do sistema. Não está em célula nenhuma da
+  planilha, que só tabula a OPAS.
 - **Gonzalez MC, Mehrnezhad A, Razaviarab N, Barbosa-Silva TG, Heymsfield SB.**
   "Calf circumference: cutoff values from the NHANES 1999–2006." *Am J Clin Nutr*
   2021;113(6):1679-87. DOI

@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AvaliacaoUtiTest extends AbstractIntegrationTest {
 
     @Autowired TipoCadastroRepository tipoCadastroRepository;
+    @Autowired com.nutri.hospitalar.uti.repository.AvaliacaoUtiRepository avaliacaoUtiRepository;
 
     private Pessoa pacienteA;
     private Pessoa pacienteB;
@@ -114,6 +115,118 @@ class AvaliacaoUtiTest extends AbstractIntegrationTest {
                         .as("%s.%s", secao, campo)
                         .isEqualTo(esperado.get(secao).get(campo));
             }
+    }
+
+    @Test
+    @DisplayName("a régua do idoso: o rótulo gravado volta com a régua ao lado")
+    void idosoReabreComORotuloEARegua() throws Exception {
+        // 70 anos, 168 cm, 68 kg → IMC 24,0930: eutrofia nas duas réguas. O que
+        // este teste trava é o caminho — que o rótulo e a régua saem de coluna.
+        String id = criar("""
+                {"sexo":"MASCULINO","idadeAnos":70,"alturaCm":168,"pesoAtualKg":68}""");
+
+        mockMvc.perform(get("/uti/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultado.antropometria.classificacaoImcIdoso.rotulo")
+                        .value("Eutrofia"))
+                .andExpect(jsonPath("$.resultado.antropometria.reguaImcIdosoUsada")
+                        .value("Lipschitz 1994"))
+                .andExpect(jsonPath("$.resultado.antropometria.motivoClassificacaoImcIdoso")
+                        .doesNotExist())
+                // A faixa de peso do idoso também é gravada: 22 e 27 × 2,8224.
+                .andExpect(jsonPath("$.resultado.antropometria.pesoIdealIdosoMinKg").value(62.0928))
+                .andExpect(jsonPath("$.resultado.antropometria.pesoIdealIdosoMaxKg").value(76.2048))
+                // E a entrada volta no formulário, senão reabrir trocaria a régua.
+                .andExpect(jsonPath("$.calculo.reguaImcIdoso").value("LIPSCHITZ_1994"));
+    }
+
+    @Test
+    @DisplayName("a régua escolhida sobrevive à gravação, e ela muda o diagnóstico")
+    void reguaEscolhidaSobrevive() throws Exception {
+        // IMC 22,50 exatos: EUTROFIA por Lipschitz, BAIXO PESO pela OPAS. É o
+        // único dado em que o caminho inteiro distingue as duas — em IMC 24 as
+        // duas concordam e o teste passaria com o defeito e sem ele.
+        String id = criar("""
+                {"sexo":"MASCULINO","idadeAnos":70,"alturaCm":168,"pesoAtualKg":63.504,
+                 "reguaImcIdoso":"OPAS_2002"}""");
+
+        mockMvc.perform(get("/uti/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultado.antropometria.imc").value(22.5))
+                .andExpect(jsonPath("$.resultado.antropometria.classificacaoImcIdoso.rotulo")
+                        .value("Baixo peso"))
+                .andExpect(jsonPath("$.resultado.antropometria.classificacaoImcIdoso.tom")
+                        .value("CRITICO"))
+                .andExpect(jsonPath("$.resultado.antropometria.reguaImcIdosoUsada")
+                        .value("OPAS 2002"))
+                // A faixa de peso acompanha a mesma régua: 23 e 28 × 2,8224.
+                .andExpect(jsonPath("$.resultado.antropometria.pesoIdealIdosoMinKg").value(64.9152))
+                .andExpect(jsonPath("$.resultado.antropometria.pesoIdealIdosoMaxKg").value(79.0272));
+    }
+
+    @Test
+    @DisplayName("abaixo de 60 a avaliação salva FALA, em vez do traço mudo")
+    void abaixoDeSessentaAAvaliacaoSalvaFala() throws Exception {
+        String id = criar("""
+                {"sexo":"MASCULINO","idadeAnos":45,"alturaCm":168,"pesoAtualKg":68}""");
+
+        mockMvc.perform(get("/uti/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultado.antropometria.imc").value(24.0930))
+                .andExpect(jsonPath("$.resultado.antropometria.classificacaoImcIdoso")
+                        .doesNotExist())
+                .andExpect(jsonPath("$.resultado.antropometria.motivoClassificacaoImcIdoso")
+                        .value("A régua do idoso aplica-se a partir de 60 anos"))
+                .andExpect(jsonPath("$.resultado.antropometria.pesoIdealIdosoMinKg")
+                        .doesNotExist())
+                .andExpect(jsonPath("$.resultado.antropometria.motivoPesoIdealIdoso")
+                        .value("A régua do idoso aplica-se a partir de 60 anos"));
+    }
+
+    @Test
+    @DisplayName("rótulo de idoso gravado antes do corte de 60 anos não é publicado")
+    void rotuloAntigoForaDoDominioNaoEPublicado() throws Exception {
+        // O caso das avaliações anteriores à migration 032: até ela, a
+        // classificação da OPAS era gravada para QUALQUER idade, e o backfill
+        // preservou aquilo. O dado fica na coluna — mas afirmar "IMC do idoso:
+        // Eutrofia (OPAS 2002)" num paciente de 33 anos é dizer que uma régua de
+        // idoso foi aplicada a quem ela não cobre.
+        String id = criar("""
+                {"sexo":"MASCULINO","idadeAnos":33,"alturaCm":168,"pesoAtualKg":68}""");
+
+        var antiga = avaliacaoUtiRepository.findById(java.util.UUID.fromString(id)).orElseThrow();
+        antiga.setClassifImcIdoso("Eutrofia");
+        antiga.setClassifImcIdosoTom("ADEQUADO");
+        antiga.setReguaImcIdoso(com.nutri.hospitalar.uti.enums.ReguaImcIdoso.OPAS_2002);
+        avaliacaoUtiRepository.saveAndFlush(antiga);
+
+        mockMvc.perform(get("/uti/avaliacoes/" + id)
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultado.antropometria.classificacaoImcIdoso")
+                        .doesNotExist())
+                .andExpect(jsonPath("$.resultado.antropometria.reguaImcIdosoUsada")
+                        .doesNotExist())
+                // E sem traço mudo: some o rótulo, entra a frase.
+                .andExpect(jsonPath("$.resultado.antropometria.motivoClassificacaoImcIdoso")
+                        .value("A régua do idoso aplica-se a partir de 60 anos"));
+
+        // A lista e o CSV leem da mesma decisão.
+        mockMvc.perform(get("/uti/avaliacoes")
+                        .param("pacienteId", pacienteA.getId().toString())
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].classificacaoImcIdoso").doesNotExist())
+                .andExpect(jsonPath("$.content[0].reguaImcIdoso").doesNotExist());
+
+        // Nada foi apagado: a coluna continua com o que o sistema calculou então.
+        org.assertj.core.api.Assertions
+                .assertThat(avaliacaoUtiRepository.findById(java.util.UUID.fromString(id))
+                        .orElseThrow().getClassifImcIdoso())
+                .isEqualTo("Eutrofia");
     }
 
     @Test
@@ -476,6 +589,19 @@ class AvaliacaoUtiTest extends AbstractIntegrationTest {
                             "formulaEnteralId":"%s","modoInfusao":"CONTINUA",
                             "volumePorTempo":62,"tempo":22}}
                 """.formatted(pacienteId, LocalDate.now(), formulaId);
+    }
+
+    /** Cria a avaliação com estas entradas de cálculo e devolve o id. */
+    private String criar(String calculo) throws Exception {
+        String corpo = mockMvc.perform(post("/uti/avaliacoes")
+                        .header(AUTHORIZATION, autenticar(adminA.getEmail()))
+                        .contentType("application/json")
+                        .content("""
+                                {"pacienteId":"%s","dataAvaliacao":"%s","calculo":%s}
+                                """.formatted(pacienteA.getId(), LocalDate.now(), calculo)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(corpo).get("id").asText();
     }
 
     private static <T> Iterable<T> iteravel(java.util.Iterator<T> it) {

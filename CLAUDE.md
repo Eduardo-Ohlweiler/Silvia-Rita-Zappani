@@ -109,10 +109,11 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **12 — Clínica: fichas de anamnese** | ✅ pronta · especificação [docs/12](docs/12-fichas-de-anamnese.md) · migration 030 · primeira tela do menu **Clínica** do eroERP · modelo de ficha como catálogo híbrido, com **clonar** · **o retrato da pergunta** em cada resposta · 3 modelos de nutrição semeados · impressão e exportação · dois grupos novos de menu |
 | **12.1 — O 500 da calculadora** | ✅ pronta · incidente em produção, 06/09/2026. Origem de peso escolhida no seletor não checava o sinal, e medida deslocada pela máscara faz Chumlea 1988 devolver peso **negativo** → `IllegalArgumentException` → 500. Corrigido em três camadas: a guarda que faltava, pisos de plausibilidade com frase que ensina a vírgula, e a recusa **inline** em vez de toast numa tela que recalcula sozinha |
 | **13 — Escalas nutricionais pontuadas** | ✅ pronta · especificação [docs/13](docs/13-escalas-nutricionais.md) · migration 031 · **MNA®** e **NRS-2002** como modelo do sistema · o ponto é **dado** (`campo_ficha.pontos`), a régua é **código com fonte citada** (`clinica/escore/`) · escore ao vivo, congelado na gravação, impresso e na listagem |
+| **14 — Régua de IMC do idoso** | ✅ pronta · migration 032 · **Lipschitz 1994** entra ao lado da **OPAS 2002** que já existia, como **escolha** e não como terceira linha — as duas discordam em toda a faixa central, e duas classificações contraditórias no mesmo prontuário é pior que uma. Padrão Lipschitz, corte em 60 anos, faixa de peso do idoso pela mesma régua |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
-**479 testes** no total, contra o banco `nutridb_test`.
+**496 testes** no total, contra o banco `nutridb_test`.
 
 ### O que falta, e por quê
 
@@ -793,6 +794,71 @@ queixas diferentes conclui que o sistema está confuso, e não a edição. Cole�
 alimenta **texto lido por gente** é ordenada — `LinkedHashMap`, na ordem em que a
 publicação apresenta os blocos.
 
+**Régua nova que concorre com régua velha não é linha a mais na tela.**
+A nutricionista pediu o **Lipschitz 1994** para o IMC do idoso — e o sistema já
+tinha a **OPAS 2002** exibida como *"(idoso)"* ao lado da OMS, em toda tela com
+IMC. As duas são literatura publicada e **discordam em toda a faixa central**:
+IMC 22,5 é *eutrofia* por Lipschitz e *baixo peso* pela OPAS; 27,5 inverte. A
+saída óbvia — terceira linha — poria duas respostas contraditórias debaixo uma da
+outra, num prontuário, e deixaria para quem lê a decisão que o servidor devia
+publicar. Virou **seletor**, no molde de `populacaoReferencia`: uma linha só, a
+régua ao lado do rótulo, a escolha gravada em coluna. Dois corolários que só
+aparecem depois. (1) **Os rótulos das duas colidem** — "Eutrofia" é `[22;27)`
+numa e `[23;28)` na outra, e "Eutrofia" pela OMS é `[18,5;25)` —, então o rótulo
+gravado **não é interpretável sozinho**: é por isso que `regua_imc_idoso` é
+coluna, e por isso que o `% em eutrofia` do painel continua sendo **só pela
+OMS**, com o motivo escrito no javadoc para ninguém "melhorar" aquilo depois.
+(2) **A faixa de peso do idoso tem de sair da régua escolhida** (22–27 ou 23–28,
+lidos do enum): cravar 22 e 27 faria a tela dizer *"excesso de peso"* pela OPAS
+ao lado de uma faixa ideal que termina em 27 — legenda cravada outra vez, agora
+com duas fontes de verdade para discordarem.
+
+**Régua que passa a valer só numa faixa cala a tela fora dela — se você deixar.**
+A OPAS era calculada e exibida para **qualquer** idade, inclusive num paciente de
+30 anos. Pôr o corte de 60 anos onde ele sempre deveu estar cria, de graça, um
+caminho novo que não produz valor — e todo caminho que não produz valor produz
+motivo. São **duas** cadeias (a classificação e a faixa de peso), cada uma com o
+seu `else` final: idade em branco pede a idade, abaixo de 60 nomeia a régua, e o
+`else` cobre "70 anos, sem peso", que é o ramo que ficaria mudo justamente para
+quem a régua vale. E há uma armadilha de exibição em cima disso: o `TResult` só
+mostra o `motivoAusencia` quando o **valor** está vazio, então a linha do idoso
+passa `valor` apenas quando há classificação — manter `formatarNumero(imc)` ali
+faria um paciente de 45 anos ver o IMC sem rótulo **e engoliria a frase**. Mesmo
+cuidado no helper `Classificacao` do painel do paciente, que renderizava "—"
+mudo: antes isso nunca acontecia, depois acontece em todo paciente abaixo de 60.
+
+**Retrato preservado no banco não é retrato publicado.**
+Ao pôr o corte de 60 anos onde ele sempre deveu estar, a decisão foi **não
+apagar nada**: o backfill da 032 marcou as linhas antigas como `OPAS_2002` e o
+rótulo gravado ficou onde estava, inclusive nas avaliações de paciente com
+menos de 60 anos — que era a única coisa que o sistema sabia fazer antes. Isso
+está certo **no banco** e errado **na tela**: o painel passou a exibir *"IMC do
+idoso (OPAS 2002): Eutrofia"* para um paciente de **33 anos**, e o CSV a mesma
+coisa, afirmando que uma régua de idoso foi aplicada a quem ela não cobre.
+Preservar o histórico e afirmá-lo são coisas diferentes. O conserto **não** foi
+um `if (idade >= 60)` na tela e outro no CSV — isso seria a regra dos 60 anos
+numa terceira e quarta linguagem, e a enésima cópia erraria: foi o servidor
+parar de **publicar** a classificação quando `reguaIdosoRelevante` é falso, num
+lugar só, de onde a tela, a lista, o CSV e as duas folhas impressas já liam. A
+coluna continua com o valor, e há teste que o confirma. Corolário que o
+teste-espelho cobrou na hora: **a guarda vale nos dois caminhos** — a
+calculadora ao vivo também parou de publicar a régua que não classificou
+ninguém, senão o mesmo campo voltaria preenchido no cálculo e vazio na
+avaliação gravada.
+
+**Escolha declarada é escolha que produziu número.** A seção *"Escolhas do
+cálculo"* da folha impressa diz, no próprio subtítulo, que lista **o que a
+nutricionista decidiu e que muda o número**. A linha nova da régua imprimia
+sempre o valor efetivo — então a folha de um paciente de **45 anos** saía com
+*"Régua do idoso: OPAS 2002"*, declarando uma escolha que não classificou
+ninguém, enquanto duas linhas adiante a cascata dizia *"aplica-se a partir de 60
+anos"*. Quem lê o prontuário conclui que a régua do idoso foi aplicada. A linha
+irmã já acertava havia meses: *"População de referência: — · só muda o ajuste
+com IMC abaixo de 18,5"*. A regra é imprimir a escolha **sob a mesma condição
+que fez o número existir** — aqui, haver classificação —, e não sob "o servidor
+me mandou um valor". Isto **não apareceu** em `tsc`, `lint` nem nos 495 testes:
+só no PDF. É a sexta vez.
+
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
 *"Valor inválido para o parâmetro: id"*, a aplicação em execução está
@@ -875,7 +941,7 @@ dirige o `/usr/bin/google-chrome` do sistema: **não instale playwright**.
 cd nutri-hospitalar-api
 cp .env.example .env      # ajuste DB_PASSWORD e JWT_SECRET
 ./run-dev.sh              # sobe em :8080
-./run-dev.sh test         # 479 testes contra nutridb_test
+./run-dev.sh test         # 496 testes contra nutridb_test
 ```
 
 Exige **JDK 21**. O `run-dev.sh` localiza o JDK certo mesmo que o `JAVA_HOME` da

@@ -58,9 +58,9 @@ public record DashboardUtiDto(
          * com rampa ordinal, e não em barra de cor única.
          *
          * <p>O corte em <b>60 anos</b> não é arbitrário: é onde passa a valer a
-         * classificação de IMC da OPAS 2002, que usa outros pontos que a da OMS.
-         * Uma UTI com metade dos pacientes acima de 60 lê o IMC médio de outro
-         * jeito.
+         * régua de IMC do idoso escolhida na avaliação — Lipschitz 1994, o
+         * padrão, ou OPAS 2002 —, que usa outros pontos que a da OMS. Uma UTI
+         * com metade dos pacientes acima de 60 lê o IMC médio de outro jeito.
          */
         List<ContagemDto> porFaixaEtaria,
 

@@ -8,6 +8,7 @@ import com.nutri.hospitalar.uti.enums.ModoInfusao;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
 import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
+import com.nutri.hospitalar.uti.enums.ReguaImcIdoso;
 import com.nutri.hospitalar.uti.enums.SegmentoAmputado;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 import jakarta.validation.constraints.DecimalMax;
@@ -46,6 +47,10 @@ import java.util.UUID;
  * @param populacaoReferencia coluna de ajuste de CB e CP. Ausente assume
  *                            população clínica, que é o padrão de UTI e o lado
  *                            conservador. Só tem efeito em IMC &lt; 18,5.
+ * @param reguaImcIdoso       qual régua classifica o IMC do idoso. Ausente
+ *                            assume Lipschitz 1994, que é o padrão do módulo. Só
+ *                            tem efeito a partir de 60 anos — ver
+ *                            {@code docs/10} §2.6.
  * @param origemPesoPreferida força a fonte do peso de trabalho. Ausente deixa o
  *                            servidor escolher, e o resultado diz o que ele
  *                            escolheu.
@@ -101,6 +106,7 @@ public record CalculoUtiRequestDto(
         JanelaPerdaPeso janelaPerda,
         Set<SegmentoAmputado> segmentosAmputados,
         PopulacaoReferencia populacaoReferencia,
+        ReguaImcIdoso reguaImcIdoso,
         OrigemValor origemPesoPreferida,
 
         // ─── Necessidades ───────────────────────────────────────────────

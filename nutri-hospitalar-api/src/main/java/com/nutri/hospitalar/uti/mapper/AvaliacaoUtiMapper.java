@@ -40,6 +40,18 @@ public final class AvaliacaoUtiMapper {
             "Tabela derivada — não faz parte do registro. Reproduza na calculadora se precisar.";
 
     /**
+     * A faixa de peso do idoso nasceu na migration 032 e não foi retroagida: a
+     * conta depende da altura em precisão plena, e recompô-la em SQL a partir da
+     * altura já arredondada gravaria um número que o sistema nunca calculou.
+     *
+     * <p>Sem esta frase, uma avaliação anterior de um idoso com altura gravada
+     * reabriria com traço e sem motivo — traço mudo.
+     */
+    static final String FAIXA_NAO_GRAVADA =
+            "Esta avaliação é anterior ao registro da faixa de peso do idoso. "
+                    + "Reproduza na calculadora se precisar.";
+
+    /**
      * @param motivos cálculo refeito sobre as entradas gravadas, do qual só as
      *                frases de ausência são aproveitadas
      */
@@ -77,7 +89,7 @@ public final class AvaliacaoUtiMapper {
                 a.getCircBracoCm(), a.getCircPanturrilhaCm(), a.getCircAbdominalCm(),
                 a.getPesoAtualKg(), a.getPesoUsualKg(),
                 a.getJanelaPerda(), a.getSegmentosAmputados(),
-                a.getPopulacaoReferencia(), a.getOrigemPesoPreferida(),
+                a.getPopulacaoReferencia(), a.getReguaImcIdoso(), a.getOrigemPesoPreferida(),
                 a.getFase(), a.getTerapiaRenal(),
                 a.getKcalPorKgAlvo(), a.getProteinaPorKgAlvo(),
                 a.getPosicaoNaFaixa(),
@@ -97,10 +109,11 @@ public final class AvaliacaoUtiMapper {
      * quando o catálogo ou a régua mudarem, que é precisamente o que este
      * mapper existe para impedir.
      *
-     * <p>{@code ajustePeloImcRelevante} é o outro caso de fronteira e vem de lá
-     * de propósito: é um {@code boolean} de <b>apresentação</b> — decide se a
-     * tela mostra o aviso do ajuste de CB e CP pelo IMC — e depende só das
-     * entradas, que estão gravadas.
+     * <p>{@code ajustePeloImcRelevante} e {@code reguaIdosoRelevante} são os
+     * casos de fronteira, e vêm de lá de propósito: são {@code boolean} de
+     * <b>apresentação</b> — decidem se a tela mostra o seletor do ajuste de CB e
+     * CP e o seletor da régua do idoso — e dependem só das entradas, que estão
+     * gravadas.
      */
     public static ResultadoUti toResultado(AvaliacaoUti a, ResultadoUti motivos) {
         ResultadoUti.Antropometria mAntro = motivos.antropometria();
@@ -119,10 +132,45 @@ public final class AvaliacaoUtiMapper {
 
                         a.getImc(),
                         classificacao(a.getClassifImcOms(), a.getClassifImcOmsTom()),
-                        classificacao(a.getClassifImcOpas(), a.getClassifImcOpasTom()),
+                        // A classificação do idoso só é PUBLICADA quando a
+                        // régua se aplica — e quem decide isso é ela mesma, via
+                        // `reguaIdosoRelevante`, calculado sobre a idade gravada.
+                        //
+                        // A coluna pode ter rótulo mesmo assim: até a migration
+                        // 032 a classificação da OPAS era gravada para QUALQUER
+                        // idade, e o backfill preservou aquilo. Preservar no
+                        // banco é honesto; exibir é outra coisa — "IMC do idoso:
+                        // Eutrofia (OPAS 2002)" num paciente de 33 anos afirma
+                        // que uma régua de idoso foi aplicada a quem ela não
+                        // cobre, e num prontuário isso engana mais do que
+                        // informa. O dado histórico continua na coluna.
+                        //
+                        // Esta é a ÚNICA guarda: a tela, a lista, o CSV e as
+                        // duas folhas impressas leem daqui. Repetir `idade >= 60`
+                        // em cada uma seria a regra dos 60 anos numa segunda
+                        // linguagem — e a enésima cópia erraria.
+                        mAntro.reguaIdosoRelevante()
+                                ? classificacao(a.getClassifImcIdoso(), a.getClassifImcIdosoTom())
+                                : null,
+                        // A régua acompanha o rótulo: sozinha ela nomearia uma
+                        // escolha que não classificou ninguém.
+                        !mAntro.reguaIdosoRelevante() || a.getReguaImcIdoso() == null
+                                ? null : a.getReguaImcIdoso().getDescricao(),
+                        // E o motivo aparece sempre que o rótulo não sai, senão
+                        // some a classificação e sobra o traço mudo.
+                        mAntro.reguaIdosoRelevante() && a.getClassifImcIdoso() != null
+                                ? null : mAntro.motivoClassificacaoImcIdoso(),
+                        mAntro.reguaIdosoRelevante(),
                         mAntro.motivoImc(),
 
                         a.getPesoIdealKg(), a.getPesoIdealImc25Kg(),
+                        a.getPesoIdealIdosoMinKg(), a.getPesoIdealIdosoMaxKg(),
+                        // A coluna nasceu na 032 e não foi retroagida: quando o
+                        // recálculo produziria a faixa e a coluna está vazia, é
+                        // porque a avaliação é anterior — e isso se diz.
+                        a.getPesoIdealIdosoMinKg() == null
+                                && mAntro.pesoIdealIdosoMinKg() != null
+                                ? FAIXA_NAO_GRAVADA : mAntro.motivoPesoIdealIdoso(),
                         a.getPesoAjustadoKg(), a.getPesoAmputacaoKg(),
 
                         a.getPercPerdaPeso(),

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        A régua que classifica o IMC do idoso passa a ser ESCOLHA.
+
+        Até aqui o sistema calculava duas classificações e mostrava as duas lado
+        a lado: OMS 1997 e OPAS 2002, esta última rotulada "(idoso)" mas exibida
+        para qualquer idade. Entra Lipschitz 1994 (docs/10 §2.6), que é a régua
+        do SISVAN e a que a nutricionista pediu — e ela DISCORDA da OPAS em toda
+        a faixa central: IMC 22,5 é eutrofia numa e baixo peso na outra.
+
+        Duas réguas de idoso lado a lado seriam duas respostas contraditórias no
+        mesmo prontuário, então vira seletor: uma linha só, com a régua ao lado
+        do rótulo. Lipschitz é o padrão, declarado uma vez em ReguaImcIdoso.
+
+        Por que a régua é COLUNA e não nota de rodapé: os rótulos das duas
+        colidem ("Baixo peso", "Eutrofia", "Excesso de peso" servem às duas), e
+        sem a régua ao lado o texto gravado não é interpretável. Qualquer
+        agregação futura sobre classif_imc_idoso agrupa por
+        (regua_imc_idoso, classif_imc_idoso).
+
+        Nada é apagado. As avaliações já gravadas classificaram por OPAS 2002 e
+        continuam exibindo aquilo — inclusive as de pacientes com menos de 60
+        anos, onde a regra nova não classificaria. Classificação é RETRATO: diz
+        o que o sistema calculou naquele dia, e prontuário não se reescreve.
+    -->
+    <changeSet id="032-avaliacao-uti-regua-imc-idoso-escolha" author="eduardo">
+
+        <addColumn tableName="avaliacao_uti">
+            <column name="regua_imc_idoso" type="VARCHAR(20)"/>
+        </addColumn>
+
+        <!--
+            As linhas que já existem foram classificadas pela OPAS 2002 — era a
+            única régua de idoso do sistema. Escrever OPAS_2002 nelas é registrar
+            o que aconteceu, não inventar passado, e é o que impede a coluna de
+            voltar nula para a tela (que montaria a legenda pela metade).
+        -->
+        <update tableName="avaliacao_uti">
+            <column name="regua_imc_idoso" value="OPAS_2002"/>
+            <where>regua_imc_idoso IS NULL</where>
+        </update>
+
+        <sql>
+            ALTER TABLE avaliacao_uti ADD CONSTRAINT ck_avaliacao_uti_regua_imc_idoso
+            CHECK (regua_imc_idoso IS NULL
+                   OR regua_imc_idoso IN ('LIPSCHITZ_1994', 'OPAS_2002'));
+        </sql>
+
+        <rollback>
+            <sql>ALTER TABLE avaliacao_uti DROP CONSTRAINT ck_avaliacao_uti_regua_imc_idoso;</sql>
+            <dropColumn tableName="avaliacao_uti" columnName="regua_imc_idoso"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+        A classificação deixa de ser "a da OPAS" e passa a ser "a do idoso, pela
+        régua que a coluna ao lado nomeia". O conteúdo é o mesmo — por isso
+        renomear, e não criar coluna nova: uma classif_imc_opas deixada para trás
+        seria coluna morta que um relatório futuro leria por engano.
+
+        São VARCHAR simples, sem índice nem constraint que as nomeie (023).
+    -->
+    <changeSet id="032-avaliacao-uti-classif-imc-idoso" author="eduardo">
+
+        <renameColumn tableName="avaliacao_uti"
+                      oldColumnName="classif_imc_opas"
+                      newColumnName="classif_imc_idoso"
+                      columnDataType="VARCHAR(60)"/>
+
+        <renameColumn tableName="avaliacao_uti"
+                      oldColumnName="classif_imc_opas_tom"
+                      newColumnName="classif_imc_idoso_tom"
+                      columnDataType="VARCHAR(20)"/>
+
+        <rollback>
+            <renameColumn tableName="avaliacao_uti"
+                          oldColumnName="classif_imc_idoso_tom"
+                          newColumnName="classif_imc_opas_tom"
+                          columnDataType="VARCHAR(20)"/>
+            <renameColumn tableName="avaliacao_uti"
+                          oldColumnName="classif_imc_idoso"
+                          newColumnName="classif_imc_opas"
+                          columnDataType="VARCHAR(60)"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+        A faixa de peso que põe o idoso dentro da eutrofia da régua escolhida:
+        IMC 22 a 27 por Lipschitz, 23 a 28 pela OPAS, cada um multiplicado pela
+        altura ao quadrado. Mesmo tipo do peso_ideal_imc25_kg, que é a conta
+        irmã.
+
+        Sem backfill de propósito. Recompor 22 × altura² em SQL usaria
+        altura_usada_cm, que já está arredondada a 4 casas, enquanto o cálculo
+        opera sobre a altura em precisão plena — numa altura estimada por Chumlea
+        os dois divergem na última casa, e sairia gravado um número que o sistema
+        nunca calculou. Quem explica a coluna vazia é o mapper, por escrito.
+    -->
+    <changeSet id="032-avaliacao-uti-peso-ideal-idoso" author="eduardo">
+
+        <addColumn tableName="avaliacao_uti">
+            <column name="peso_ideal_idoso_min_kg" type="NUMERIC(12,4)"/>
+            <column name="peso_ideal_idoso_max_kg" type="NUMERIC(12,4)"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="avaliacao_uti" columnName="peso_ideal_idoso_min_kg"/>
+            <dropColumn tableName="avaliacao_uti" columnName="peso_ideal_idoso_max_kg"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

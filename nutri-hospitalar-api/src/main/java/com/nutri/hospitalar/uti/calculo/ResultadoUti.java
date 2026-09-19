@@ -40,11 +40,37 @@ public record ResultadoUti(
 
             BigDecimal imc,
             Classificacao classificacaoImcOms,
-            Classificacao classificacaoImcOpas,
+            /**
+             * A classificação do idoso, pela régua que valeu — e só a partir de
+             * 60 anos. Antes eram <b>duas</b> linhas fixas, OMS e OPAS, lado a
+             * lado e para qualquer idade; hoje a régua do idoso é escolha, e o
+             * servidor publica a que decidiu em vez de deixar cada tela
+             * escolher. Ver {@code docs/10} §2.6.
+             */
+            Classificacao classificacaoImcIdoso,
+            /**
+             * Qual régua produziu o rótulo acima — "Lipschitz 1994" ou "OPAS
+             * 2002". <b>Obrigatória ao lado do rótulo</b>, na tela e no papel:
+             * "Eutrofia" quer dizer {@code [22;27)} numa e {@code [23;28)} na
+             * outra.
+             */
+            String reguaImcIdosoUsada,
+            String motivoClassificacaoImcIdoso,
+            /** Se o paciente tem 60 anos ou mais — o gate do seletor na tela. */
+            boolean reguaIdosoRelevante,
             String motivoImc,
 
             BigDecimal pesoIdealKg,
             BigDecimal pesoIdealImc25Kg,
+            /**
+             * A faixa de peso que põe o idoso dentro da eutrofia da régua
+             * escolhida: {@code IMC_min × altura²} e {@code IMC_max × altura²}.
+             * Os dois limites saem de {@code ReguaImcIdoso}, os mesmos que
+             * classificam — não há como a faixa discordar do rótulo.
+             */
+            BigDecimal pesoIdealIdosoMinKg,
+            BigDecimal pesoIdealIdosoMaxKg,
+            String motivoPesoIdealIdoso,
             BigDecimal pesoAjustadoKg,
             BigDecimal pesoCorrigidoAmputacaoKg,
 

@@ -46,7 +46,13 @@ export function DocumentoPainelPaciente({ dados }: { dados: PainelPacienteUti })
     {
       rotulo: 'IMC',
       valor: n(antro?.imc, 2),
-      detalhe: [antro?.classificacaoImcOms?.rotulo, antro?.classificacaoImcOpas?.rotulo]
+      // "Eutrofia · Eutrofia" não diria que são réguas diferentes: a do idoso
+      // vai com a procedência colada, senão as duas se confundem no papel.
+      detalhe: [
+        antro?.classificacaoImcOms?.rotulo && `${antro.classificacaoImcOms.rotulo} (OMS 1997)`,
+        antro?.classificacaoImcIdoso?.rotulo &&
+          `${antro.classificacaoImcIdoso.rotulo} (${antro.reguaImcIdosoUsada ?? 'idoso'})`,
+      ]
         .filter(Boolean)
         .join(' · '),
     },

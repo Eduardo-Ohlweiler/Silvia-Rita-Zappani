@@ -4,6 +4,7 @@ import com.nutri.hospitalar.pessoa.enums.Sexo;
 import com.nutri.hospitalar.uti.calculo.cascata.Altura;
 import com.nutri.hospitalar.uti.enums.JanelaPerdaPeso;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
+import com.nutri.hospitalar.uti.enums.ReguaImcIdoso;
 import com.nutri.hospitalar.uti.enums.SegmentoAmputado;
 
 import java.math.BigDecimal;
@@ -109,6 +110,50 @@ public final class AntropometriaCalculator {
         if (menorQue(imc, "28")) return Classificacao.adequada("Eutrofia");
         if (menorQue(imc, "30")) return Classificacao.atencao("Excesso de peso");
         return Classificacao.atencao("Obesidade");
+    }
+
+    /**
+     * Classificação de IMC do idoso de <b>Lipschitz 1994</b>, em <b>três</b>
+     * faixas: baixo peso &lt; 22 · eutrofia 22 a 27 · excesso de peso &gt; 27.
+     *
+     * <p>Fonte: Lipschitz DA. <i>Screening for nutritional status in the
+     * elderly.</i> Prim Care. 1994;21(1):55-67 (PMID 8197257). <b>Não está na
+     * planilha</b> — é literatura, como as nove faixas de referência dos
+     * gráficos. Ver {@code docs/10} §2.6.
+     *
+     * <p>Cada faixa é fechada à esquerda, como as da OMS e as da OPAS: IMC 22,0 e
+     * 27,0 exatos caem na faixa de cima, e há teste nas quatro fronteiras.
+     */
+    public static Classificacao classificarImcLipschitz1994(BigDecimal imc) {
+        if (imc == null) return null;
+        if (menorQue(imc, "22")) return Classificacao.critica("Baixo peso");
+        if (menorQue(imc, "27")) return Classificacao.adequada("Eutrofia");
+        return Classificacao.atencao("Excesso de peso");
+    }
+
+    /**
+     * A partir de 60 anos o paciente é idoso. Convenção do sistema, do Estatuto
+     * do Idoso (Lei 10.741/2003) — ver {@code docs/10} §2.2, onde ela já governa
+     * os ramos de Chumlea 1988.
+     */
+    public static boolean eIdoso(Integer idadeAnos) {
+        return idadeAnos != null && idadeAnos >= EstimativaPesoCalculator.IDADE_IDOSO;
+    }
+
+    /**
+     * A classificação de IMC do idoso, pela régua escolhida.
+     *
+     * <p><b>O corte de idade mora aqui dentro</b>, e não em cada chamador: abaixo
+     * de 60 anos, e sem idade informada, não há classificação de idoso a dar. Quem
+     * escreve a frase que explica a ausência é {@link AvaliacaoUtiCalculator} —
+     * este método só devolve {@code null}.
+     */
+    public static Classificacao classificarImcIdoso(BigDecimal imc, Integer idadeAnos,
+                                                    ReguaImcIdoso regua) {
+        if (!eIdoso(idadeAnos) || regua == null) return null;
+        return regua == ReguaImcIdoso.OPAS_2002
+                ? classificarImcOpas(imc)
+                : classificarImcLipschitz1994(imc);
     }
 
     // ─── Metas de peso ──────────────────────────────────────────────────

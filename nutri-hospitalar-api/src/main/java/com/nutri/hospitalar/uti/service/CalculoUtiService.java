@@ -158,7 +158,7 @@ public class CalculoUtiService {
                 d.circBracoCm(), d.circPanturrilhaCm(), d.circAbdominalCm(),
                 d.pesoAtualKg(), d.pesoUsualKg(),
                 d.janelaPerda(), d.segmentosAmputados(),
-                d.populacaoReferencia(), d.origemPesoPreferida(),
+                d.populacaoReferencia(), d.reguaImcIdoso(), d.origemPesoPreferida(),
                 d.fase(), d.terapiaRenal(), d.kcalPorKgAlvo(), d.proteinaPorKgAlvo(),
                 d.posicaoNaFaixa(),
                 d.modoInfusao(), d.volumePorTempo(), d.tempo(),

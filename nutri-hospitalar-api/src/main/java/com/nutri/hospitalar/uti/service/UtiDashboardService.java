@@ -90,8 +90,9 @@ public class UtiDashboardService {
      * Faixas etárias do adulto, em degraus.
      *
      * <p>O corte em <b>60 anos</b> é o que importa clinicamente: dali em diante
-     * vale a classificação de IMC da OPAS 2002, com outros pontos de corte que a
-     * da OMS. Os demais são os degraus usuais de descrição de casuística.
+     * passa a valer a régua de IMC do idoso escolhida na avaliação — Lipschitz
+     * 1994 ou OPAS 2002 —, com outros pontos de corte que a da OMS. Os demais
+     * são os degraus usuais de descrição de casuística.
      */
     private static final int[] FAIXA_LIMITES = {40, 60, 80};
     private static final String[] FAIXA_ROTULOS = {
@@ -319,6 +320,12 @@ public class UtiDashboardService {
      * Percentual das avaliações <b>com</b> classificação de IMC que caíram em
      * eutrofia. Quem não tem IMC fica fora do numerador e do denominador — não
      * classificado não é sinônimo de inadequado.
+     *
+     * <p><b>Pela OMS 1997, e só por ela.</b> A régua do idoso não entra aqui, e
+     * o motivo é que os rótulos das três colidem: "Eutrofia" é {@code [18,5;25)}
+     * pela OMS, {@code [22;27)} por Lipschitz e {@code [23;28)} pela OPAS. Somar
+     * as duas colunas num percentual só somaria significados diferentes — e
+     * casar por texto, que é o que este método faz, não tem como perceber.
      */
     private BigDecimal percentualEutrofia(List<AvaliacaoUti> avaliacoes) {
         List<String> classificadas = avaliacoes.stream()

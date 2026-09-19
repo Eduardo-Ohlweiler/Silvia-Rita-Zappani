@@ -208,7 +208,7 @@ export function ImcComFaixas({ evolucao }: { evolucao: PontoAvaliacaoUti[] }) {
 
   return (
     <div>
-      <TituloGrafico referencia="Faixas da OMS 1997. Para paciente com 60 anos ou mais, a avaliação também traz a classificação da OPAS 2002, que usa outros cortes.">
+      <TituloGrafico referencia="Faixas da OMS 1997. Para paciente com 60 anos ou mais, a avaliação também traz a classificação pela régua do idoso escolhida — Lipschitz 1994 ou OPAS 2002 —, que usa outros cortes.">
         IMC e faixas de classificação
       </TituloGrafico>
 

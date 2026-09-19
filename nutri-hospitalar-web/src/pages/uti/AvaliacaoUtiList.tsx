@@ -108,6 +108,15 @@ export function AvaliacaoUtiList() {
     { titulo: 'Origem do peso', valor: (a) => a.pesoTrabalhoOrigem ?? '—' },
     { titulo: 'IMC', numerica: true, valor: (a) => txt(a.imc, 2) },
     { titulo: 'Estado nutricional', valor: (a) => a.classificacaoImc ?? 'Sem peso ou altura' },
+    {
+      // A régua vai colada: "Eutrofia" é [22;27) por Lipschitz e [23;28) pela
+      // OPAS, e o rótulo sozinho não diz qual das duas foi lida.
+      titulo: 'Estado nutricional (idoso)',
+      valor: (a) =>
+        a.classificacaoImcIdoso
+          ? `${a.classificacaoImcIdoso} (${a.reguaImcIdoso ?? 'idoso'})`
+          : 'Não se aplica',
+    },
     { titulo: 'Meta (kcal/dia)', numerica: true, valor: (a) => txt(a.metaEnergetica, 0) },
     { titulo: 'Fórmula', valor: (a) => a.formulaNome ?? '—' },
   ]
@@ -169,6 +178,8 @@ export function AvaliacaoUtiList() {
             </span>
             <span className="text-caption text-txt-muted">
               IMC {formatarNumero(a.imc)}
+              {a.classificacaoImcIdoso &&
+                ` · ${a.classificacaoImcIdoso} (${a.reguaImcIdoso ?? 'idoso'})`}
             </span>
           </span>
         ) : (

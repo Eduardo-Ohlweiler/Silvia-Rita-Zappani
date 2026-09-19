@@ -32,6 +32,7 @@ import {
   OPCOES_MODO_INFUSAO,
   OPCOES_ORIGEM_PESO,
   OPCOES_POPULACAO,
+  OPCOES_REGUA_IDOSO,
   OPCOES_POSICAO_FAIXA,
   OPCOES_SEGMENTO,
   OPCOES_SEXO,
@@ -431,6 +432,22 @@ export function CalculoUti({
                 onChange={(e) => alterar('populacaoReferencia', e.target.value)}
               />
             )}
+
+            {/*
+              A régua do idoso só aparece a partir de 60 anos, e quem decide isso
+              é o servidor (`reguaIdosoRelevante`) — repetir o corte aqui seria a
+              mesma regra escrita em duas linguagens. Abaixo disso a linha do
+              Diagnóstico diz, por escrito, que a régua não se aplica.
+            */}
+            {antro?.reguaIdosoRelevante && (
+              <TSelect
+                label="Régua do idoso"
+                opcoes={OPCOES_REGUA_IDOSO.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
+                ajuda="Lipschitz 1994: 22 a 27 é eutrofia. OPAS 2002 (estudo SABE): 23 a 28, com faixa própria de obesidade."
+                value={entradas.reguaImcIdoso || 'LIPSCHITZ_1994'}
+                onChange={(e) => alterar('reguaImcIdoso', e.target.value)}
+              />
+            )}
           </div>
 
           <fieldset className="mt-4">
@@ -525,12 +542,19 @@ export function CalculoUti({
                 classificacao={antro?.classificacaoImcOms}
                 recalculando={recalculando}
               />
+              {/*
+                Uma linha só para o idoso, e o valor SÓ quando há classificação:
+                o TResult mostra o motivo quando o valor está vazio, então passar
+                o IMC aqui incondicionalmente engoliria a frase que explica por
+                que a régua não se aplica. A procedência vem do servidor.
+              */}
               <TResult
-                label="Classificação — OPAS 2002 (idoso)"
-                valor={formatarNumero(antro?.imc)}
+                label="Classificação do idoso"
+                valor={antro?.classificacaoImcIdoso ? formatarNumero(antro?.imc) : undefined}
                 unidade="kg/m²"
-                classificacao={antro?.classificacaoImcOpas}
-                referencia="quatro faixas, estudo SABE"
+                classificacao={antro?.classificacaoImcIdoso}
+                referencia={antro?.reguaImcIdosoUsada}
+                motivoAusencia={antro?.motivoClassificacaoImcIdoso}
                 recalculando={recalculando}
               />
             </TResultGroup>
@@ -547,6 +571,26 @@ export function CalculoUti({
                 label="Peso ideal — IMC 25"
                 valor={formatarNumero(antro?.pesoIdealImc25Kg)}
                 unidade="kg"
+                recalculando={recalculando}
+              />
+              {/*
+                Os dois limites são UMA faixa, e por isso uma célula só: dois
+                TResult dividiriam o mesmo motivo e o repetiriam. O piso pode
+                coincidir com o "Peso ideal" do homem, que também é IMC 22 — são
+                coisas diferentes, e é a referência ao lado que as separa.
+              */}
+              <TResult
+                label="Faixa de peso do idoso"
+                valor={
+                  antro?.pesoIdealIdosoMinKg != null && antro?.pesoIdealIdosoMaxKg != null
+                    ? `${formatarNumero(antro.pesoIdealIdosoMinKg)} a ${formatarNumero(antro.pesoIdealIdosoMaxKg)}`
+                    : undefined
+                }
+                unidade="kg"
+                referencia={
+                  antro?.reguaImcIdosoUsada && `eutrofia por ${antro.reguaImcIdosoUsada}`
+                }
+                motivoAusencia={antro?.motivoPesoIdealIdoso}
                 recalculando={recalculando}
               />
               <TResult

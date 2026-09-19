@@ -233,6 +233,8 @@ export type SegmentoAmputado =
 export type OrigemPeso =
   | 'INFORMADO' | 'ESTIMADO_CHUMLEA' | 'ESTIMADO_JUNG' | 'ESTIMADO_RABITO'
 
+export type ReguaImcIdoso = 'LIPSCHITZ_1994' | 'OPAS_2002'
+
 export const OPCOES_SEXO: { valor: Sexo; rotulo: string }[] = [
   { valor: 'MASCULINO', rotulo: 'Masculino' },
   { valor: 'FEMININO', rotulo: 'Feminino' },
@@ -273,6 +275,20 @@ export const OPCOES_JANELA_PERDA: { valor: JanelaPerdaPeso; rotulo: string }[] =
 export const OPCOES_POPULACAO: { valor: PopulacaoReferencia; rotulo: string }[] = [
   { valor: 'POPULACAO_CLINICA', rotulo: 'População clínica' },
   { valor: 'ADULTO_SAUDAVEL', rotulo: 'Adulto saudável' },
+]
+
+/**
+ * As duas réguas de IMC do idoso, que valem a partir de 60 anos — ver
+ * `docs/10` §2.6. **Elas discordam em toda a faixa central**: IMC 22,5 é
+ * eutrofia por Lipschitz e baixo peso pela OPAS. Por isso é uma linha só na
+ * tela, com a régua ao lado do rótulo, e não duas.
+ *
+ * O padrão é Lipschitz, e quem o declara é o servidor: aqui ele só aparece
+ * como valor inicial do seletor.
+ */
+export const OPCOES_REGUA_IDOSO: { valor: ReguaImcIdoso; rotulo: string }[] = [
+  { valor: 'LIPSCHITZ_1994', rotulo: 'Lipschitz 1994' },
+  { valor: 'OPAS_2002', rotulo: 'OPAS 2002' },
 ]
 
 /**
@@ -327,6 +343,7 @@ export interface CalculoUtiRequest {
   janelaPerda?: JanelaPerdaPeso | null
   segmentosAmputados?: SegmentoAmputado[] | null
   populacaoReferencia?: PopulacaoReferencia | null
+  reguaImcIdoso?: ReguaImcIdoso | null
   origemPesoPreferida?: OrigemPeso | null
   fase?: FaseTerapia | null
   terapiaRenal?: TerapiaRenal | null
@@ -374,11 +391,21 @@ export interface ResultadoAntropometria {
 
   imc?: number
   classificacaoImcOms?: ClassificacaoUti
-  classificacaoImcOpas?: ClassificacaoUti
+  /** A classificação do idoso, pela régua que valeu. Só a partir de 60 anos. */
+  classificacaoImcIdoso?: ClassificacaoUti
+  /** "Lipschitz 1994" ou "OPAS 2002". Vai ao lado do rótulo, sempre. */
+  reguaImcIdosoUsada?: string
+  motivoClassificacaoImcIdoso?: string
+  /** Verdadeiro a partir de 60 anos — é o gate do seletor da régua. */
+  reguaIdosoRelevante: boolean
   motivoImc?: string
 
   pesoIdealKg?: number
   pesoIdealImc25Kg?: number
+  /** A faixa que põe o idoso na eutrofia da régua escolhida. */
+  pesoIdealIdosoMinKg?: number
+  pesoIdealIdosoMaxKg?: number
+  motivoPesoIdealIdoso?: string
   pesoAjustadoKg?: number
   pesoCorrigidoAmputacaoKg?: number
 
@@ -686,6 +713,10 @@ export interface AvaliacaoUtiLista {
   imc?: number
   classificacaoImc?: string
   tomClassificacao?: TomResultado
+  /** O rótulo do idoso, quando houve — e a régua que o produziu, sempre junto. */
+  classificacaoImcIdoso?: string
+  tomClassificacaoIdoso?: TomResultado
+  reguaImcIdoso?: string
   metaEnergetica?: number
   formulaNome?: string
 }

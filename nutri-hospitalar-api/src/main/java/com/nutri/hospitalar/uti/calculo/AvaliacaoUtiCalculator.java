@@ -10,6 +10,7 @@ import com.nutri.hospitalar.uti.enums.ModoInfusao;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
 import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
+import com.nutri.hospitalar.uti.enums.ReguaImcIdoso;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 import com.nutri.hospitalar.uti.enums.TomResultado;
 
@@ -48,6 +49,17 @@ public final class AvaliacaoUtiCalculator {
 
     private static final String ESCOLHA_MANUAL =
             "Coluna escolhida no formulário";
+
+    /**
+     * A régua do idoso precisa da idade, e a idade é opcional de propósito —
+     * quem preenche aos poucos chega aqui com o campo em branco. Sem esta frase
+     * a linha ficaria muda, que é o defeito que o sistema inteiro existe para
+     * não repetir.
+     */
+    private static final String SEM_IDADE_PARA_IDOSO =
+            "Informe a idade: a régua do idoso vale a partir de 60 anos";
+    private static final String NAO_E_IDOSO =
+            "A régua do idoso aplica-se a partir de 60 anos";
 
     // Motivos de ausência — o texto que a tela mostra no lugar do traço.
     private static final String SEM_PESO =
@@ -246,12 +258,39 @@ public final class AvaliacaoUtiCalculator {
         String motivoImc = imc != null ? null
                 : (peso == null ? motivoDoPesoAusente(e) : SEM_ALTURA);
 
+        // A régua do idoso, e por que ela não classificou quando não classificou
+        // (docs/10 §2.6). O corte de 60 anos vive dentro de classificarImcIdoso;
+        // aqui só se escreve a frase.
+        ReguaImcIdoso regua = e.reguaIdosoOuPadrao();
+        boolean idoso = AntropometriaCalculator.eIdoso(e.idadeAnos());
+        Classificacao classifIdoso =
+                AntropometriaCalculator.classificarImcIdoso(imc, e.idadeAnos(), regua);
+        String motivoIdoso;
+        if (classifIdoso != null)       motivoIdoso = null;
+        else if (e.idadeAnos() == null) motivoIdoso = SEM_IDADE_PARA_IDOSO;
+        else if (!idoso)                motivoIdoso = NAO_E_IDOSO;
+        // O `else` final é o que cobre "70 anos, sem peso": idade em ordem, IMC
+        // ausente. Sem ele a linha ficaria muda justamente para o idoso.
+        else                            motivoIdoso = motivoImc;
+
         // Metas de peso
         BigDecimal imcAlvo = e.sexo() == Sexo.FEMININO ? IMC_ALVO_MULHER : IMC_ALVO_HOMEM;
         BigDecimal pesoIdeal = altura == null || e.sexo() == null
                 ? null : AntropometriaCalculator.pesoIdealPorImc(imcAlvo, altura);
         BigDecimal pesoIdeal25 = altura == null
                 ? null : AntropometriaCalculator.pesoIdealPorImc(IMC_ALVO_SUPERIOR, altura);
+
+        // A faixa de peso que põe o idoso dentro da eutrofia DA MESMA régua que
+        // o classifica — os limites saem do enum, não daqui.
+        BigDecimal pesoIdosoMin = altura == null || !idoso ? null
+                : AntropometriaCalculator.pesoIdealPorImc(regua.getImcEutrofiaMin(), altura);
+        BigDecimal pesoIdosoMax = altura == null || !idoso ? null
+                : AntropometriaCalculator.pesoIdealPorImc(regua.getImcEutrofiaMax(), altura);
+        String motivoPesoIdoso;
+        if (pesoIdosoMin != null)       motivoPesoIdoso = null;
+        else if (e.idadeAnos() == null) motivoPesoIdoso = SEM_IDADE_PARA_IDOSO;
+        else if (!idoso)                motivoPesoIdoso = NAO_E_IDOSO;
+        else                            motivoPesoIdoso = SEM_ALTURA;
         BigDecimal pesoAjustado = peso == null || pesoIdeal == null
                 ? null : AntropometriaCalculator.pesoAjustado(peso.valorKg(), pesoIdeal);
         BigDecimal pesoAmputacao = peso == null || e.segmentosOuVazio().isEmpty()
@@ -320,10 +359,14 @@ public final class AvaliacaoUtiCalculator {
 
                 arredondar(imc),
                 AntropometriaCalculator.classificarImcOms(imc),
-                AntropometriaCalculator.classificarImcOpas(imc),
+                // A régua só é publicada quando classificou: nomeá-la ao lado
+                // de "não se aplica" afirmaria que ela valeu. A escolha em si
+                // continua no formulário e na coluna — isto aqui é o resultado.
+                classifIdoso, idoso ? regua.getDescricao() : null, motivoIdoso, idoso,
                 motivoImc,
 
                 arredondar(pesoIdeal), arredondar(pesoIdeal25),
+                arredondar(pesoIdosoMin), arredondar(pesoIdosoMax), motivoPesoIdoso,
                 arredondar(pesoAjustado), arredondar(pesoAmputacao),
 
                 arredondarPercentual(perda), classifPerda, motivoPerda,

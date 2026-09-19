@@ -7,6 +7,7 @@ import com.nutri.hospitalar.exceptions.ConflictException;
 import com.nutri.hospitalar.exceptions.NotFoundException;
 import com.nutri.hospitalar.pessoa.entity.Pessoa;
 import com.nutri.hospitalar.pessoa.repository.PessoaRepository;
+import com.nutri.hospitalar.uti.calculo.AntropometriaCalculator;
 import com.nutri.hospitalar.uti.calculo.Classificacao;
 import com.nutri.hospitalar.uti.calculo.FormulaEnteralResolvida;
 import com.nutri.hospitalar.uti.calculo.ModuloProteicoResolvido;
@@ -23,6 +24,7 @@ import com.nutri.hospitalar.uti.entity.FormulaEnteral;
 import com.nutri.hospitalar.uti.entity.ProdutoNutricional;
 import com.nutri.hospitalar.uti.calculo.NecessidadeCalculator;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
+import com.nutri.hospitalar.uti.enums.ReguaImcIdoso;
 import com.nutri.hospitalar.uti.mapper.AvaliacaoUtiMapper;
 import com.nutri.hospitalar.uti.repository.AvaliacaoUtiRepository;
 import com.nutri.hospitalar.uti.repository.RegistroDiarioUtiRepository;
@@ -297,6 +299,18 @@ public class AvaliacaoUtiService {
         a.setPopulacaoReferencia(c.populacaoReferencia() == null
                 ? PopulacaoReferencia.POPULACAO_CLINICA : c.populacaoReferencia());
 
+        /*
+         * A régua do idoso, pela mesma razão: o cliente omite o campo sempre que
+         * o paciente tem menos de 60 anos (a tela nem mostra o seletor), e sem a
+         * régua gravada o rótulo "Eutrofia" não é interpretável — ela vale
+         * [22;27) por Lipschitz e [23;28) pela OPAS.
+         *
+         * O padrão sai de ReguaImcIdoso.padrao(), o mesmo ponto que o calculador
+         * lê: aqui não há literal a divergir.
+         */
+        a.setReguaImcIdoso(c.reguaImcIdoso() == null
+                ? ReguaImcIdoso.padrao() : c.reguaImcIdoso());
+
         a.setOrigemPesoPreferida(c.origemPesoPreferida());
 
         // Mesma razão da população acima: o padrão é gravado explicitamente. A
@@ -397,10 +411,12 @@ public class AvaliacaoUtiService {
         a.setImc(antro.imc());
         a.setClassifImcOms(rotulo(antro.classificacaoImcOms()));
         a.setClassifImcOmsTom(tom(antro.classificacaoImcOms()));
-        a.setClassifImcOpas(rotulo(antro.classificacaoImcOpas()));
-        a.setClassifImcOpasTom(tom(antro.classificacaoImcOpas()));
+        a.setClassifImcIdoso(rotulo(antro.classificacaoImcIdoso()));
+        a.setClassifImcIdosoTom(tom(antro.classificacaoImcIdoso()));
         a.setPesoIdealKg(antro.pesoIdealKg());
         a.setPesoIdealImc25Kg(antro.pesoIdealImc25Kg());
+        a.setPesoIdealIdosoMinKg(antro.pesoIdealIdosoMinKg());
+        a.setPesoIdealIdosoMaxKg(antro.pesoIdealIdosoMaxKg());
         a.setPesoAjustadoKg(antro.pesoAjustadoKg());
         a.setPesoAmputacaoKg(antro.pesoCorrigidoAmputacaoKg());
         a.setPercPerdaPeso(antro.percentualPerdaPeso());
@@ -460,6 +476,11 @@ public class AvaliacaoUtiService {
     }
 
     private static AvaliacaoUtiListaDto toLista(AvaliacaoUti a) {
+        // A mesma guarda do mapper, pela mesma razão — e CHAMANDO a regra dos 60
+        // anos, não reescrevendo-a: a coluna pode ter rótulo de OPAS gravado
+        // antes da migration 032, quando a classificação do idoso era feita para
+        // qualquer idade. O dado fica no banco; a lista e o CSV não o afirmam.
+        boolean idoso = AntropometriaCalculator.eIdoso(a.getIdadeAnos());
         return new AvaliacaoUtiListaDto(
                 a.getId(),
                 a.getPaciente().getNome(),
@@ -470,6 +491,9 @@ public class AvaliacaoUtiService {
                 a.getImc(),
                 a.getClassifImcOms(),
                 a.getClassifImcOmsTom(),
+                idoso ? a.getClassifImcIdoso() : null,
+                idoso ? a.getClassifImcIdosoTom() : null,
+                idoso && a.getReguaImcIdoso() != null ? a.getReguaImcIdoso().getDescricao() : null,
                 a.getMetaEnergetica(),
                 a.getFormulaNome());
     }

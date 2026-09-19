@@ -30,6 +30,7 @@ export interface EntradasUti {
   janelaPerda: string
   segmentosAmputados: string[]
   populacaoReferencia: string
+  reguaImcIdoso: string
   origemPesoPreferida: string
 
   // ─── Aba 2 · Necessidades ─────────────────────────────────────────
@@ -65,6 +66,7 @@ export const ENTRADAS_UTI_VAZIAS: EntradasUti = {
   janelaPerda: '',
   segmentosAmputados: [],
   populacaoReferencia: '',
+  reguaImcIdoso: '',
   origemPesoPreferida: '',
   fase: '',
   terapiaRenal: '',
@@ -113,6 +115,7 @@ export function paraEntradas(c: CalculoUtiRequest): EntradasUti {
     janelaPerda: c.janelaPerda ?? '',
     segmentosAmputados: c.segmentosAmputados ?? [],
     populacaoReferencia: c.populacaoReferencia ?? '',
+    reguaImcIdoso: c.reguaImcIdoso ?? '',
     origemPesoPreferida: c.origemPesoPreferida ?? '',
     fase: c.fase ?? '',
     terapiaRenal: c.terapiaRenal ?? '',
@@ -145,6 +148,7 @@ export function paraRequisicao(e: EntradasUti): CalculoUtiRequest {
     segmentosAmputados: e.segmentosAmputados as CalculoUtiRequest['segmentosAmputados'],
     populacaoReferencia:
       (e.populacaoReferencia as CalculoUtiRequest['populacaoReferencia']) || null,
+    reguaImcIdoso: (e.reguaImcIdoso as CalculoUtiRequest['reguaImcIdoso']) || null,
     origemPesoPreferida:
       (e.origemPesoPreferida as CalculoUtiRequest['origemPesoPreferida']) || null,
     fase: (e.fase as CalculoUtiRequest['fase']) || null,

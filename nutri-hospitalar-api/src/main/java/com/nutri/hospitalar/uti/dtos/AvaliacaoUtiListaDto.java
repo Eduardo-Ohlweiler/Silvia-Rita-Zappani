@@ -14,6 +14,11 @@ import java.util.UUID;
  * @param classificacaoImc o rótulo gravado, não recalculado
  * @param tomClassificacao a cor que a linha usa — atribuída pelo servidor no dia
  *                         da avaliação, como todo o resto do registro
+ * @param classificacaoImcIdoso o rótulo do idoso, quando houve — nulo abaixo de
+ *                         60 anos nas avaliações a partir da fatia 14
+ * @param reguaImcIdoso    qual régua o produziu. <b>Vai junto, sempre</b>:
+ *                         "Eutrofia" é {@code [22;27)} por Lipschitz e
+ *                         {@code [23;28)} pela OPAS
  */
 public record AvaliacaoUtiListaDto(
         UUID id,
@@ -25,6 +30,9 @@ public record AvaliacaoUtiListaDto(
         BigDecimal imc,
         String classificacaoImc,
         String tomClassificacao,
+        String classificacaoImcIdoso,
+        String tomClassificacaoIdoso,
+        String reguaImcIdoso,
         BigDecimal metaEnergetica,
         String formulaNome
 ) {}

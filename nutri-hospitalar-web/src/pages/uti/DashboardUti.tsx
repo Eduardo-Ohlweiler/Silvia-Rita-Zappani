@@ -139,7 +139,7 @@ export function DashboardUti() {
               <Kpi
                 rotulo="Em eutrofia"
                 valor={num(dados.percEutrofia, '%', 1)}
-                nota="das avaliações classificadas"
+                nota="pela OMS 1997"
               />
               <Kpi
                 rotulo="Meta energética"
@@ -210,7 +210,7 @@ export function DashboardUti() {
               </TPanel>
 
               <TPanel>
-                <TituloGrafico referencia="A partir de 60 anos vale a classificação de IMC da OPAS 2002, com outros cortes que a da OMS.">
+                <TituloGrafico referencia="A partir de 60 anos vale a régua de IMC do idoso escolhida na avaliação — Lipschitz 1994, o padrão, ou OPAS 2002 —, com outros cortes que a da OMS.">
                   Faixa etária
                 </TituloGrafico>
                 <ColunasFaixaEtaria dados={dados.porFaixaEtaria} />

@@ -12,6 +12,7 @@ import com.nutri.hospitalar.uti.enums.MotivoEncerramento;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
 import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
+import com.nutri.hospitalar.uti.enums.ReguaImcIdoso;
 import com.nutri.hospitalar.uti.enums.SegmentoAmputado;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 import jakarta.persistence.CollectionTable;
@@ -95,6 +96,14 @@ public class AvaliacaoUti extends TenantEntity {
 
     @Enumerated(EnumType.STRING) @Column(name = "populacao_referencia", length = 30)
     private PopulacaoReferencia populacaoReferencia;
+
+    /**
+     * Qual régua classificou o IMC do idoso. Entrada gravada, e não nota de
+     * rodapé: "Eutrofia" quer dizer {@code [22;27)} por Lipschitz e
+     * {@code [23;28)} pela OPAS, então o rótulo sozinho não é interpretável.
+     */
+    @Enumerated(EnumType.STRING) @Column(name = "regua_imc_idoso", length = 20)
+    private ReguaImcIdoso reguaImcIdoso;
 
     @Enumerated(EnumType.STRING) @Column(name = "origem_peso_preferida", length = 30)
     private OrigemValor origemPesoPreferida;
@@ -209,11 +218,13 @@ public class AvaliacaoUti extends TenantEntity {
     @Column(name = "imc")                        private BigDecimal imc;
     @Column(name = "classif_imc_oms", length = 60)      private String classifImcOms;
     @Column(name = "classif_imc_oms_tom", length = 20)  private String classifImcOmsTom;
-    @Column(name = "classif_imc_opas", length = 60)     private String classifImcOpas;
-    @Column(name = "classif_imc_opas_tom", length = 20) private String classifImcOpasTom;
+    @Column(name = "classif_imc_idoso", length = 60)     private String classifImcIdoso;
+    @Column(name = "classif_imc_idoso_tom", length = 20) private String classifImcIdosoTom;
 
     @Column(name = "peso_ideal_kg")         private BigDecimal pesoIdealKg;
     @Column(name = "peso_ideal_imc25_kg")   private BigDecimal pesoIdealImc25Kg;
+    @Column(name = "peso_ideal_idoso_min_kg") private BigDecimal pesoIdealIdosoMinKg;
+    @Column(name = "peso_ideal_idoso_max_kg") private BigDecimal pesoIdealIdosoMaxKg;
     @Column(name = "peso_ajustado_kg")      private BigDecimal pesoAjustadoKg;
     @Column(name = "peso_amputacao_kg")     private BigDecimal pesoAmputacaoKg;
 

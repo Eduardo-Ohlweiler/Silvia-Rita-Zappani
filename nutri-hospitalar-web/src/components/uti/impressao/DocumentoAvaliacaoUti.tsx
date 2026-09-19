@@ -183,6 +183,17 @@ export function DocumentoAvaliacaoUti({
       valor: rotuloDe(OPCOES_POPULACAO, entradas.populacaoReferencia) ?? '—',
       detalhe: 'Só muda o ajuste de CB e CP com IMC abaixo de 18,5',
     },
+    {
+      // Só imprime a régua quando ela CLASSIFICOU alguém: abaixo de 60 anos a
+      // escolha não produz número, e declará-la aqui — numa seção cujo
+      // subtítulo é "o que muda o número" — faria o prontuário sugerir que a
+      // régua do idoso foi aplicada. A mesma condição da linha da cascata, para
+      // as duas não poderem divergir; e ela vale igual na avaliação salva, onde
+      // o rótulo é retrato.
+      rotulo: 'Régua do idoso',
+      valor: antro?.classificacaoImcIdoso ? (antro?.reguaImcIdosoUsada ?? '—') : '—',
+      detalhe: 'Classifica o IMC a partir de 60 anos',
+    },
   ]
 
   const cascata: LinhaValor[] = [
@@ -202,12 +213,26 @@ export function DocumentoAvaliacaoUti({
       detalhe: antro?.classificacaoImcOms?.rotulo ?? antro?.motivoImc ?? '',
     },
     {
-      rotulo: 'IMC — referência do idoso (OPAS)',
-      valor: antro?.classificacaoImcOpas?.rotulo ?? '—',
-      detalhe: 'Aplica-se a partir de 60 anos',
+      // A régua no detalhe vem do servidor. Cravá-la no literal foi o defeito da
+      // panturrilha: no dia em que a fonte passa a variar, a legenda mente.
+      rotulo: 'IMC — classificação do idoso',
+      valor: antro?.classificacaoImcIdoso?.rotulo ?? '—',
+      detalhe: antro?.classificacaoImcIdoso
+        ? (antro?.reguaImcIdosoUsada ?? '')
+        : (antro?.motivoClassificacaoImcIdoso ?? ''),
     },
     { rotulo: 'Peso ideal', valor: n(antro?.pesoIdealKg, 2, 'kg') },
     { rotulo: 'Peso ideal para IMC 25', valor: n(antro?.pesoIdealImc25Kg, 2, 'kg') },
+    {
+      rotulo: 'Faixa de peso do idoso',
+      valor:
+        antro?.pesoIdealIdosoMinKg != null && antro?.pesoIdealIdosoMaxKg != null
+          ? `${n(antro.pesoIdealIdosoMinKg, 2)} a ${n(antro.pesoIdealIdosoMaxKg, 2, 'kg')}`
+          : '—',
+      detalhe: antro?.pesoIdealIdosoMinKg != null
+        ? (antro?.reguaImcIdosoUsada ? `eutrofia por ${antro.reguaImcIdosoUsada}` : '')
+        : (antro?.motivoPesoIdealIdoso ?? ''),
+    },
     { rotulo: 'Peso ajustado', valor: n(antro?.pesoAjustadoKg, 2, 'kg') },
     { rotulo: 'Peso corrigido por amputação', valor: n(antro?.pesoCorrigidoAmputacaoKg, 2, 'kg') },
   ]

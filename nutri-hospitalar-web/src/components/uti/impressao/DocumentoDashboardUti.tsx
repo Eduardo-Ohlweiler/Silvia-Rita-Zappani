@@ -125,7 +125,7 @@ export function DocumentoDashboardUti({
 
       <Secao
         titulo="Faixa etária"
-        nota="A partir de 60 anos vale a classificação de IMC da OPAS 2002, com outros cortes que a da OMS."
+        nota="A partir de 60 anos vale a régua de IMC do idoso escolhida na avaliação — Lipschitz 1994, o padrão, ou OPAS 2002 —, com outros cortes que a da OMS."
       >
         <Distribuicao linhas={dados.porFaixaEtaria} />
       </Secao>

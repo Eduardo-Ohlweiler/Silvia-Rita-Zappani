@@ -237,14 +237,27 @@ export function PainelPacienteUti() {
 
                       <div className="mb-5 flex flex-wrap gap-x-5 gap-y-2">
                         <Classificacao rotulo="IMC (OMS)" c={antropometria?.classificacaoImcOms} />
+                        {/* A régua só entra no rótulo quando ela classificou:
+                            nomeá-la ao lado de "não se aplica" sugeriria que a
+                            régua do idoso valeu para um paciente de 45 anos. */}
                         <Classificacao
-                          rotulo="IMC (OPAS, idoso)"
-                          c={antropometria?.classificacaoImcOpas}
+                          rotulo={`IMC do idoso${
+                            antropometria?.classificacaoImcIdoso && antropometria?.reguaImcIdosoUsada
+                              ? ` (${antropometria.reguaImcIdosoUsada})`
+                              : ''
+                          }`}
+                          c={antropometria?.classificacaoImcIdoso}
+                          motivo={antropometria?.motivoClassificacaoImcIdoso}
                         />
-                        <Classificacao rotulo="Perda de peso" c={antropometria?.classificacaoPerdaPeso} />
+                        <Classificacao
+                          rotulo="Perda de peso"
+                          c={antropometria?.classificacaoPerdaPeso}
+                          motivo={antropometria?.motivoPerdaPeso}
+                        />
                         <Classificacao
                           rotulo="Circ. do braço"
                           c={antropometria?.classificacaoAdequacaoCircBraco}
+                          motivo={antropometria?.motivoAdequacaoCircBraco}
                         />
                       </div>
 
@@ -467,14 +480,26 @@ function Kpi({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: st
   )
 }
 
-function Classificacao({ rotulo, c }: { rotulo: string; c?: ClassificacaoUti | null }) {
+/**
+ * O traço sozinho é mudo. Quando o servidor manda o motivo — e a régua do idoso
+ * manda, em todo paciente abaixo de 60 anos — é ele que aparece no lugar.
+ */
+function Classificacao({
+  rotulo,
+  c,
+  motivo,
+}: {
+  rotulo: string
+  c?: ClassificacaoUti | null
+  motivo?: string | null
+}) {
   return (
     <span className="flex items-center gap-2">
       <span className="text-caption text-txt-secondary">{rotulo}:</span>
       {c ? (
         <TBadge tom={TOM_BADGE[c.tom]}>{c.rotulo}</TBadge>
       ) : (
-        <span className="text-caption text-txt-muted">—</span>
+        <span className="text-caption text-txt-muted">{motivo ?? '—'}</span>
       )}
     </span>
   )

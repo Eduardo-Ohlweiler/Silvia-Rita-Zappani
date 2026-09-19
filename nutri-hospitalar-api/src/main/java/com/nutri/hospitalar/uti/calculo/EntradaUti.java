@@ -8,6 +8,7 @@ import com.nutri.hospitalar.uti.enums.ModoInfusao;
 import com.nutri.hospitalar.uti.enums.OrigemValor;
 import com.nutri.hospitalar.uti.enums.PopulacaoReferencia;
 import com.nutri.hospitalar.uti.enums.PosicaoNaFaixa;
+import com.nutri.hospitalar.uti.enums.ReguaImcIdoso;
 import com.nutri.hospitalar.uti.enums.SegmentoAmputado;
 import com.nutri.hospitalar.uti.enums.TerapiaRenal;
 
@@ -28,6 +29,9 @@ import java.util.Set;
  *
  * @param populacaoReferencia qual coluna de ajuste de CB e CP usar. Só tem
  *                            efeito em IMC &lt; 18,5 — ver {@code docs/10} §2.9.
+ * @param reguaImcIdoso       qual régua classifica o IMC a partir dos 60 anos.
+ *                            Nulo assume {@link ReguaImcIdoso#padrao()} — ver
+ *                            {@code docs/10} §2.6.
  * @param origemPesoPreferida força uma fonte de peso específica. Nulo deixa a
  *                            escolha para {@link AvaliacaoUtiCalculator}, que
  *                            declara a ordem que usa.
@@ -53,6 +57,7 @@ public record EntradaUti(
         JanelaPerdaPeso janelaPerda,
         Set<SegmentoAmputado> segmentosAmputados,
         PopulacaoReferencia populacaoReferencia,
+        ReguaImcIdoso reguaImcIdoso,
         OrigemValor origemPesoPreferida,
 
         // ─── Necessidades ───────────────────────────────────────────────
@@ -74,6 +79,11 @@ public record EntradaUti(
     /** A população clínica é o padrão: o módulo é de UTI. */
     public PopulacaoReferencia populacaoOuPadrao() {
         return populacaoReferencia == null ? PopulacaoReferencia.POPULACAO_CLINICA : populacaoReferencia;
+    }
+
+    /** O padrão é um só, e mora no enum — aqui só se lê dele. */
+    public ReguaImcIdoso reguaIdosoOuPadrao() {
+        return reguaImcIdoso == null ? ReguaImcIdoso.padrao() : reguaImcIdoso;
     }
 
     /** O topo da faixa é o padrão: é o que o exemplo da planilha mostra. */
