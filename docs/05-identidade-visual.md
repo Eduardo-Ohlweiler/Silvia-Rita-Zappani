@@ -413,10 +413,12 @@ escreve a classe, `bg-surface`.
 Distinção que já causou um bug: o hover do alternador de tema usava
 `bg-brand-50` e, no tema escuro, ficava **branco**.
 
-| Grupo | Muda com o tema? | Quando usar |
-|---|---|---|
-| `brand-*`, `navy`, `blue`, `offwhite`, `silver-*`, `sage`, `peach` | **não** — são a paleta da marca, valores fixos | ilustração, badge de contexto, detalhe de marca — onde a cor é a mesma nos dois temas |
-| `bg`, `surface`, `surface-alt`, `txt*`, `line*`, `primary*`, `sidebar*` | **sim** | tudo que é superfície, texto, borda, estado e ação |
+| Grupo | Muda com claro/escuro? | Muda com a paleta (§11)? | Quando usar |
+|---|---|---|---|
+| `navy`, `blue`, `offwhite`, `silver-*`, `sage`, `peach` | **não** | **não** | ilustração, badge de contexto, detalhe de marca |
+| `brand-*` | **não** | **sim** | detalhe de marca e a folha impressa (`brand-100`, `brand-200`) |
+| `bg`, `surface`, `surface-alt`, `txt*`, `line*`, `primary*`, `sidebar*` | **sim** | **sim** | tudo que é superfície, texto, borda, estado e ação |
+| `success`, `warning`, `danger`, `info` | **sim** | **não** | estado — o significado clínico não troca de cor |
 
 Regra prática: **se o elemento faz parte da interface, use token de tema.**
 `hover:bg-surface-alt`, nunca `hover:bg-brand-50`. `text-txt-inverse` em botão
@@ -735,3 +737,153 @@ no escuro.
 - Ao recalcular, o desenho anterior fica esmaecido; não pisca nem some.
 - Filtros numa linha só, **acima** de tudo o que eles filtram — nunca dentro do card.
 - Altura do container inclui a faixa do eixo X, senão o card ganha rolagem interna.
+
+---
+
+## 11. Paletas do sistema
+
+O superadmin escolhe, em **Configurações gerais**, a paleta de cores do sistema
+inteiro — todos os usuários, de todos os clientes. O **claro/escuro continua
+sendo de cada usuário**, e cada paleta tem as duas versões.
+
+A paleta **Padrão** é a das seções acima, e **nada nela foi alterado**: ela é a
+ausência do atributo `data-paleta` no `<html>`. As outras nove são blocos
+`[data-paleta="…"]` no `theme.css`, depois dos blocos originais.
+
+### 11.1 Método — a régua de claridade da Padrão
+
+Nenhuma paleta foi escolhida a olho. O método é o das paletas tonais (Material 3),
+dos degraus com papel fixo (Radix Colors) e das rampas em OKLCH (Tailwind v4):
+cada token de cada paleta tem **a mesma claridade (L do OKLCH) do token
+correspondente da Padrão**, degrau a degrau — muda o matiz e o croma. É por isso
+que todas têm a mesma respiração: o canvas é tão claro quanto o off-white da
+marca, a primária tão escura quanto o `#1E4686`, o texto secundário tão legível
+quanto o `#3F639C`. As tendências de 2026 (jade e teal calmos, terrosos, índigo
+sobre neutro quente, brancos suaves) guiaram os matizes.
+
+| Paleta | Matiz | Primária clara | Canvas | Primária escura | Superfície escura |
+|---|---|---|---|---|---|
+| **Padrão** — azul marinho | 259° | `#1E4686` | `#FAF6FE` | `#5F8FD8` | `#0B2145` |
+| **Menta** — verde claro | 168° | `#025F47` | `#F2FAF7` | `#50AF8E` | `#012A1E` |
+| **Floresta** — verde profundo | 150° | `#015222` | `#F7F9F2` | `#69AD78` | `#00290E` |
+| **Jade** — verde-azulado | 192° | `#055A58` | `#F2FAF9` | `#29B0AC` | `#012928` |
+| **Oceano** — azul petróleo | 228° | `#005C79` | `#F2F9FC` | `#39A8D3` | `#002735` |
+| **Índigo** — sobre creme | 280° | `#424191` | `#FDF7F1` | `#8C91E4` | `#1C1B48` |
+| **Lavanda** — roxo suave | 295° | `#5D4297` | `#FAF6FF` | `#A38EE1` | `#261746` |
+| **Ameixa** — roxo intenso | 318° | `#5E1C71` | `#FBF6FC` | `#BD85CF` | `#340F3E` |
+| **Malva** — rosa antigo | 350° | `#763256` | `#FEF5F9` | `#C9A6CB` | `#391327` |
+| **Café** — marrom | 55° | `#6C3A12` | `#FDF7EF` | `#A29372` | `#361A05` |
+
+### 11.2 O que segue a paleta e o que não segue
+
+**Segue:** `bg`, `surface-alt`, `sidebar*`, `txt*`, `line*`, `primary*`, `brand-*`
+e, no escuro, `surface`, `sidebar`, `txt-inverse` e as faixas de percentil (que já
+eram "os degraus do próprio tema", §10.3). O **logo** segue sozinho: ele é
+`text-txt`, e o `--txt` de cada paleta é um quase-preto do próprio matiz — na
+Padrão continua `#000F27`. A **folha impressa** segue também (logo em `--primary`,
+filete e título de seção em `brand-100`/`brand-200`), sempre na versão clara.
+
+**Não segue:** semânticos (`success`, `warning`, `danger`, `info`) e acentos de
+contexto (`sage`, `peach`) — têm significado clínico; séries categóricas, rampa
+ordinal e faixas de percentil do claro (§10) — validadas contra o branco, que é a
+superfície de todas as paletas; favicon, `og-image` e a landing page, que são
+marca e marketing.
+
+### 11.3 A cascata — o ponto delicado
+
+- `[data-paleta]` tem a mesma especificidade do `[data-theme="dark"]` padrão e vem
+  depois dele: **vence por ordem**. Por isso o bloco escuro de cada paleta,
+  `[data-paleta][data-theme="dark"]`, tem de **redeclarar todo token de tema que
+  o bloco claro declara** — senão o valor claro vaza para o escuro.
+- `brand-*` fica só no bloco claro: muda com a paleta, não com o tema.
+- O escuro de cada paleta está em `@media screen`, como o padrão (§8.1): o papel
+  sai sempre claro.
+- A prévia da tela de Configurações é o **CSS de verdade**: cada miniatura leva
+  `data-theme` e `data-paleta` no próprio elemento. Não há uma segunda cópia das
+  cores em TypeScript para envelhecer. A miniatura da Padrão, que não tem
+  atributo de paleta, é protegida pelo `data-theme` explícito: ele redeclara os
+  tokens do bloco original no elemento, por cima dos herdados do `<html>`.
+
+### 11.4 O validador — `npm run paletas`
+
+`scripts/validar-paletas.mjs` resolve a cascata como o navegador e reprova a
+paleta que:
+
+1. quebra um par de contraste de §3 — texto, secundário sobre `surface`,
+   `surface-alt` e canvas, item ativo da sidebar, texto do botão sobre a primária
+   e os seus estados, título da folha sobre `brand-100`;
+2. tem a escala `brand` fora de ordem;
+3. declara no claro um token que o escuro não redeclara (o vazamento de §11.3);
+4. põe a primária a menos de **ΔE 12** do vermelho de perigo, em qualquer tema;
+5. deixa as séries de gráfico abaixo de **4:1** sobre a superfície escura dela;
+6. existe num lugar e não nos outros — `theme.css`, `styles/paletas.ts` e o enum
+   `PaletaSistema` do backend. O `CHECK` da migration 033 contra o enum é travado
+   em teste.
+
+O validador foi provado ao contrário: com três defeitos plantados — primária
+clara demais, `--txt-muted` fora do bloco escuro, paleta ausente do catálogo —
+ele reprovou os três.
+
+A Padrão é a régua, não o réu: é relatada e nunca reprovada. Ela tem um `4,48:1`
+conhecido no `primary-active` do escuro, e o pedido foi não tocar nela.
+
+**De onde vem o ΔE 12.** É a menor distância entre dois semânticos do **próprio
+sistema** no escuro — `success` × `info`, 12,2. Uma primária mais perto do perigo
+do que os semânticos ficam uns dos outros faz um "Salvar" parecer "Excluir". Três
+consequências:
+
+- **Terracota caiu** na pesquisa: primária a ΔE 10,0 do `#B42318`.
+- **Café e Malva têm primária própria no escuro.** O perigo do escuro é um salmão
+  claro (`#F58279`), e marrom-claro e rosa-claro caem em cima dele (ΔE 7,9 e 8,6,
+  medidos). O Café escuro usa um *café com leite* (`#A29372`), o mais quente que
+  se afasta do salmão **e** do âmbar de alerta; a Malva escura, um malva de
+  verdade (`#C9A6CB`), entre o rosa e o lilás.
+- A **Floresta** escura teve a superfície escurecida em meio degrau (`#002B0F` →
+  `#00290E`): a série laranja dos gráficos dava 3,996:1, em cima do piso.
+
+### 11.5 Como a escolha chega a todos
+
+- `GET /configuracoes/aparencia` é **pública e só de leitura** — devolve só o nome
+  da paleta, e o login já abre no tema. O `PUT` exige `SUPERADMIN`.
+- O front a chama com axios puro, **sem bearer**: o filtro de JWT responde 401 a
+  token vencido mesmo em rota pública.
+- O `index.html` aplica a paleta do `localStorage` antes do React (sem piscar); o
+  `ThemeContext` confere com o servidor ao montar e **de novo ao voltar o foco à
+  aba**, no máximo a cada 5 minutos — a aba fica aberta o plantão inteiro.
+- A barra do navegador no celular (`theme-color`) lê o `--bg` do próprio CSS.
+
+### 11.6 Menu e cabeçalho escuros — as dez variantes `_MENU_ESCURO`
+
+Cada uma das dez paletas (a Padrão inclusive, que continua intocada como opção
+própria) tem uma variante com **as mesmas cores**, em que o menu lateral e o
+cabeçalho usam os tons escuros da paleta e o conteúdo continua claro. Na tela
+de Configurações elas formam o segundo grupo de cartões. O sistema não tem
+rodapé; a decisão foi não criar um.
+
+**Não há CSS novo de cor.** A moldura (`aside`, `header` e a faixa do seletor de
+tenant no celular) recebe `data-theme="dark"`, e por isso usa os tokens do
+**escuro da própria paleta** — já validados por §11.4. Uma terceira paleta por
+cor seria mais trinta tokens para divergir. Duas peças fazem isso funcionar:
+
+1. **Cada bloco escuro tem dois seletores**: o do `<html>`
+   (`[data-paleta="x"][data-theme="dark"]`) e o da moldura
+   (`[data-paleta="x"] [data-theme="dark"]:not([data-paleta])`). O `:not`
+   protege as miniaturas da tela de Configurações, que levam o próprio
+   `data-paleta` (a Padrão leva `"padrao"`, que não casa com nada): seletor de
+   descendente casa com **qualquer** ancestral, não com o mais próximo.
+2. **A ponte do `@theme` é refeita em todo elemento com `data-theme`** (bloco
+   `[data-theme] { --color-bg: var(--bg); … }`). O `@theme` declara
+   `--color-bg: var(--bg)` no `:root`, e variável que aponta para outra é
+   resolvida **onde é declarada**: o que desce para os filhos é a cor pronta do
+   `<html>`. Sem a ponte refeita, redefinir `--bg` na moldura não mudava nada —
+   e a primeira versão da tela pintou as vinte miniaturas, inclusive as
+   "Escuro", com a paleta em uso. Nenhuma checagem pegou: só o screenshot.
+
+Na moldura o cabeçalho usa o tom do **menu** (`bg-sidebar`), não o da superfície
+escura: um degrau mais claro abria uma emenda visível no canto do logo. Por isso
+o validador mede também texto e secundário sobre `--sidebar` no escuro. No tema
+escuro global a variante é igual à base, porque a moldura já é escura.
+
+A chave é a da base com `_MENU_ESCURO` (migration 034, coluna de 40 caracteres:
+`FLORESTA_MENU_ESCURO` tinha exatos 20). O validador exige que toda base tenha a
+sua variante e que nenhuma variante fique sem base.

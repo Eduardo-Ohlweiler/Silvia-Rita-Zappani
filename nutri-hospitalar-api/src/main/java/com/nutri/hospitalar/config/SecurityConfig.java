@@ -43,6 +43,16 @@ public class SecurityConfig {
             "/error"
     };
 
+    /**
+     * Públicas só para leitura. A paleta do sistema precisa estar disponível
+     * antes do login — a tela de entrada já abre no tema — e a rota devolve
+     * apenas o nome da paleta. O {@code PUT} na mesma URL continua exigindo
+     * SUPERADMIN: a liberação é por método, não por caminho.
+     */
+    private static final String[] ROTAS_PUBLICAS_LEITURA = {
+            "/configuracoes/aparencia"
+    };
+
     private static final String[] ROTAS_DOCUMENTACAO = {
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -85,6 +95,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     auth.requestMatchers(ROTAS_PUBLICAS).permitAll();
+                    auth.requestMatchers(HttpMethod.GET, ROTAS_PUBLICAS_LEITURA).permitAll();
                     if (documentacaoHabilitada) {
                         auth.requestMatchers(ROTAS_DOCUMENTACAO).permitAll();
                     }

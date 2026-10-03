@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!--
+        Paletas com menu e cabeçalho escuros (docs/05 §11.6).
+
+        Cada uma das dez paletas ganha uma variante em que o menu lateral e o
+        cabeçalho usam os tons escuros da própria paleta, e o conteúdo continua
+        claro. As cores são as mesmas; o que muda é onde o tom profundo aparece.
+
+        A coluna cresce para 40 porque o nome da variante é o da paleta mais
+        `_MENU_ESCURO` — FLORESTA_MENU_ESCURO tem exatos 20 caracteres, e a
+        próxima paleta de nome maior não caberia. O CHECK é refeito com as
+        vinte chaves.
+    -->
+    <changeSet id="034-configuracao-paleta-menu-escuro" author="eduardo">
+
+        <sql>
+            ALTER TABLE configuracao_sistema DROP CONSTRAINT ck_configuracao_sistema_paleta;
+        </sql>
+
+        <modifyDataType tableName="configuracao_sistema" columnName="paleta" newDataType="VARCHAR(40)"/>
+
+        <sql>
+            ALTER TABLE configuracao_sistema ADD CONSTRAINT ck_configuracao_sistema_paleta
+            CHECK (paleta IN
+                ('PADRAO','MENTA','FLORESTA','LAVANDA','AMEIXA',
+                 'OCEANO','CAFE','INDIGO','MALVA','JADE',
+                 'PADRAO_MENU_ESCURO','MENTA_MENU_ESCURO','FLORESTA_MENU_ESCURO',
+                 'LAVANDA_MENU_ESCURO','AMEIXA_MENU_ESCURO','OCEANO_MENU_ESCURO',
+                 'CAFE_MENU_ESCURO','INDIGO_MENU_ESCURO','MALVA_MENU_ESCURO',
+                 'JADE_MENU_ESCURO'));
+        </sql>
+
+        <rollback>
+            <sql>
+                UPDATE configuracao_sistema SET paleta = replace(paleta, '_MENU_ESCURO', '');
+                ALTER TABLE configuracao_sistema DROP CONSTRAINT ck_configuracao_sistema_paleta;
+                ALTER TABLE configuracao_sistema ALTER COLUMN paleta TYPE VARCHAR(20);
+                ALTER TABLE configuracao_sistema ADD CONSTRAINT ck_configuracao_sistema_paleta
+                CHECK (paleta IN
+                    ('PADRAO','MENTA','FLORESTA','LAVANDA','AMEIXA',
+                     'OCEANO','CAFE','INDIGO','MALVA','JADE'));
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

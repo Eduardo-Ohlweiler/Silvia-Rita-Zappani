@@ -55,4 +55,8 @@
     <!-- Fatia 14 — régua de IMC do idoso: Lipschitz 1994 ou OPAS 2002 (docs/10 §2.6) -->
     <include file="db/changelog/changes/032-avaliacao-uti-regua-imc-idoso.xml"/>
 
+    <!-- Fatia 15 — configurações gerais: paleta de cores do sistema (docs/05 §11) -->
+    <include file="db/changelog/changes/033-create-configuracao-sistema.xml"/>
+    <include file="db/changelog/changes/034-configuracao-paleta-menu-escuro.xml"/>
+
 </databaseChangeLog>

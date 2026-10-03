@@ -232,6 +232,622 @@
 }
 }
 
+/* ══ PALETAS DO SISTEMA ═══════════════════════════════════════════
+ *
+ * A paleta é escolhida pelo superadmin em Configurações gerais e vale para
+ * TODOS os usuários (docs/05 §11). O claro/escuro continua sendo de cada um.
+ * A paleta Padrão é a dos dois blocos acima, e NÃO tem bloco aqui: sem o
+ * atributo data-paleta no <html>, nada abaixo se aplica.
+ *
+ * Cada paleta repete, degrau a degrau, a CLARIDADE (L do OKLCH) da paleta
+ * padrão, com outro matiz — por isso todas têm a mesma respiração. Os pares de
+ * contraste da docs/05 §3 são conferidos por `npm run paletas`.
+ *
+ * O que NÃO muda com a paleta: semânticos (success, warning, danger, info),
+ * acentos de contexto (sage, peach), séries e rampa dos gráficos e as faixas
+ * de percentil no claro. Têm significado clínico ou foram validados contra a
+ * superfície branca, que é a mesma em todas.
+ *
+ * A cascata, que é o ponto delicado:
+ *  - [data-paleta] (0,1,0) vem DEPOIS do escuro padrão e por isso o vence por
+ *    ordem. O bloco escuro da paleta, [data-paleta][data-theme=dark] (0,2,0),
+ *    tem de redeclarar TODO token de tema que o claro declara — senão um valor
+ *    claro vaza para o escuro. O validador confere essa paridade.
+ *  - brand-* fica só no bloco claro: muda com a paleta, não com o tema.
+ *  - O escuro fica em @media screen, como o padrão: o papel sai sempre claro,
+ *    na cor da paleta (a folha usa --primary e brand-100/200).
+ *
+ * Menu e cabeçalho escuros (variantes _MENU_ESCURO, docs/05 §11.6): a moldura
+ * recebe data-theme="dark" e herda os tokens ESCUROS da paleta, já validados —
+ * não há uma terceira paleta a manter. Por isso cada bloco escuro tem dois
+ * seletores: o do <html> e o da moldura, `[data-paleta] [data-theme=dark]`.
+ * O `:not([data-paleta])` existe por causa das miniaturas da tela de
+ * Configurações: elas levam o próprio data-paleta (a Padrão, "padrao") e não
+ * podem herdar a paleta do <html> que as contém — seletor de descendente casa
+ * com QUALQUER ancestral, não com o mais próximo.
+ */
+
+/* ── A ponte, refeita no lugar ──────────────────────────────────────
+ * O @theme declara `--color-bg: var(--bg)` no :root — e uma variável que
+ * aponta para outra é RESOLVIDA onde é declarada. O que desce para os filhos
+ * já é a cor pronta do <html>. Redefinir --bg num elemento interno não muda
+ * nada, porque o utilitário (`bg-bg`) lê --color-bg.
+ *
+ * No <html> isso não aparece: tudo mora no mesmo elemento. Aparece na prévia
+ * da tela de Configurações, que põe data-theme/data-paleta numa miniatura — e
+ * a primeira versão pintou as vinte miniaturas com a paleta EM USO, inclusive
+ * as "Escuro". Refazer a ponte em todo elemento com data-theme faz a cascata
+ * valer onde o atributo está. No <html> os valores são os mesmos de sempre.
+ */
+[data-theme] {
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-active-text: var(--sidebar-active-text);
+  --color-txt: var(--txt);
+  --color-txt-secondary: var(--txt-secondary);
+  --color-txt-muted: var(--txt-muted);
+  --color-txt-inverse: var(--txt-inverse);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+}
+
+/* ── Menta — verde claro, fresco · matiz 168° ── */
+[data-paleta="menta"] {
+  --color-brand-50: #F4F9F7;
+  --color-brand-100: #E4F1EB;
+  --color-brand-200: #B4DACA;
+  --color-brand-300: #83B3A0;
+  --color-brand-400: #59957F;
+  --color-brand-500: #25735A;
+  --color-brand-600: #176950;
+  --color-brand-700: #025F47;
+  --color-brand-800: #023526;
+  --color-brand-900: #012419;
+  --color-brand-950: #00140D;
+
+  --bg: #F2FAF7;
+  --surface-alt: #F4F9F7;
+
+  --sidebar-text: #25735A;
+  --sidebar-active-bg: #E4F1EB;
+  --sidebar-active-text: #025F47;
+
+  --txt: #00140D;
+  --txt-secondary: #25735A;
+  --txt-muted: #59957F;
+
+  --line: #E8F0ED;
+  --line-strong: #D2E1DA;
+
+  --primary: #025F47;
+  --primary-hover: #176950;
+  --primary-active: #023526;
+}
+
+/* ── Floresta — verde profundo · matiz 150° ── */
+[data-paleta="floresta"] {
+  --color-brand-50: #F4F9F5;
+  --color-brand-100: #E6F1E7;
+  --color-brand-200: #B9D9BE;
+  --color-brand-300: #8AB391;
+  --color-brand-400: #54865F;
+  --color-brand-500: #306C40;
+  --color-brand-600: #1D5F31;
+  --color-brand-700: #015222;
+  --color-brand-800: #003614;
+  --color-brand-900: #01250C;
+  --color-brand-950: #001505;
+
+  --bg: #F7F9F2;
+  --surface-alt: #F4F9F5;
+
+  --sidebar-text: #306C40;
+  --sidebar-active-bg: #E6F1E7;
+  --sidebar-active-text: #015222;
+
+  --txt: #001505;
+  --txt-secondary: #306C40;
+  --txt-muted: #54865F;
+
+  --line: #E9F0EA;
+  --line-strong: #D4E1D6;
+
+  --primary: #015222;
+  --primary-hover: #1D5F31;
+  --primary-active: #003614;
+}
+
+/* ── Jade — verde-azulado · matiz 192° ── */
+[data-paleta="jade"] {
+  --color-brand-50: #F3F9F9;
+  --color-brand-100: #E2F1F0;
+  --color-brand-200: #AED9D7;
+  --color-brand-300: #7BB3B0;
+  --color-brand-400: #4A928F;
+  --color-brand-500: #036F6C;
+  --color-brand-600: #046462;
+  --color-brand-700: #055A58;
+  --color-brand-800: #013332;
+  --color-brand-900: #002322;
+  --color-brand-950: #001413;
+
+  --bg: #F2FAF9;
+  --surface-alt: #F3F9F9;
+
+  --sidebar-text: #036F6C;
+  --sidebar-active-bg: #E2F1F0;
+  --sidebar-active-text: #055A58;
+
+  --txt: #001413;
+  --txt-secondary: #036F6C;
+  --txt-muted: #4A928F;
+
+  --line: #E7F0EF;
+  --line-strong: #D0E1DF;
+
+  --primary: #055A58;
+  --primary-hover: #046462;
+  --primary-active: #013332;
+}
+
+/* ── Oceano — azul petróleo · matiz 228° ── */
+[data-paleta="oceano"] {
+  --color-brand-50: #F2F9FC;
+  --color-brand-100: #E1F0F8;
+  --color-brand-200: #AAD7ED;
+  --color-brand-300: #75B0CA;
+  --color-brand-400: #4895B5;
+  --color-brand-500: #006A8B;
+  --color-brand-600: #066381;
+  --color-brand-700: #005C79;
+  --color-brand-800: #003142;
+  --color-brand-900: #01212E;
+  --color-brand-950: #00121B;
+
+  --bg: #F2F9FC;
+  --surface-alt: #F2F9FC;
+
+  --sidebar-text: #006A8B;
+  --sidebar-active-bg: #E1F0F8;
+  --sidebar-active-text: #005C79;
+
+  --txt: #00121B;
+  --txt-secondary: #006A8B;
+  --txt-muted: #4895B5;
+
+  --line: #E6F0F4;
+  --line-strong: #CEE0E8;
+
+  --primary: #005C79;
+  --primary-hover: #066381;
+  --primary-active: #003142;
+}
+
+/* ── Índigo — azul-violeta sobre fundo creme · matiz 280° ── */
+[data-paleta="indigo"] {
+  --color-brand-50: #F6F7FE;
+  --color-brand-100: #EAECFB;
+  --color-brand-200: #C7CCF6;
+  --color-brand-300: #9DA2D6;
+  --color-brand-400: #797DBC;
+  --color-brand-500: #585AA1;
+  --color-brand-600: #4D4E99;
+  --color-brand-700: #424191;
+  --color-brand-800: #242359;
+  --color-brand-900: #181641;
+  --color-brand-950: #0C0A29;
+
+  --bg: #FDF7F1;
+  --surface-alt: #F6F7FE;
+
+  --sidebar-text: #585AA1;
+  --sidebar-active-bg: #EAECFB;
+  --sidebar-active-text: #424191;
+
+  --txt: #0C0A29;
+  --txt-secondary: #585AA1;
+  --txt-muted: #797DBC;
+
+  --line: #ECEDF7;
+  --line-strong: #D9DBEC;
+
+  --primary: #424191;
+  --primary-hover: #4D4E99;
+  --primary-active: #242359;
+}
+
+/* ── Lavanda — roxo suave · matiz 295° ── */
+[data-paleta="lavanda"] {
+  --color-brand-50: #F8F6FD;
+  --color-brand-100: #EEEBFA;
+  --color-brand-200: #D2C8F4;
+  --color-brand-300: #AA9DD3;
+  --color-brand-400: #9181C3;
+  --color-brand-500: #69549D;
+  --color-brand-600: #634B9A;
+  --color-brand-700: #5D4297;
+  --color-brand-800: #311D57;
+  --color-brand-900: #21123F;
+  --color-brand-950: #130728;
+
+  --bg: #FAF6FF;
+  --surface-alt: #F8F6FD;
+
+  --sidebar-text: #69549D;
+  --sidebar-active-bg: #EEEBFA;
+  --sidebar-active-text: #5D4297;
+
+  --txt: #130728;
+  --txt-secondary: #69549D;
+  --txt-muted: #9181C3;
+
+  --line: #EEECF6;
+  --line-strong: #DDDAEB;
+
+  --primary: #5D4297;
+  --primary-hover: #634B9A;
+  --primary-active: #311D57;
+}
+
+/* ── Ameixa — roxo intenso · matiz 318° ── */
+[data-paleta="ameixa"] {
+  --color-brand-50: #FAF6FC;
+  --color-brand-100: #F4E9F8;
+  --color-brand-200: #E2C2EC;
+  --color-brand-300: #BD96CA;
+  --color-brand-400: #8F609E;
+  --color-brand-500: #774088;
+  --color-brand-600: #6B2F7C;
+  --color-brand-700: #5E1C71;
+  --color-brand-800: #41144E;
+  --color-brand-900: #2E0A38;
+  --color-brand-950: #1B0323;
+
+  --bg: #FBF6FC;
+  --surface-alt: #FAF6FC;
+
+  --sidebar-text: #774088;
+  --sidebar-active-bg: #F4E9F8;
+  --sidebar-active-text: #5E1C71;
+
+  --txt: #1B0323;
+  --txt-secondary: #774088;
+  --txt-muted: #8F609E;
+
+  --line: #F2EBF4;
+  --line-strong: #E4D7E8;
+
+  --primary: #5E1C71;
+  --primary-hover: #6B2F7C;
+  --primary-active: #41144E;
+}
+
+/* ── Malva — rosa antigo · matiz 350° ── */
+[data-paleta="malva"] {
+  --color-brand-50: #FCF6F8;
+  --color-brand-100: #F7E9EF;
+  --color-brand-200: #E9C3D4;
+  --color-brand-300: #C597AC;
+  --color-brand-400: #A8718A;
+  --color-brand-500: #894C6A;
+  --color-brand-600: #803F60;
+  --color-brand-700: #763256;
+  --color-brand-800: #471931;
+  --color-brand-900: #320E22;
+  --color-brand-950: #1F0513;
+
+  --bg: #FEF5F9;
+  --surface-alt: #FCF6F8;
+
+  --sidebar-text: #894C6A;
+  --sidebar-active-bg: #F7E9EF;
+  --sidebar-active-text: #763256;
+
+  --txt: #1F0513;
+  --txt-secondary: #894C6A;
+  --txt-muted: #A8718A;
+
+  --line: #F4EBEF;
+  --line-strong: #E7D8DE;
+
+  --primary: #763256;
+  --primary-hover: #803F60;
+  --primary-active: #471931;
+}
+
+/* ── Café — marrom · matiz 55° ── */
+[data-paleta="cafe"] {
+  --color-brand-50: #FBF7F4;
+  --color-brand-100: #F5EBE5;
+  --color-brand-200: #E5C9B7;
+  --color-brand-300: #C19F88;
+  --color-brand-400: #9C7459;
+  --color-brand-500: #845738;
+  --color-brand-600: #784826;
+  --color-brand-700: #6C3A12;
+  --color-brand-800: #442206;
+  --color-brand-900: #301602;
+  --color-brand-950: #1D0A00;
+
+  --bg: #FDF7EF;
+  --surface-alt: #FBF7F4;
+
+  --sidebar-text: #845738;
+  --sidebar-active-bg: #F5EBE5;
+  --sidebar-active-text: #6C3A12;
+
+  --txt: #1D0A00;
+  --txt-secondary: #845738;
+  --txt-muted: #9C7459;
+
+  --line: #F3EDE8;
+  --line-strong: #E5DAD3;
+
+  --primary: #6C3A12;
+  --primary-hover: #784826;
+  --primary-active: #442206;
+}
+
+@media screen {
+[data-paleta="menta"][data-theme="dark"],
+[data-paleta="menta"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #000D07;
+  --surface: #012A1E;
+  --surface-alt: #003B2B;
+
+  --sidebar: #001D13;
+  --sidebar-text: #83B3A0;
+  --sidebar-active-bg: #013F2E;
+  --sidebar-active-text: #B4DACA;
+
+  --txt: #F1F7F5;
+  --txt-secondary: #94BEAD;
+  --txt-muted: #5B947F;
+  --txt-inverse: #000D07;
+
+  --line: #003B2B;
+  --line-strong: #025640;
+
+  --primary: #50AF8E;
+  --primary-hover: #75C2A5;
+  --primary-active: #389778;
+
+  --viz-faixa-externa: #003B2B;
+  --viz-faixa-interna: #025640;
+}
+
+[data-paleta="floresta"][data-theme="dark"],
+[data-paleta="floresta"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #000D03;
+  --surface: #00290E;
+  --surface-alt: #043C19;
+
+  --sidebar: #001E08;
+  --sidebar-text: #8AB391;
+  --sidebar-active-bg: #0C401D;
+  --sidebar-active-text: #B9D9BE;
+
+  --txt: #F2F7F3;
+  --txt-secondary: #9ABEA0;
+  --txt-muted: #64946E;
+  --txt-inverse: #000D03;
+
+  --line: #093C1A;
+  --line-strong: #18572B;
+
+  --primary: #69AD78;
+  --primary-hover: #87C093;
+  --primary-active: #539563;
+
+  --viz-faixa-externa: #043C19;
+  --viz-faixa-interna: #18572B;
+}
+
+[data-paleta="jade"][data-theme="dark"],
+[data-paleta="jade"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #000C0C;
+  --surface: #012928;
+  --surface-alt: #003938;
+
+  --sidebar: #001C1B;
+  --sidebar-text: #7BB3B0;
+  --sidebar-active-bg: #013D3C;
+  --sidebar-active-text: #AED9D7;
+
+  --txt: #F0F7F7;
+  --txt-secondary: #8DBEBB;
+  --txt-muted: #509491;
+  --txt-inverse: #000C0C;
+
+  --line: #003A38;
+  --line-strong: #015452;
+
+  --primary: #29B0AC;
+  --primary-hover: #60C3BF;
+  --primary-active: #089794;
+
+  --viz-faixa-externa: #003938;
+  --viz-faixa-interna: #015452;
+}
+
+[data-paleta="oceano"][data-theme="dark"],
+[data-paleta="oceano"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #000B12;
+  --surface: #002735;
+  --surface-alt: #003749;
+
+  --sidebar: #001A25;
+  --sidebar-text: #75B0CA;
+  --sidebar-active-bg: #023A4E;
+  --sidebar-active-text: #AAD7ED;
+
+  --txt: #EFF7FB;
+  --txt-secondary: #88BBD3;
+  --txt-muted: #4991AF;
+  --txt-inverse: #000B12;
+
+  --line: #023749;
+  --line-strong: #045069;
+
+  --primary: #39A8D3;
+  --primary-hover: #67BCE1;
+  --primary-active: #1990B9;
+
+  --viz-faixa-externa: #003749;
+  --viz-faixa-interna: #045069;
+}
+
+[data-paleta="indigo"][data-theme="dark"],
+[data-paleta="indigo"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #06061C;
+  --surface: #1C1B48;
+  --surface-alt: #292960;
+
+  --sidebar: #121233;
+  --sidebar-text: #9DA2D6;
+  --sidebar-active-bg: #2D2D63;
+  --sidebar-active-text: #C7CCF6;
+
+  --txt: #F4F5FD;
+  --txt-secondary: #AAAFDD;
+  --txt-muted: #7C81BC;
+  --txt-inverse: #06061C;
+
+  --line: #2A295D;
+  --line-strong: #3F3F82;
+
+  --primary: #8C91E4;
+  --primary-hover: #A3A9F1;
+  --primary-active: #767ACA;
+
+  --viz-faixa-externa: #292960;
+  --viz-faixa-interna: #3F3F82;
+}
+
+[data-paleta="lavanda"][data-theme="dark"],
+[data-paleta="lavanda"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #0B041B;
+  --surface: #261746;
+  --surface-alt: #36235D;
+
+  --sidebar: #1A0E32;
+  --sidebar-text: #AA9DD3;
+  --sidebar-active-bg: #392760;
+  --sidebar-active-text: #D2C8F4;
+
+  --txt: #F6F4FC;
+  --txt-secondary: #B5ABDB;
+  --txt-muted: #8B7BB9;
+  --txt-inverse: #0B041B;
+
+  --line: #36245B;
+  --line-strong: #4F397F;
+
+  --primary: #A38EE1;
+  --primary-hover: #B8A6EE;
+  --primary-active: #8C77C7;
+
+  --viz-faixa-externa: #36235D;
+  --viz-faixa-interna: #4F397F;
+}
+
+[data-paleta="ameixa"][data-theme="dark"],
+[data-paleta="ameixa"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #120217;
+  --surface: #340F3E;
+  --surface-alt: #471A54;
+
+  --sidebar: #24092C;
+  --sidebar-text: #BD96CA;
+  --sidebar-active-bg: #4A1E57;
+  --sidebar-active-text: #E2C2EC;
+
+  --txt: #F9F3FB;
+  --txt-secondary: #C7A4D2;
+  --txt-muted: #A072AE;
+  --txt-inverse: #120217;
+
+  --line: #461C52;
+  --line-strong: #642E74;
+
+  --primary: #BD85CF;
+  --primary-hover: #CF9EDE;
+  --primary-active: #A56EB6;
+
+  --viz-faixa-externa: #471A54;
+  --viz-faixa-interna: #642E74;
+}
+
+[data-paleta="malva"][data-theme="dark"],
+[data-paleta="malva"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #14030B;
+  --surface: #391327;
+  --surface-alt: #4D1E37;
+
+  --sidebar: #280B1A;
+  --sidebar-text: #C597AC;
+  --sidebar-active-bg: #50223A;
+  --sidebar-active-text: #E9C3D4;
+
+  --txt: #FAF4F6;
+  --txt-secondary: #CFA5B8;
+  --txt-muted: #A9748D;
+  --txt-inverse: #14030B;
+
+  --line: #4C1F36;
+  --line-strong: #6C3250;
+
+  --primary: #C9A6CB;
+  --primary-hover: #DDBEDE;
+  --primary-active: #B18FB3;
+
+  --viz-faixa-externa: #4D1E37;
+  --viz-faixa-interna: #6C3250;
+}
+
+[data-paleta="cafe"][data-theme="dark"],
+[data-paleta="cafe"] [data-theme="dark"]:not([data-paleta]) {
+  --bg: #130600;
+  --surface: #361A05;
+  --surface-alt: #4A270C;
+
+  --sidebar: #261103;
+  --sidebar-text: #C19F88;
+  --sidebar-active-bg: #4D2B11;
+  --sidebar-active-text: #E5C9B7;
+
+  --txt: #FAF5F1;
+  --txt-secondary: #CAAC98;
+  --txt-muted: #A47D63;
+  --txt-inverse: #130600;
+
+  --line: #49280F;
+  --line-strong: #683D1D;
+
+  --primary: #A29372;
+  --primary-hover: #B6A88D;
+  --primary-active: #8B7C5D;
+
+  --viz-faixa-externa: #4A270C;
+  --viz-faixa-interna: #683D1D;
+}
+}
+
 /* ══ Base ═════════════════════════════════════════════════════════ */
 html {
   background-color: var(--bg);

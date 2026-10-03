@@ -3,6 +3,8 @@ package com.nutri.hospitalar;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutri.hospitalar.clinica.repository.FichaAnamneseRepository;
 import com.nutri.hospitalar.clinica.repository.ModeloFichaRepository;
+import com.nutri.hospitalar.configuracao.enums.PaletaSistema;
+import com.nutri.hospitalar.configuracao.repository.ConfiguracaoSistemaRepository;
 import com.nutri.hospitalar.loginlog.repository.LoginLogRepository;
 import com.nutri.hospitalar.pediatria.repository.AvaliacaoPediatricaRepository;
 import com.nutri.hospitalar.pediatria.repository.FormulaLacteaRepository;
@@ -63,6 +65,7 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected ProdutoNutricionalRepository produtoNutricionalRepository;
     @Autowired protected ModeloFichaRepository modeloFichaRepository;
     @Autowired protected FichaAnamneseRepository fichaAnamneseRepository;
+    @Autowired protected ConfiguracaoSistemaRepository configuracaoSistemaRepository;
     @Autowired protected PasswordEncoder passwordEncoder;
 
     protected Tenant tenantA;
@@ -123,6 +126,13 @@ public abstract class AbstractIntegrationTest {
         pessoaRepository.deleteAllInBatch();
         usuarioRepository.deleteAllInBatch();
         tenantRepository.deleteAllInBatch();
+
+        // A paleta é global, uma linha só (migration 033): volta à padrão a
+        // cada teste, senão quem a troca muda o cenário de quem vem depois.
+        configuracaoSistemaRepository.findFirstByOrderByCreatedAtAsc().ifPresent(c -> {
+            c.setPaleta(PaletaSistema.PADRAO);
+            configuracaoSistemaRepository.save(c);
+        });
 
         tenantA = tenantRepository.save(new Tenant("Clinica A"));
         tenantB = tenantRepository.save(new Tenant("Hospital B"));

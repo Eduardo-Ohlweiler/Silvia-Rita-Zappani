@@ -6,6 +6,7 @@ import { Dashboard } from '@/pages/Dashboard'
 import { NaoEncontrado } from '@/pages/NaoEncontrado'
 import { NaoEncontradoPublico } from '@/pages/NaoEncontradoPublico'
 import { Login } from '@/pages/auth/Login'
+import { ConfiguracoesGerais } from '@/pages/configuracao/ConfiguracoesGerais'
 import { FichaAnamneseForm } from '@/pages/clinica/FichaAnamneseForm'
 import { FichaAnamneseList } from '@/pages/clinica/FichaAnamneseList'
 import { ModeloFichaForm } from '@/pages/clinica/ModeloFichaForm'
@@ -137,6 +138,7 @@ export function AppRoutes() {
               <Route path="tenants" element={<TenantList />} />
               <Route path="tenants/:id" element={<TenantForm />} />
               <Route path="log-acesso" element={<LoginLogList />} />
+              <Route path="configuracoes" element={<ConfiguracoesGerais />} />
             </Route>
 
             <Route path="*" element={<NaoEncontrado />} />

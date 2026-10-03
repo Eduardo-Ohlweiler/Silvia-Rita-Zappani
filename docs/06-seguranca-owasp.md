@@ -177,7 +177,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
 **Regras adicionais:**
 
-- Rate limit por IP em login e refresh — as **duas únicas rotas públicas**.
+- Rate limit por IP em login e refresh — as **duas únicas rotas públicas de escrita**.
+  A terceira rota pública é só leitura e não tem rate limit: `GET /configuracoes/aparencia`,
+  que devolve **apenas o nome da paleta** do sistema — a tela de login precisa dela
+  antes de existir sessão. O `PUT` na mesma URL exige `SUPERADMIN`: a liberação é
+  por método (ver [05 §11](05-identidade-visual.md)).
 - **Bloqueio por usuário** após 5 falhas consecutivas, por 15 minutos — complementar
   ao rate limit por IP (ver [02-modulo-usuarios.md §6.3](02-modulo-usuarios.md)).
 - Paginação obrigatória em toda listagem, com `max-page-size: 100`.

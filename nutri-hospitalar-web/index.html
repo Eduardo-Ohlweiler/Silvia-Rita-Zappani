@@ -59,12 +59,20 @@
       Aplica o tema antes do React montar, evitando o flash de cor errada.
       O padrão é CLARO — é o tema da marca. Não seguimos `prefers-color-scheme`:
       quem prefere o escuro alterna no header, e a escolha fica salva.
+
+      A paleta (docs/05 §11) vem do cache da última consulta ao servidor; o
+      ThemeContext confere com o servidor logo depois. PADRAO não tem atributo.
     -->
     <script>
       (function () {
         var salvo = localStorage.getItem('nutri-tema')
         var tema = salvo === 'dark' ? 'dark' : 'light'
         document.documentElement.dataset.theme = tema
+        // A variante _MENU_ESCURO usa as cores da base; a moldura é do React.
+        var paleta = /^([A-Z]+)(_MENU_ESCURO)?$/.exec(localStorage.getItem('nutri-paleta') || '')
+        if (paleta && paleta[1] !== 'PADRAO') {
+          document.documentElement.dataset.paleta = paleta[1].toLowerCase()
+        }
         document
           .querySelector('meta[name="theme-color"]')
           .setAttribute('content', tema === 'dark' ? '#00091A' : '#FAF6FE')

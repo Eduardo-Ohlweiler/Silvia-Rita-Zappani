@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { IconAlerta, IconMenu, IconSair } from '@/assets/icons'
 import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
+import { paletaPorChave } from '@/styles/paletas'
 import { ROLE_LABEL } from '@/types/auth'
 import { Sidebar } from './Sidebar'
 import { TenantSwitcher } from './TenantSwitcher'
@@ -10,10 +12,19 @@ import { TThemeToggle } from '../common/TThemeToggle'
 export function Layout() {
   const { sessao, logout } = useAuth()
   const [menuAberto, setMenuAberto] = useState(false)
+  const { paleta } = useTheme()
+
+  // Variante de menu e cabeçalho escuros (docs/05 §11.6): a moldura usa os
+  // tokens do escuro da paleta. No tema escuro ela já é escura — o atributo
+  // só repete o que o <html> diz.
+  const moldura = paletaPorChave(paleta).menuEscuro ? 'dark' : undefined
+  // Com a moldura escura, o cabeçalho tem o tom do menu: um degrau mais claro
+  // que ele abriria uma emenda no canto do logo.
+  const fundoMoldura = moldura ? 'bg-sidebar' : 'bg-surface'
 
   return (
     <div className="min-h-dvh bg-bg">
-      <Sidebar aberta={menuAberto} onFechar={() => setMenuAberto(false)} />
+      <Sidebar aberta={menuAberto} onFechar={() => setMenuAberto(false)} moldura={moldura} />
 
       {/* Deslocado pela sidebar só a partir de lg, onde ela é fixa */}
       <div className="conteudo-da-aplicacao lg:pl-sidebar">
@@ -27,7 +38,9 @@ export function Layout() {
           </div>
         )}
 
-        <header className="nao-imprime sticky top-0 z-20 flex h-header items-center gap-3 border-b border-line bg-surface px-4 sm:px-6">
+        <header
+          data-theme={moldura}
+          className={`nao-imprime sticky top-0 z-20 flex h-header items-center gap-3 border-b border-line px-4 sm:px-6 ${fundoMoldura}`}>
           <button
             type="button"
             onClick={() => setMenuAberto(true)}
@@ -66,7 +79,7 @@ export function Layout() {
 
         {/* Seletor de tenant abaixo do header no mobile, onde não cabe ao lado */}
         {sessao?.role === 'SUPERADMIN' && (
-          <div className="nao-imprime border-b border-line bg-surface px-4 py-2 lg:hidden">
+          <div data-theme={moldura} className={`nao-imprime border-b border-line px-4 py-2 lg:hidden ${fundoMoldura}`}>
             <TenantSwitcher />
           </div>
         )}

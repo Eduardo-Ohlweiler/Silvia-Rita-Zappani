@@ -297,7 +297,9 @@ algum dia vazasse — desse acesso a outro tenant a um usuário comum.
 
 ### Público (rate limit 5/min por IP)
 
-Duas rotas. Só isso.
+Duas rotas de autenticação. Só isso. (A única outra rota pública do sistema é
+`GET /configuracoes/aparencia`, só leitura, que devolve o nome da paleta de cores
+para a tela de login abrir no tema — [05 §11](05-identidade-visual.md).)
 
 | Método | Rota |
 |---|---|

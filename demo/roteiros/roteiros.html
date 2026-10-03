@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Roteiros de vídeo</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+  :root {
+    --tinta: #1d2733; --suave: #5b6878; --linha: #d9dee5; --marca: #1f4e8c; --marca-claro: #e8eff8;
+    --digite: #0f6b47; --digite-fundo: #e7f4ee; --diga: #7a4a00; --diga-fundo: #fdf4e3; --mostre: #5a2d82; --mostre-fundo: #f2ecf8;
+  }
+  * { box-sizing: border-box; }
+  body { font: 10.2pt/1.45 "Segoe UI", system-ui, sans-serif; color: var(--tinta); margin: 0; background: #fff; }
+  h1 { font-size: 22pt; margin: 0 0 4mm; color: var(--marca); letter-spacing: -.3px; }
+  h2 { font-size: 15pt; margin: 0 0 1mm; color: var(--marca); break-after: avoid; }
+  h3 { font-size: 11pt; margin: 5mm 0 2mm; break-after: avoid; }
+  p { margin: 0 0 2.2mm; }
+  .capa { height: 255mm; display: flex; flex-direction: column; justify-content: center; }
+  .capa .sobre { font-size: 12pt; color: var(--suave); max-width: 150mm; }
+  .capa .linha { width: 40mm; height: 3px; background: var(--marca); margin: 6mm 0; }
+  .video { break-before: page; }
+  .meta { color: var(--suave); font-size: 9.5pt; margin-bottom: 4mm; }
+  .caixa { border: 1px solid var(--linha); border-radius: 6px; padding: 3mm 4mm; margin: 0 0 3.5mm; break-inside: avoid; }
+  .caixa.antes { background: var(--marca-claro); border-color: #c9d8ec; }
+  .caixa.atencao { background: #fff6e8; border-color: #f0d6a8; }
+  .caixa h4 { margin: 0 0 1.5mm; font-size: 9.5pt; text-transform: uppercase; letter-spacing: .4px; color: var(--marca); }
+  .caixa ul { margin: 0; padding-left: 5mm; }
+  ol.passos { list-style: none; padding: 0; margin: 0; counter-reset: passo; }
+  ol.passos > li { counter-increment: passo; position: relative; padding: 2.4mm 0 2.4mm 10mm; border-top: 1px solid var(--linha); break-inside: avoid; }
+  ol.passos > li::before { content: counter(passo); position: absolute; left: 0; top: 2.4mm; width: 6.5mm; height: 6.5mm; border-radius: 50%; background: var(--marca); color: #fff; font-weight: 700; font-size: 8.5pt; display: flex; align-items: center; justify-content: center; }
+  .faca { font-weight: 600; }
+  .rot { font-weight: 700; color: var(--marca); }
+  .digite, .diga, .mostre { display: block; margin-top: 1.4mm; padding: 1.4mm 2.5mm; border-radius: 4px; font-size: 9.6pt; }
+  .digite { background: var(--digite-fundo); color: var(--digite); }
+  .diga { background: var(--diga-fundo); color: var(--diga); font-style: italic; }
+  .mostre { background: var(--mostre-fundo); color: var(--mostre); }
+  .digite::before { content: "DIGITE  "; font-weight: 800; font-style: normal; letter-spacing: .4px; font-size: 8pt; }
+  .diga::before { content: "DIGA  "; font-weight: 800; font-style: normal; letter-spacing: .4px; font-size: 8pt; }
+  .mostre::before { content: "MOSTRE  "; font-weight: 800; letter-spacing: .4px; font-size: 8pt; }
+  table { width: 100%; border-collapse: collapse; margin: 1mm 0 1mm; font-size: 9.3pt; }
+  th, td { text-align: left; padding: 1.2mm 2mm; border-bottom: 1px solid #e6e9ee; vertical-align: top; }
+  th { background: #f3f5f8; font-weight: 700; color: var(--suave); font-size: 8.5pt; text-transform: uppercase; letter-spacing: .3px; }
+  tr { break-inside: avoid; }
+  td.tecla { font-family: Consolas, monospace; color: var(--digite); font-weight: 700; white-space: nowrap; }
+  td.vai { font-family: Consolas, monospace; white-space: nowrap; }
+  .digite table, .mostre table { margin: 1mm 0 0; background: rgba(255,255,255,.65); }
+  .indice td:first-child { width: 12mm; font-weight: 700; color: var(--marca); }
+  .fecho { margin-top: 4mm; padding-top: 2mm; border-top: 2px solid var(--marca); }
+  code { font-family: Consolas, monospace; font-size: 9pt; background: #f3f5f8; padding: 0 1mm; border-radius: 3px; }
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ CAPA ═══════════════════════════ -->
+<section class="capa">
+  <div class="meta">Nutri Hospitalar de Sucesso · material de gravação</div>
+  <h1>Roteiros de vídeo</h1>
+  <div class="linha"></div>
+  <p class="sobre">Treze roteiros para gravar o uso do sistema de ponta a ponta, do cadastro de um paciente ao painel da UTI. A área administrativa fica de fora.</p>
+  <p class="sobre">Cada passo diz <b>o que clicar</b>, <b>o que digitar</b>, <b>o que falar</b> e <b>o que mostrar</b>. Os números que aparecem na tela foram conferidos no próprio sistema antes de entrar aqui.</p>
+</section>
+
+<!-- ═══════════════════════════ COMO USAR ═══════════════════════════ -->
+<section class="video">
+  <h2>Antes da primeira gravação</h2>
+  <div class="meta">Leia uma vez. Vale para todos os vídeos.</div>
+
+  <div class="caixa antes">
+    <h4>Acesso de demonstração</h4>
+    <table>
+      <tr><th>Endereço</th><td>http://localhost:5173/app/login</td></tr>
+      <tr><th>E-mail</th><td>nutricionista@demo.local</td></tr>
+      <tr><th>Senha</th><td>Demo@Nutri2026</td></tr>
+      <tr><th>Cliente</th><td>Hospital Demonstração · usuária Ana Paula Martins, nível Administrador</td></tr>
+    </table>
+    <p style="margin-top:2mm">Com esse acesso a barra lateral mostra só os módulos de negócio. O menu <b>Administração</b> e o seletor de clientes não aparecem.</p>
+  </div>
+
+  <div class="caixa atencao">
+    <h4>No dia de gravar: atualize os dados</h4>
+    <p>O histórico foi criado em relação ao dia em que o script rodou. Sem atualizar, a ronda da tela inicial esvazia em uma semana. Com a API ligada, rode antes de gravar:</p>
+    <p><code>node demo/semear-demo.mjs --atualizar</code></p>
+    <p style="margin:0">Isso completa os dias que faltam até hoje nas internações em curso. Maria de Lourdes, Rosângela e Helena continuam com o dia de hoje <b>pendente</b>, de propósito: os vídeos 1, 6 e 10 dependem disso.</p>
+  </div>
+
+  <div class="caixa">
+    <h4>Como digitar números: a máscara de centavos</h4>
+    <p>Os campos numéricos se preenchem <b>da direita para a esquerda</b>, como numa caixa registradora: a vírgula se posiciona sozinha. Digite <b>só os algarismos, sem vírgula</b>. A coluna <i>Digite</i> dos roteiros já traz as teclas.</p>
+    <table>
+      <tr><th>Campo com 2 casas</th><th>Teclas</th><th>Aparece</th><th></th><th>Campo com 3 casas</th><th>Teclas</th><th>Aparece</th></tr>
+      <tr><td>Peso 68 kg</td><td class="tecla">6800</td><td class="vai">68,00</td><td></td><td>Peso do dia (pediatria)</td><td class="tecla">9460</td><td class="vai">9,460</td></tr>
+      <tr><td>Altura do joelho 49 cm</td><td class="tecla">4900</td><td class="vai">49,00</td><td></td><td>Calorias da fórmula láctea</td><td class="tecla">66000</td><td class="vai">66,000</td></tr>
+      <tr><td>pH 7,41</td><td class="tecla">741</td><td class="vai">7,41</td><td></td><td>Densidade da enteral</td><td class="tecla">1250</td><td class="vai">1,250</td></tr>
+    </table>
+    <p style="margin:2mm 0 0">Campos de número inteiro (idade, tomadas, PA, volume no acompanhamento pediátrico) não têm vírgula: digite o número como ele é. <b>Vale mostrar isso no vídeo</b>: é a primeira dúvida de quem usa.</p>
+  </div>
+
+  <div class="caixa">
+    <h4>Ordem de gravação</h4>
+    <p>Alguns vídeos usam o que o anterior cadastrou. A <b>Beatriz</b> nasce no vídeo 2 e volta nos vídeos 9 e 13. O <b>Gabriel</b> nasce no vídeo 5 e volta no 6. Grave nesta ordem; os demais vídeos usam pacientes que já estão no sistema.</p>
+    <table class="indice">
+      <tr><td>1</td><td>Primeiro acesso e tela inicial</td><td>8</td><td>Calculadora de terapia nutricional</td></tr>
+      <tr><td>2</td><td>Cadastro de pessoa</td><td>9</td><td>Avaliação de UTI completa</td></tr>
+      <tr><td>3</td><td>Catálogos: fórmulas e produtos</td><td>10</td><td>Acompanhamento diário de UTI</td></tr>
+      <tr><td>4</td><td>Calculadora pediátrica</td><td>11</td><td>Painéis de terapia nutricional</td></tr>
+      <tr><td>5</td><td>Avaliação pediátrica</td><td>12</td><td>Ferramentas clínicas</td></tr>
+      <tr><td>6</td><td>Acompanhamento diário pediátrico</td><td>13</td><td>Fichas de anamnese e escalas</td></tr>
+      <tr><td>7</td><td>Painéis pediátricos e exportação</td><td></td><td></td></tr>
+    </table>
+  </div>
+
+  <div class="caixa">
+    <h4>Se precisar regravar um vídeo de cadastro</h4>
+    <p style="margin:0">O CPF é único no cliente. Se a Beatriz, o Roberto ou o Gabriel já foram salvos numa tentativa anterior, use um destes CPFs válidos na nova tentativa: <b>618.274.539-82</b> · <b>274.839.165-91</b> · <b>539.162.847-46</b> · <b>847.261.953-28</b> · <b>362.948.175-28</b> · <b>195.738.264-37</b>. Avaliações de UTI e dias de acompanhamento podem ser removidos pela própria lista (<span class="rot">Remover</span>).</p>
+  </div>
+</section>
+
+<section class="video">
+  <h2>Quem já está no sistema</h2>
+  <div class="meta">30 pessoas, abril a outubro de 2026. Use estes pacientes quando o roteiro pedir dado pronto.</div>
+  <h3>Pediatria — 9 crianças, cada uma com o seu responsável</h3>
+  <table>
+    <tr><th>Criança</th><th>Situação</th><th>Bom para mostrar</th></tr>
+    <tr><td>Laura Fernandes Costa</td><td>3 avaliações (NAN 1 → NAN 2), internada por bronquiolite, 12 dias de acompanhamento</td><td>Curvas da OMS; <b>mudou de faixa</b> (peso adequado → acima do peso)</td></tr>
+    <tr><td>Miguel Oliveira Santos</td><td>Prematuro com APLV, PREGOMIN, 14 dias de acompanhamento</td><td>Painel de acompanhamento: ganho de peso dia a dia</td></tr>
+    <tr><td>Helena Rocha Lima</td><td>Cardiopata, INFATRINE, acompanhamento com <b>hoje pendente</b></td><td>Fórmula hipercalórica; baixo peso</td></tr>
+    <tr><td>Arthur Pereira Gomes</td><td>Desnutrição, FORTINI, 2 avaliações</td><td>Recuperação: baixo peso → peso adequado</td></tr>
+    <tr><td>Sofia Almeida Barros</td><td>4 anos, excesso de peso, sem fórmula</td><td>Acima de 35 meses o sistema <b>explica</b> por que não calcula o VET</td></tr>
+    <tr><td>Davi, Valentina, Bernardo, Alice</td><td>NEOCATE LCD, NESTOGENO 2, NAN 1, NAN SL</td><td>Variedade de fórmulas no painel</td></tr>
+  </table>
+  <h3>Terapia nutricional — 12 adultos</h3>
+  <table>
+    <tr><th>Paciente</th><th>Situação</th><th>Bom para mostrar</th></tr>
+    <tr><td>José Carlos Silveira, 72</td><td>Sepse; fase aguda → reabilitação; 20 dias, em curso</td><td>Painel do paciente com 2 avaliações; exames melhorando</td></tr>
+    <tr><td>Maria de Lourdes Becker, 81</td><td>AVC com disfagia; perda de 13 % em 3 meses; <b>hoje pendente</b></td><td><b>Adesão abaixo de 70 %</b> na tela inicial; vídeo 10</td></tr>
+    <tr><td>Antônio Marcos Vieira, 58</td><td>Pancreatite; <b>IMC 45</b></td><td>Regra da obesidade substituindo a fase</td></tr>
+    <tr><td>Rosângela Pires Machado, 64</td><td><b>Hemodiálise contínua</b>; hoje pendente</td><td>Meta proteica renal; potássio alto; oligúria</td></tr>
+    <tr><td>Cláudia Regina Fontoura, 54</td><td>Cetoacidose diabética; admitida em 01/10</td><td>Progressão: dia 1 a 25 % da meta</td></tr>
+    <tr><td>Paulo Roberto Nascimento, 67</td><td>Sem peso nem altura; encerrado com alta</td><td>Peso e altura estimados pelo joelho</td></tr>
+    <tr><td>Luiz Fernando Kraemer, 45</td><td>Trauma com <b>amputação de perna</b>; transferido</td><td>Peso corrigido por amputação</td></tr>
+    <tr><td>Terezinha, Eduarda, Sérgio, Ivo, Neusa</td><td>Internações encerradas (óbito, altas); Sérgio e Ivo com dieta <b>intermitente</b></td><td>Histórico; régua OPAS (Terezinha)</td></tr>
+  </table>
+  <h3>Fichas — 19 preenchidas</h3>
+  <p>NRS-2002 nas admissões da UTI (a da Neusa encerra na pré-triagem), MNA nos idosos, e anamneses adulto, hospitalar e pediátrica.</p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 1 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 1 · Primeiro acesso e tela inicial</h2>
+  <div class="meta">Cerca de 4 minutos · nada é cadastrado</div>
+  <div class="caixa antes"><h4>Objetivo</h4><p style="margin:0">Mostrar como entrar, como a tela inicial organiza o plantão e onde fica cada módulo.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">http://localhost:5173/app/login</span>.</span>
+      <span class="diga">O acesso é liberado pelo administrador do sistema: não existe autocadastro. Cada hospital ou clínica tem o seu ambiente, e os dados de um nunca aparecem para outro.</span></li>
+    <li><span class="faca">Preencha <span class="rot">E-mail</span> e <span class="rot">Senha</span> e clique em <span class="rot">Entrar</span>.</span>
+      <span class="digite">nutricionista@demo.local · Demo@Nutri2026</span></li>
+    <li><span class="faca">Pare na tela inicial, no painel <span class="rot">A ronda de hoje</span>.</span>
+      <span class="diga">A primeira coisa que o sistema responde é: o que precisa de mim hoje? A ronda lista os pacientes da UTI em acompanhamento e diz quem já teve o dia registrado.</span>
+      <span class="mostre">5 pacientes. Maria de Lourdes e Rosângela com <b>Pendente</b>; os outros com <b>Registrado</b>. Clicar numa linha pendente abre o registro do dia já com o paciente escolhido.</span></li>
+    <li><span class="faca">Desça até <span class="rot">Adesão abaixo de 70 %</span>.</span>
+      <span class="diga">Depois do sétimo dia de terapia, quem está recebendo menos de 70 % do prescrito aparece aqui. Nos primeiros dias a oferta baixa é a progressão, por isso o alerta espera.</span>
+      <span class="mostre">Maria de Lourdes Becker, adesão média perto de 54 %, no 12º dia.</span></li>
+    <li><span class="faca">Mostre <span class="rot">Mudaram de faixa</span>.</span>
+      <span class="diga">Na pediatria o sistema compara as duas últimas avaliações de cada criança e avisa quando ela mudou de faixa na classificação da OMS, para melhor ou para pior.</span>
+      <span class="mostre">Laura (peso adequado → acima do peso) e Arthur (baixo peso → peso adequado).</span></li>
+    <li><span class="faca">Mostre <span class="rot">Há mais tempo sem avaliação</span> e <span class="rot">Últimos 30 dias</span>.</span>
+      <span class="diga">E aqui, quem está há mais tempo sem ser reavaliado, e um resumo do último mês. Os painéis completos ficam em UTI em números e Pediatria em números.</span></li>
+    <li><span class="faca">Percorra a barra lateral, grupo por grupo.</span>
+      <span class="diga">Cadastros: pessoas e catálogos de fórmulas. Clínica: fichas de anamnese. Depois os dois módulos de cálculo, Pediatria e Terapia nutricional, cada um com calculadora, avaliações, acompanhamento diário e três painéis.</span></li>
+    <li><span class="faca">Clique no ícone de lua, no alto à direita.</span>
+      <span class="diga">Para o plantão noturno existe o tema escuro. A escolha fica guardada neste navegador.</span>
+      <span class="mostre">A tela inteira escurece. Clique de novo para voltar ao claro.</span></li>
+    <li><span class="faca">Abra <span class="rot">Conta › Meu perfil</span>.</span>
+      <span class="diga">Em Meu perfil a própria nutricionista ajusta o nome e o telefone e troca a senha, com no mínimo 10 caracteres. E-mail e nível de acesso só o administrador muda.</span></li>
+    <li><span class="faca">Encolha a janela do navegador até a largura de um celular.</span>
+      <span class="diga">O sistema foi feito para ser usado à beira do leito, no celular. O menu vira uma gaveta e as tabelas viram cartões.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"No próximo vídeo vamos cadastrar um paciente."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 2 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 2 · Cadastro de pessoa</h2>
+  <div class="meta">Cerca de 6 minutos · cria a Beatriz (usada nos vídeos 9 e 13) e o filho dela</div>
+  <div class="caixa antes"><h4>Objetivo</h4><p style="margin:0">Cadastrar uma paciente completa, com endereço e contato, e ligar a ela um responsável cadastrado na hora, sem sair da tela.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Cadastros › Pessoas</span>.</span>
+      <span class="diga">Pessoas guarda pacientes, responsáveis, profissionais e fornecedores. É um cadastro só: a mesma pessoa pode ser paciente e responsável ao mesmo tempo.</span>
+      <span class="mostre">A lista com os 30 cadastros. Digite <b>Costa</b> no filtro <span class="rot">Nome</span> para mostrar que a busca é instantânea, depois apague.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Nova pessoa</span> e preencha <span class="rot">Identificação</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Valor</th></tr>
+        <tr><td>Tipo de pessoa</td><td>Pessoa física (já vem escolhido)</td></tr>
+        <tr><td>Nome</td><td>Beatriz Moura Andrade</td></tr>
+        <tr><td>CPF</td><td>48291573646 → aparece 482.915.736-46</td></tr>
+        <tr><td>RG</td><td>1087654321</td></tr>
+        <tr><td>Data de nascimento</td><td>12/03/1958</td></tr>
+        <tr><td>Sexo</td><td>Feminino</td></tr>
+      </table></span>
+      <span class="diga">A data de nascimento e o sexo não são detalhe de cadastro: é deles que o sistema tira a idade e as curvas de referência nas avaliações.</span></li>
+    <li><span class="faca">Em <span class="rot">Classificação</span>, marque <span class="rot">Paciente</span>.</span>
+      <span class="digite">Observação: Encaminhada pela equipe da emergência.</span></li>
+    <li><span class="faca">Em <span class="rot">Telefones</span>, clique em <span class="rot">Acrescentar</span>.</span>
+      <span class="digite">Tipo: Celular · Número: 51987654321 → aparece (51) 98765-4321 · Principal: marcado</span></li>
+    <li><span class="faca">Em <span class="rot">E-mails</span>, clique em <span class="rot">Acrescentar</span>.</span>
+      <span class="digite">Tipo: Particular · E-mail: beatriz.andrade@example.com</span></li>
+    <li><span class="faca">Em <span class="rot">Endereços</span>, clique em <span class="rot">Acrescentar</span>.</span>
+      <span class="digite"><table>
+        <tr><td>Tipo</td><td>Residencial</td><td>Cidade</td><td>digite <b>Porto Ale</b> e escolha Porto Alegre — RS</td></tr>
+        <tr><td>CEP</td><td>90430180 → 90430-180</td><td>Rua</td><td>Rua Mostardeiro</td></tr>
+        <tr><td>Número</td><td>780</td><td>Bairro</td><td>Moinhos de Vento</td></tr>
+        <tr><td>Complemento</td><td>Apto 302</td><td></td><td></td></tr>
+      </table></span>
+      <span class="diga">A cidade vem da base do IBGE: basta começar a digitar. Assim não existe "Porto Alegre" escrito de três jeitos diferentes.</span></li>
+    <li><span class="faca">Em <span class="rot">Vínculos</span>, clique em <span class="rot">Acrescentar</span> e depois no <span class="rot">+</span> ao lado de Pessoa.</span>
+      <span class="diga">O filho dela ainda não está no sistema. Não preciso sair daqui: o cadastro rápido resolve com o essencial, e o resto se completa depois.</span>
+      <span class="digite">Cadastro rápido: Nome <b>Roberto Moura Andrade</b> · CPF 73160825426 · Tipo de cadastro: Responsável (já vem escolhido) · Telefone 51991234567 → <span class="rot">Cadastrar</span></span></li>
+    <li><span class="faca">Complete a linha do vínculo.</span>
+      <span class="digite">É o quê desta pessoa: Responsável · Observação: Filho</span>
+      <span class="diga">O vínculo vale nos dois sentidos: no cadastro do Roberto, a Beatriz aparece como dependente.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Salvar</span>.</span>
+      <span class="mostre">A Beatriz aparece na lista, com o telefone e a cidade.</span></li>
+    <li><span class="faca">Mostre o botão <span class="rot">Inativar</span> na linha da Beatriz, sem clicar.</span>
+      <span class="diga">Ninguém é apagado: quem não é mais atendido é inativado e some das buscas, mas o prontuário continua inteiro.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"A Beatriz vai aparecer de novo quando fizermos a avaliação de UTI e as fichas de anamnese."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 3 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 3 · Catálogos: fórmulas e produtos</h2>
+  <div class="meta">Cerca de 5 minutos · cria uma fórmula láctea e uma enteral próprias</div>
+  <div class="caixa antes"><h4>Objetivo</h4><p style="margin:0">Mostrar que o sistema já vem com as fórmulas do mercado, e como cadastrar um produto que o hospital usa e não está na lista.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Cadastros › Fórmulas lácteas</span>.</span>
+      <span class="diga">Estas dez vêm prontas, com o cadeado de "Do sistema". Elas valem para todos os clientes e não podem ser alteradas, para ninguém mudar sem querer a fórmula de que outro prontuário depende.</span>
+      <span class="mostre">Clique numa fórmula do sistema: ela é somente leitura.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Nova fórmula</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Nome</td><td colspan="2">APTAMIL PROFUTURA 1</td></tr>
+        <tr><td>Calorias (kcal / 100 ml)</td><td class="tecla">66000</td><td class="vai">66,000</td></tr>
+        <tr><td>Proteína (g / 100 ml)</td><td class="tecla">1300</td><td class="vai">1,300</td></tr>
+      </table></span>
+      <span class="diga">A composição é a do rótulo, sempre por 100 ml. Confira na embalagem antes de salvar: é desse número que sai a oferta calculada.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Salvar</span> e mostre o filtro <span class="rot">Origem › Minhas fórmulas</span>.</span>
+      <span class="mostre">A fórmula nova aparece sozinha, sem o cadeado, com o botão Inativar.</span></li>
+    <li><span class="faca">Abra <span class="rot">Cadastros › Fórmulas enterais</span>; filtre <span class="rot">Categoria › Hiperproteica</span>.</span>
+      <span class="diga">Na enteral a composição é por litro, como vem no rótulo das fórmulas de sistema fechado. São 53 do sistema, separadas por categoria.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Nova fórmula</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Nome</td><td colspan="2">Nutrison Protein Plus</td></tr>
+        <tr><td>Categoria</td><td colspan="2">Hiperproteica</td></tr>
+        <tr><td>Densidade (kcal / ml)</td><td class="tecla">1250</td><td class="vai">1,250</td></tr>
+        <tr><td>Proteína (g / L)</td><td class="tecla">63000</td><td class="vai">63,000</td></tr>
+        <tr><td>Carboidrato (g / L)</td><td class="tecla">142000</td><td class="vai">142,000</td></tr>
+        <tr><td>Lipídio (g / L)</td><td class="tecla">49000</td><td class="vai">49,000</td></tr>
+        <tr><td>Fibras (g / L)</td><td class="tecla">15000</td><td class="vai">15,000</td></tr>
+      </table></span>
+      <span class="mostre">Ao preencher os macronutrientes aparece <b>"Confere"</b>: o sistema soma as calorias dos macronutrientes e compara com a densidade.</span>
+      <span class="diga">Essa conferência pega o erro mais comum de digitação de rótulo: a composição de um frasco de 500 ml lançada como se fosse de um litro, ou uma vírgula no lugar errado.</span></li>
+    <li><span class="faca">Apague a densidade e digite <span class="tecla">250</span> (fica 0,250). Mostre o aviso vermelho. Volte para <span class="tecla">1250</span> e clique em <span class="rot">Salvar</span>.</span></li>
+    <li><span class="faca">Abra <span class="rot">Cadastros › Suplementos e módulos</span>; filtre <span class="rot">Tipo › Módulo proteico</span>.</span>
+      <span class="diga">Aqui ficam os suplementos orais, os módulos de proteína e os insumos da dieta artesanal, cada um com a medida do rótulo: colher, sachê, medidor. O módulo proteico é o que a avaliação de UTI sugere quando a dieta não fecha a meta de proteína.</span>
+      <span class="mostre">Nutren Just Protein: medida de 15 g, 13 g de proteína, 52 kcal.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"Com o catálogo pronto, vamos ao primeiro cálculo."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 4 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 4 · Calculadora pediátrica</h2>
+  <div class="meta">Cerca de 4 minutos · nada é gravado</div>
+  <div class="caixa antes"><h4>Objetivo</h4><p style="margin:0">O cálculo rápido, sem paciente: estado nutricional, necessidade e quanto a dieta láctea cobre. O caso é o mesmo que valida o sistema.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Pediatria › Calculadora</span>.</span>
+      <span class="diga">A calculadora é para a conta de corredor: nada aqui vai para o prontuário. Para registrar, usamos a avaliação, que é o próximo vídeo.</span></li>
+    <li><span class="faca">Aba <span class="rot">Estado nutricional e necessidades</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Sexo</td><td colspan="2">Feminino</td></tr>
+        <tr><td>Idade (meses)</td><td class="tecla">8</td><td class="vai">8</td></tr>
+        <tr><td>Peso (kg)</td><td class="tecla">900</td><td class="vai">9,00</td></tr>
+      </table></span>
+      <span class="mostre"><b>Peso para a idade: Peso adequado</b> · <b>VET 723 kcal/dia</b> · <b>Proteína 11 g/dia</b>. No IMC, o sistema escreve que falta a estatura.</span>
+      <span class="diga">Nove quilos aos oito meses é exatamente o percentil 85 da OMS, o limite de cima da faixa adequada. E repare: sem estatura, o sistema não deixa o IMC em branco, ele diz o que falta.</span></li>
+    <li><span class="faca">Aba <span class="rot">Dieta láctea</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Fórmula láctea</td><td colspan="2">NAN 2 (73,8 kcal · 1,65 g / 100 ml)</td></tr>
+        <tr><td>Volume por tomada (ml)</td><td class="tecla">11000</td><td class="vai">110,00</td></tr>
+        <tr><td>Frequência (horas)</td><td class="tecla">300</td><td class="vai">3,00</td></tr>
+      </table></span>
+      <span class="diga">Atenção na frequência: é o intervalo entre as mamadas, de 3 em 3 horas, e não quantas são por dia.</span>
+      <span class="mostre"><b>8 tomadas por dia</b> · <b>880 ml</b> · <b>649,44 kcal</b> · <b>14,52 g</b> de proteína · <b>adequação calórica 89,83 %</b> · <b>adequação proteica 132 %</b></span></li>
+    <li><span class="faca">Troque a frequência para <span class="tecla">400</span> (4,00 h).</span>
+      <span class="mostre">Tudo se recalcula sozinho: 6 tomadas, 660 ml, adequação calórica cai.</span>
+      <span class="diga">Não há botão de calcular: mudou um número, mudou o resultado.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Imprimir</span>.</span>
+      <span class="diga">A impressão não é a tela: é um demonstrativo, com os números já calculados e a referência de cada um ao lado. Depois clique em Limpar para começar outra conta.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"Agora vamos fazer a mesma conta para um paciente de verdade, e guardar no prontuário."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 5 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 5 · Avaliação pediátrica</h2>
+  <div class="meta">Cerca de 5 minutos · cria o Gabriel (usado no vídeo 6) e a avaliação dele</div>
+  <div class="caixa atencao"><h4>A data de nascimento depende do dia da gravação</h4>
+    <p style="margin:0">O Gabriel precisa ter <b>exatamente 10 meses</b> no dia em que você gravar. Use o mesmo dia e mês de hoje, 10 meses atrás. Exemplos: gravando em 15/10/2026, nascimento <b>15/12/2025</b>; gravando em 03/11/2026, nascimento <b>03/01/2026</b>.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Pediatria › Avaliações</span> e clique em <span class="rot">Nova avaliação</span>.</span></li>
+    <li><span class="faca">Clique no <span class="rot">+</span> ao lado de Paciente.</span>
+      <span class="digite">Cadastro rápido: Nome <b>Gabriel Souza Prado</b> · CPF 90527418323 · Data de nascimento: hoje menos 10 meses · Sexo: Masculino · Tipo de cadastro: Paciente → <span class="rot">Cadastrar</span></span>
+      <span class="mostre">O Gabriel já entra escolhido. <b>Sexo</b> e <b>Idade (meses) = 10</b> se preenchem sozinhos, a partir do cadastro.</span>
+      <span class="diga">Ao escolher o paciente, o sistema puxa o sexo e calcula a idade em meses na data da avaliação. Se eu mudar a data, a idade acompanha.</span></li>
+    <li><span class="faca">Em <span class="rot">Profissional</span>, escolha <b>Ana Paula Martins</b>. Deixe a data de hoje.</span></li>
+    <li><span class="faca">Aba <span class="rot">Estado nutricional e necessidades</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Peso (kg)</td><td class="tecla">940</td><td class="vai">9,40</td></tr>
+        <tr><td>Estatura (cm)</td><td class="tecla">7350</td><td class="vai">73,50</td></tr>
+      </table></span>
+      <span class="mostre"><b>IMC 17,40</b> · Peso para a idade: <b>Peso adequado</b> · Estatura para a idade: <b>Adequada</b> · IMC para a idade: <b>IMC adequado</b> · <b>VET 758,6 kcal</b> · <b>Proteína 11 g</b></span>
+      <span class="diga">Os três índices da OMS de uma vez, com a curva de zero a cinco anos. A necessidade energética segue as DRIs, de 2002.</span></li>
+    <li><span class="faca">Aba <span class="rot">Dieta láctea</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Fórmula láctea</td><td colspan="2">NAN 2</td></tr>
+        <tr><td>Volume por tomada (ml)</td><td class="tecla">20000</td><td class="vai">200,00</td></tr>
+        <tr><td>Frequência (horas)</td><td class="tecla">600</td><td class="vai">6,00</td></tr>
+      </table></span>
+      <span class="mostre"><b>4 tomadas</b> · <b>800 ml</b> · <b>590,4 kcal</b> · <b>13,2 g</b> · <b>adequação calórica 77,83 %</b> · <b>adequação proteica 120 %</b></span>
+      <span class="diga">Aos dez meses a fórmula não é a única fonte: a criança já come papa. Os 78 % mostram o quanto a alimentação complementar precisa cobrir.</span></li>
+    <li><span class="faca">Aba <span class="rot">Observações</span>.</span>
+      <span class="digite">Consulta de rotina. Introdução alimentar com boa aceitação de papas salgadas e frutas.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Salvar</span> e depois em <span class="rot">Imprimir</span>.</span>
+      <span class="mostre">A folha impressa: identificação, tira de indicadores, os três índices e a dieta com a procedência de cada número.</span></li>
+    <li><span class="faca">Volte à lista de avaliações e filtre <span class="rot">Paciente › Laura Fernandes Costa</span>.</span>
+      <span class="diga">Cada avaliação fica guardada com os números daquele dia. A Laura, por exemplo, tem três, e no painel do paciente vamos ver as três numa curva.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"Avaliação feita. Agora vamos registrar o que o Gabriel recebeu hoje."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 6 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 6 · Acompanhamento diário pediátrico</h2>
+  <div class="meta">Cerca de 5 minutos · registra o dia do Gabriel</div>
+  <div class="caixa antes"><h4>Antes de gravar</h4><p style="margin:0">O vídeo 5 precisa estar feito. De preferência, grave no mesmo dia: o registro compara com a avaliação de hoje.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Pediatria › Acompanhamento diário</span>.</span>
+      <span class="diga">A avaliação define o plano. O acompanhamento diário registra o que de fato aconteceu: quanto a criança pesou e quanto ela aceitou.</span>
+      <span class="mostre">A lista com os dias de Laura, Miguel e Helena: recebido sobre prescrito, adequação e aceitação.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Novo dia</span>. Paciente: <b>Gabriel Souza Prado</b>. Data: hoje.</span>
+      <span class="mostre">A caixa <span class="rot">Comparar com a avaliação de …</span> aparece marcada, com 9,4 kg, 800 ml/dia e NAN 2.</span>
+      <span class="diga">O sistema encontra sozinho a avaliação mais recente, e é contra ela que mede o dia.</span></li>
+    <li><span class="faca">Preencha <span class="rot">O que foi medido e ofertado</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Peso do dia (kg, 3 casas)</td><td class="tecla">9460</td><td class="vai">9,460</td></tr>
+        <tr><td>Volume prescrito (ml)</td><td class="tecla">800</td><td class="vai">800</td></tr>
+        <tr><td>Volume recebido (ml)</td><td class="tecla">760</td><td class="vai">760</td></tr>
+        <tr><td>Tomadas previstas</td><td class="tecla">4</td><td class="vai">4</td></tr>
+        <tr><td>Tomadas aceitas</td><td class="tecla">4</td><td class="vai">4</td></tr>
+        <tr><td>Observações</td><td colspan="2">Aceitou bem as quatro mamadeiras.</td></tr>
+      </table></span>
+      <span class="diga">O peso do dia tem três casas, porque num lactente dez gramas fazem diferença.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Registrar dia</span>.</span>
+      <span class="mostre"><b>Estado nutricional no dia</b>: idade 10 meses, Peso adequado.<br>
+        <b>O que a criança recebeu</b>: <b>95 % do prescrito</b> · <b>560,88 kcal</b> · <b>12,54 g</b> · <b>59,29 kcal/kg</b> · <b>1,33 g/kg</b> · <b>adequação calórica 73,94 %</b> · <b>proteica 114 %</b> · <b>tomadas aceitas 100 %</b></span>
+      <span class="diga">A classificação é feita com o peso de hoje e a idade de hoje, e não copiada da avaliação. Numa internação de um mês o lactente muda de linha na tabela da OMS, e o sistema acompanha.</span></li>
+    <li><span class="faca">Abra <span class="rot">Pediatria › Painel de acompanhamento</span> e escolha <b>Miguel Oliveira Santos</b>.</span>
+      <span class="diga">Com vários dias registrados, o painel mostra a evolução. O Miguel, prematuro, tem duas semanas de acompanhamento.</span>
+      <span class="mostre"><span class="rot">Resumo</span>: dias registrados e variação de peso. <span class="rot">Crescimento</span>: o peso subindo dia a dia. <span class="rot">Oferta e adequação</span>: adesão e adequação calórica.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Imprimir relatório</span>.</span>
+      <span class="diga">O relatório do período vai para o prontuário ou para a equipe médica, com a tabela dia a dia.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"No próximo vídeo, os painéis da pediatria."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 7 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 7 · Painéis pediátricos e exportação</h2>
+  <div class="meta">Cerca de 5 minutos · nada é cadastrado</div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Pediatria › Painel do paciente</span> e escolha <b>Laura Fernandes Costa</b>.</span>
+      <span class="diga">O painel do paciente responde: onde esta criança está hoje, e por onde andou.</span>
+      <span class="mostre"><span class="rot">Resumo</span>: idade atual, três avaliações, a última com os três índices e a cobertura calórica.</span></li>
+    <li><span class="faca">Aba <span class="rot">Crescimento</span>.</span>
+      <span class="mostre">As três avaliações sobre as curvas da OMS de peso, estatura e IMC para a idade.</span>
+      <span class="diga">Repare no último ponto do peso: ele saiu da faixa adequada. É a mudança que a tela inicial avisou. A Laura ganhou mais peso do que o esperado no último mês, e a observação da avaliação já pede para rever o volume.</span></li>
+    <li><span class="faca">Abas <span class="rot">Nutrição</span> e <span class="rot">Histórico</span>.</span>
+      <span class="diga">A cobertura nutricional no tempo, as fórmulas que ela usou (NAN 1 e depois NAN 2) e a tabela das avaliações. Imprimir histórico gera o resumo para a consulta.</span></li>
+    <li><span class="faca">Abra <span class="rot">Pediatria › Pediatria em números</span>.</span>
+      <span class="mostre">18 avaliações, 9 crianças, IMC adequado em cerca de 56 % das avaliações, avaliações por mês, estado nutricional pelos três índices, fórmulas mais prescritas, faixa etária e sexo.</span>
+      <span class="diga">É a visão do serviço: quantas crianças acompanhamos, como elas estão, quais fórmulas mais usamos. Dá para filtrar por período, por fórmula e por sexo.</span></li>
+    <li><span class="faca">Filtre <span class="rot">Fórmula láctea › NAN 2</span>; depois volte para Todas.</span></li>
+    <li><span class="faca">Clique num nome em <span class="rot">Crianças mais avaliadas</span>.</span>
+      <span class="mostre">Abre o painel daquela criança.</span></li>
+    <li><span class="faca">Abra <span class="rot">Pediatria › Avaliações</span> e clique em <span class="rot">Planilha</span>; depois em <span class="rot">Relatório</span>.</span>
+      <span class="diga">Toda lista exporta. A planilha abre no Excel, e o relatório sai pronto para imprimir. O que vai para o arquivo é o filtro inteiro, não só a página que está na tela.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"Na sequência, o módulo de terapia nutricional do adulto."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 8 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 8 · Calculadora de terapia nutricional</h2>
+  <div class="meta">Cerca de 6 minutos · nada é gravado</div>
+  <div class="caixa antes"><h4>Objetivo</h4><p style="margin:0">Meta e prescrição de dieta enteral contínua para um adulto em fase aguda, e a hidratação. O caso é o mesmo que valida o sistema.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Terapia nutricional › Calculadora</span>. Aba <span class="rot">Antropometria</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Sexo</td><td colspan="2">Masculino</td></tr>
+        <tr><td>Idade (anos)</td><td class="tecla">56</td><td class="vai">56</td></tr>
+        <tr><td>Altura (cm)</td><td class="tecla">17200</td><td class="vai">172,00</td></tr>
+        <tr><td>Peso atual (kg)</td><td class="tecla">6800</td><td class="vai">68,00</td></tr>
+      </table></span>
+      <span class="mostre"><b>Peso considerado 68 kg (informado)</b> · <b>IMC 22,99</b> · <b>Eutrofia (OMS 1997)</b> · Peso ideal 65,08 kg. Os campos que faltam dizem o que pedem, por exemplo "Informe a circunferência do braço".</span>
+      <span class="diga">Com peso e altura medidos, o sistema usa os dois. No próximo vídeo vamos ver o paciente que não pode ser pesado.</span></li>
+    <li><span class="faca">Aba <span class="rot">Necessidades</span>.</span>
+      <span class="digite">Fase da terapia: <b>Fase aguda</b> · Terapia renal substitutiva: <b>Nenhuma</b> · Meta na faixa: Máximo da faixa (já vem)</span>
+      <span class="mostre">Faixa recomendada: <b>energia 1.020 a 1.360 kcal</b>, <b>proteína 81,6 a 102 g</b>. Meta adotada: <b>1.360 kcal</b> e <b>102 g</b>.</span>
+      <span class="diga">Na fase aguda são 15 a 20 kcal por quilo e 1,2 a 1,5 grama de proteína por quilo. O sistema adota o máximo da faixa, e eu posso escolher o mínimo ou o ponto médio.</span></li>
+    <li><span class="faca">Mude <span class="rot">Meta na faixa</span> para Ponto médio, mostre a meta caindo e volte para Máximo.</span></li>
+    <li><span class="faca">Aba <span class="rot">Dieta enteral</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Fórmula enteral</td><td colspan="2">Peptamen Intense (1 kcal/ml · 92 g PTN/L)</td></tr>
+        <tr><td>Modo de infusão</td><td colspan="2">Contínua (já vem)</td></tr>
+        <tr><td>Vazão (ml/h)</td><td class="tecla">6200</td><td class="vai">62,00</td></tr>
+        <tr><td>Horas de infusão</td><td colspan="2">22,00 (já vem: a UTI desconta 2 h de pausas)</td></tr>
+      </table></span>
+      <span class="mostre"><b>Volume total 1.364 ml</b> · <b>1.364 kcal</b> · <b>125,49 g</b> de proteína · <b>20,06 kcal/kg</b> · <b>1,85 g/kg</b> · <b>100,29 % da meta calórica</b> · <b>123,03 % da meta proteica</b></span>
+      <span class="diga">Sessenta e dois mililitros por hora, em 22 horas, fecham a meta calórica. E como a fórmula é hiperproteica, a proteína passa da meta: não há lacuna para módulo, e o sistema diz isso.</span></li>
+    <li><span class="faca">Desça até a tabela <span class="rot">Progressão</span>.</span>
+      <span class="mostre">Dia 1: 25 % (340 kcal, cerca de 15 ml/h) · dia 2: 50 % · dia 3: 75 % · dia 4: 100 % (1.360 kcal, cerca de 62 ml/h).</span>
+      <span class="diga">A dieta não começa cheia: a progressão em quatro dias já vem calculada, com a vazão de cada dia.</span></li>
+    <li><span class="faca">Aba <span class="rot">Hidratação</span>.</span>
+      <span class="mostre">Necessidade <b>mínima 1.700 ml</b> e <b>ideal 2.040 ml</b> · <b>água que a dieta já entrega 1.159,4 ml</b> · <b>água extra ideal 880,6 ml</b>, e a tabela de como fracionar (por exemplo, 6 vezes de cerca de 147 ml).</span>
+      <span class="diga">De 25 a 30 ml por quilo. O sistema desconta a água livre que a própria fórmula já entrega e diz quanto falta, já dividido em horários.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Imprimir</span> e depois em <span class="rot">Limpar</span>.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"E se o paciente não pode ser pesado nem medido? É o próximo vídeo."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 9 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 9 · Avaliação de UTI completa</h2>
+  <div class="meta">Cerca de 8 minutos · avaliação da Beatriz (do vídeo 2), sem peso e sem altura</div>
+  <div class="caixa antes"><h4>O caso</h4><p style="margin:0">Beatriz, 68 anos, acamada na UTI, sem condições de ser pesada. Pesava 66 kg há três meses. Medidas à beira do leito: altura do joelho, braço, panturrilha e abdômen.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Terapia nutricional › Avaliações</span> › <span class="rot">Nova avaliação</span>. Paciente: <b>Beatriz Moura Andrade</b>. Profissional: <b>Rodrigo Mendes Teixeira</b>.</span>
+      <span class="mostre">Sexo Feminino e <b>Idade 68</b> se preenchem pelo cadastro.</span></li>
+    <li><span class="faca">Aba <span class="rot">Antropometria</span>: deixe <b>Altura</b> e <b>Peso atual em branco</b>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Etnia</td><td colspan="2">Branca</td></tr>
+        <tr><td>Altura do joelho (cm)</td><td class="tecla">4900</td><td class="vai">49,00</td></tr>
+        <tr><td>Circunferência do braço (cm)</td><td class="tecla">2650</td><td class="vai">26,50</td></tr>
+        <tr><td>Circunferência da panturrilha (cm)</td><td class="tecla">3100</td><td class="vai">31,00</td></tr>
+        <tr><td>Circunferência abdominal (cm)</td><td class="tecla">9200</td><td class="vai">92,00</td></tr>
+        <tr><td>Peso habitual (kg)</td><td class="tecla">6600</td><td class="vai">66,00</td></tr>
+        <tr><td>Perdido em</td><td colspan="2">3 meses</td></tr>
+        <tr><td>Peso a usar no cálculo</td><td colspan="2">Escolher automaticamente (já vem)</td></tr>
+      </table></span>
+      <span class="mostre"><b>Estimativas</b>: altura estimada <b>158,23 cm</b>; peso por Chumlea 1988 <b>58,92</b>, Jung 2004 <b>56,02</b>, Rabito 2008 <b>59,62 kg</b>.<br>
+        <b>Diagnóstico</b>: peso considerado <b>59,62 kg (Rabito 2008)</b>, altura considerada 158,23 cm (Chumlea 1985), <b>IMC 23,81</b>, Eutrofia pela OMS e <b>Eutrofia pelo idoso (Lipschitz 1994)</b>.<br>
+        <b>Perda de peso 9,67 % · Perda grave em 3 meses</b> · Adequação da CB <b>84,39 % · Desnutrição leve</b> · Panturrilha: <b>Indicativo de depleção muscular</b>.</span>
+      <span class="diga">Sem balança, o sistema estima a altura pela altura do joelho e o peso por três equações publicadas, e mostra todas. Em "escolher automaticamente" ele usa Rabito, validada na população brasileira, e eu posso trocar no seletor. O IMC diz eutrofia, mas a perda de quase 10 % em três meses e a panturrilha mostram o risco que o IMC esconde.</span></li>
+    <li><span class="faca">Mostre o seletor <span class="rot">Régua do idoso</span> (aparece porque ela tem mais de 60 anos).</span>
+      <span class="diga">A partir dos 60 anos o IMC também é lido pela régua do idoso. O padrão é Lipschitz, e a OPAS 2002 é a alternativa. É uma escolha, e não as duas lado a lado, porque elas discordam justamente na faixa do meio.</span></li>
+    <li><span class="faca">Aba <span class="rot">Necessidades</span>.</span>
+      <span class="digite">Fase da terapia: <b>Fase aguda</b> · Terapia renal substitutiva: <b>Nenhuma</b></span>
+      <span class="mostre">Meta energética <b>1.192,4 kcal</b> · meta proteica <b>89,43 g</b>, calculadas sobre o peso estimado.</span></li>
+    <li><span class="faca">Aba <span class="rot">Dieta enteral</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Fórmula enteral</td><td colspan="2">Fresubin 1.2 HP Fibre</td></tr>
+        <tr><td>Vazão (ml/h)</td><td class="tecla">4500</td><td class="vai">45,00</td></tr>
+        <tr><td>Horas de infusão</td><td colspan="2">22,00</td></tr>
+      </table></span>
+      <span class="mostre"><b>990 ml</b> · <b>1.188 kcal (99,63 % da meta)</b> · <b>59,4 g de proteína (66,42 %)</b> · <b>Proteína ainda em falta: 30,03 g</b>.</span>
+      <span class="diga">As calorias fecham, a proteína não: faltam 30 gramas. Aumentar a vazão daria caloria demais. A saída é o módulo proteico.</span></li>
+    <li><span class="faca">Em <span class="rot">Módulo proteico</span>, escolha <b>Nutren Just Protein</b>.</span>
+      <span class="mostre">Módulo proteico — Nutren Just Protein: <b>2,31 medidas por dia</b> · <b>34,65 g</b> · <b>soma 120,12 kcal</b>.</span>
+      <span class="diga">O sistema diz quantas medidas do rótulo cobrem a lacuna, e quantas calorias o módulo acrescenta, para eu decidir se ajusto a vazão.</span></li>
+    <li><span class="faca">Aba <span class="rot">Hidratação</span>.</span>
+      <span class="mostre">Mínima <b>1.490,5 ml</b> · ideal <b>1.788,6 ml</b> · a dieta entrega <b>792 ml</b> · água extra ideal <b>996,6 ml</b> (por exemplo, 6 vezes de cerca de 166 ml).</span></li>
+    <li><span class="faca">Aba <span class="rot">Observações</span>.</span>
+      <span class="digite">Acamada, sem condições de pesagem. Peso e altura estimados. Perda grave em 3 meses; iniciar progressão em 4 dias com módulo proteico.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Salvar</span> e depois em <span class="rot">Imprimir</span>.</span>
+      <span class="mostre">A folha com a seção "Escolhas do cálculo": de onde saiu o peso, a régua usada, a fase e a posição na faixa.</span>
+      <span class="diga">A folha impressa registra não só os números, mas as escolhas que mudaram os números. Quem lê o prontuário sabe de onde saiu cada um.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"Avaliação salva. Agora o dia a dia: o acompanhamento diário."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 10 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 10 · Acompanhamento diário de UTI</h2>
+  <div class="meta">Cerca de 7 minutos · registra o dia da Maria de Lourdes e encerra o José</div>
+  <div class="caixa antes"><h4>Antes de gravar</h4><p style="margin:0">Rode <code>--atualizar</code> no dia: a Maria de Lourdes precisa estar <b>Pendente</b> na ronda. O registro de hoje dela ainda não pode existir.</p></div>
+  <ol class="passos">
+    <li><span class="faca">Na tela inicial, em <span class="rot">A ronda de hoje</span>, clique na linha da <b>Maria de Lourdes Becker</b>.</span>
+      <span class="diga">A ronda começa pela tela inicial: clico em quem está pendente e o registro do dia já abre com a paciente escolhida.</span>
+      <span class="mostre">O formulário com a paciente, a data de hoje e "Comparar com a avaliação de 20/09/2026" marcado.</span></li>
+    <li><span class="faca">Aba <span class="rot">Dieta e TNE</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Dieta</td><td colspan="2">Novasource Senior · SNE · 38 ml/h</td></tr>
+        <tr><td>Volume prescrito em 24 h</td><td class="tecla">83600</td><td class="vai">836,00</td></tr>
+        <tr><td>Volume recebido em 24 h</td><td class="tecla">61000</td><td class="vai">610,00</td></tr>
+      </table></span>
+      <span class="mostre">O que de fato chegou: <b>72,97 % recebido</b> · <b>756,4 kcal</b> · <b>14,55 kcal/kg</b> · <b>0,76 g/kg</b>.</span>
+      <span class="diga">O percentual é medido contra o que a avaliação prescreveu. A diferença entre prescrito e recebido é o que a tela inicial acompanha.</span></li>
+    <li><span class="faca">Aba <span class="rot">Laboratório</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Exame</th><th>Teclas</th><th>Aparece</th><th>Exame</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Potássio</td><td class="tecla">390</td><td class="vai">3,90</td><td>Sódio</td><td class="tecla">14200</td><td class="vai">142,00</td></tr>
+        <tr><td>Magnésio</td><td class="tecla">190</td><td class="vai">1,90</td><td>Lactato</td><td class="tecla">110</td><td class="vai">1,10</td></tr>
+        <tr><td>pH</td><td class="tecla">741</td><td class="vai">7,41</td><td>pCO₂</td><td class="tecla">3900</td><td class="vai">39,00</td></tr>
+        <tr><td>Bicarbonato</td><td class="tecla">2450</td><td class="vai">24,50</td><td>PCR</td><td class="tecla">280</td><td class="vai">2,80</td></tr>
+        <tr><td>Glicemia (HGT)</td><td class="tecla">16800</td><td class="vai">168,00</td><td></td><td></td><td></td></tr>
+      </table></span>
+      <span class="diga">Nenhum exame é obrigatório: registro o que saiu no dia. O sódio, que estava alto na internação, normalizou.</span></li>
+    <li><span class="faca">Aba <span class="rot">Clínica e balanço</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Suporte ventilatório</td><td colspan="2">Cateter nasal</td></tr>
+        <tr><td>PA sistólica / diastólica</td><td class="tecla">136 / 78</td><td class="vai">136 / 78</td></tr>
+        <tr><td>Balanço hídrico (ml)</td><td class="tecla">35000</td><td class="vai">350,00</td></tr>
+        <tr><td>Diurese (ml)</td><td class="tecla">110000</td><td class="vai">1.100,00</td></tr>
+        <tr><td>Evacuação</td><td colspan="2">1x pastosa</td></tr>
+      </table></span>
+      <span class="mostre">Diurese por quilo: <b>0,88 ml/kg/h</b>.</span>
+      <span class="diga">O balanço aceita sinal de menos: quando é negativo, digite o menos antes dos números.</span></li>
+    <li><span class="faca">Abra a aba <span class="rot">Ingestão oral</span> só para mostrar.</span>
+      <span class="diga">Quando o paciente come pela boca, registro a aceitação de cada refeição em percentual. A Maria está em jejum oral pela disfagia, então fica em branco.</span></li>
+    <li><span class="faca">Aba <span class="rot">Observações</span> e <span class="rot">Salvar</span>.</span>
+      <span class="digite">Dieta pausada por 5 h para ressonância de crânio.</span>
+      <span class="mostre">Volte à tela inicial: a Maria passou para <b>Registrado</b>.</span></li>
+    <li><span class="faca">Abra <span class="rot">Terapia nutricional › Avaliações</span>, filtre Paciente <b>José</b> e abra a avaliação de <b>22/09/2026</b>.</span>
+      <span class="diga">O José foi extubado e está comendo. Ele sai da UTI hoje. Para ele sair da ronda, encerro o acompanhamento.</span></li>
+    <li><span class="faca">No painel <span class="rot">Acompanhamento</span> (acima das abas), preencha e clique em <span class="rot">Encerrar acompanhamento</span>.</span>
+      <span class="digite">Encerrado em: hoje · Motivo: <b>Transferência</b> · Observação: Alta da UTI para a enfermaria da pneumologia.</span>
+      <span class="mostre">"Encerrado em … · Transferência". Na tela inicial o José sai da ronda.</span>
+      <span class="diga">Encerrar não apaga nada: todo o histórico continua nos painéis. E se foi engano, o botão Reabrir acompanhamento devolve o paciente à ronda.</span></li>
+  </ol>
+  <div class="caixa atencao"><h4>Depois de gravar</h4><p style="margin:0">Se quiser o José de volta na ronda para outras gravações, clique em <span class="rot">Reabrir acompanhamento</span> na mesma avaliação.</p></div>
+  <p class="fecho"><b>Fechamento.</b> <i>"Com os dias registrados, os painéis mostram a evolução. É o próximo vídeo."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 11 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 11 · Painéis de terapia nutricional</h2>
+  <div class="meta">Cerca de 6 minutos · nada é cadastrado</div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Terapia nutricional › Painel do paciente</span> e escolha <b>José Carlos Silveira</b>.</span>
+      <span class="mostre"><span class="rot">Resumo</span>: 72 anos, duas avaliações, peso de trabalho, IMC, metas e os dias registrados.</span>
+      <span class="diga">O José entrou em fase aguda, com sepse, e foi reavaliado dez dias depois, já em reabilitação. As metas subiram de 1.560 para 2.265 kcal.</span></li>
+    <li><span class="faca">Abas <span class="rot">Antropometria</span> e <span class="rot">Metas e oferta</span>.</span>
+      <span class="mostre">O peso caindo de 78 para 75,5 kg entre as avaliações; energia e proteína, meta contra oferta.</span></li>
+    <li><span class="faca">Abra <span class="rot">Terapia nutricional › Painel de acompanhamento</span>, escolha o <b>José</b> e deixe <span class="rot">De</span> em branco (últimos 30 dias).</span>
+      <span class="mostre"><span class="rot">Resumo</span>: dias registrados, adesão média, energia e proteína recebidas, balanço acumulado, diurese.</span></li>
+    <li><span class="faca">Aba <span class="rot">Dieta</span>.</span>
+      <span class="diga">Nos primeiros quatro dias a adesão sobe em degraus: é a progressão da dieta. Os dias com queda brusca têm a explicação na observação, como pausa para exame.</span></li>
+    <li><span class="faca">Aba <span class="rot">Laboratório</span>.</span>
+      <span class="mostre">Os exames com a faixa de referência sombreada: <b>PCR caindo</b> de cerca de 22 para 3,5 mg/dL, <b>lactato normalizando</b> abaixo de 2, potássio voltando para a faixa de 3,5 a 5,0.</span>
+      <span class="diga">Cada exame é lido contra a sua faixa: a faixa aparece no gráfico, para não precisar lembrar o valor de referência.</span></li>
+    <li><span class="faca">Troque o paciente para <b>Rosângela Pires Machado</b> e abra <span class="rot">Laboratório</span> e <span class="rot">Balanço e hemodinâmica</span>.</span>
+      <span class="mostre">Potássio começando acima de 5,0; diurese abaixo da linha de oligúria de 0,5 ml/kg/h; balanço negativo pela ultrafiltração.</span>
+      <span class="diga">A Rosângela está em hemodiálise contínua: diurese baixa é esperada, e o balanço é tirado pela máquina. Por isso a meta proteica dela é de 2 g/kg.</span></li>
+    <li><span class="faca">Abra <span class="rot">Terapia nutricional › UTI em números</span>.</span>
+      <span class="mostre">15 avaliações, 12 pacientes, 137 dias de acompanhamento, idade média em torno de 65 anos, adesão média em torno de 70 %, avaliações por mês, estado nutricional por três réguas, fórmulas prescritas, conduta (fase, terapia renal, modo de infusão) e os pacientes mais avaliados.</span>
+      <span class="diga">É o painel do serviço, para a gestão: volume de atendimento, perfil dos pacientes e adesão à dieta mês a mês. O aviso logo abaixo dos números explica que duas avaliações usaram a regra da obesidade, o que puxa a média de energia por quilo para baixo.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Imprimir demonstrativo</span>.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"Por último, as ferramentas de conferência da UTI."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 12 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 12 · Ferramentas clínicas</h2>
+  <div class="meta">Cerca de 6 minutos · nada é gravado</div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Terapia nutricional › Ferramentas clínicas</span>, aba <span class="rot">Noradrenalina</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>Peso (kg)</td><td class="tecla">7000</td><td class="vai">70,00</td></tr>
+        <tr><td>Vazão da bomba (ml/h)</td><td class="tecla">1000</td><td class="vai">10,00</td></tr>
+        <tr><td>Preparo</td><td colspan="2">Simples — 2 ampolas em 250 ml</td></tr>
+      </table></span>
+      <span class="mostre"><b>Concentração 32 mcg/ml</b> · <b>dose 0,0762 mcg/kg/min</b>.</span>
+      <span class="diga">A dose de droga vasoativa entra na decisão de iniciar ou progredir a dieta. A conta da bomba para mcg por quilo por minuto fica aqui.</span></li>
+    <li><span class="faca">Aba <span class="rot">Balanço nitrogenado</span>.</span>
+      <span class="digite">Proteína ingerida em 24 h: <span class="tecla">9000</span> → 90,00 · Ureia urinária de 24 h: <span class="tecla">1800</span> → 18,00</span>
+      <span class="mostre">Nitrogênio ingerido <b>14,4 g</b> · excretado <b>12,41 g</b> · balanço <b>+1,99 g · Balanço positivo · anabolismo</b>.</span></li>
+    <li><span class="faca">Aba <span class="rot">Propofol</span>.</span>
+      <span class="digite">Vazão do propofol: <span class="tecla">2000</span> → 20,00 · Horas de infusão: 24,00 (já vem)</span>
+      <span class="mostre"><b>528 kcal/dia</b>.</span>
+      <span class="diga">O propofol é uma emulsão lipídica: a 20 ml por hora são mais de 500 calorias por dia que não aparecem na dieta, e precisam ser descontadas da meta.</span></li>
+    <li><span class="faca">Aba <span class="rot">Dieta artesanal</span>.</span>
+      <span class="digite"><table>
+        <tr><th>Campo</th><th>Teclas</th><th>Aparece</th></tr>
+        <tr><td>VET desejado (kcal)</td><td class="tecla">200000</td><td class="vai">2.000,00</td></tr>
+        <tr><td>Peso (kg)</td><td class="tecla">7500</td><td class="vai">75,00</td></tr>
+        <tr><td>Administrações por dia</td><td colspan="2">4 (já vem)</td></tr>
+        <tr><td>Base</td><td colspan="2">Trophic basic pó · Doses da base: <b>em branco</b></td></tr>
+        <tr><td>Carboidrato · medidas</td><td>Carbodex</td><td class="tecla">300 → 3,00</td></tr>
+        <tr><td>Proteína · medidas</td><td>Albumix power</td><td class="tecla">200 → 2,00</td></tr>
+        <tr><td>Lipídio · medidas</td><td>Óleo de soja</td><td class="tecla">50 → 0,50</td></tr>
+      </table></span>
+      <span class="mostre">Doses da base sugeridas <b>48,75 medidas/dia</b> · calorias totais <b>1.946,65 kcal</b> · <b>25,96 kcal/kg</b> · <b>1,23 g/kg</b> · distribuição sobre o ofertado <b>53,66 % / 19 % / 27,34 %</b> · água <b>1.789,39 ml</b>, <b>447,35 ml</b> por administração.</span>
+      <span class="diga">Para quem recebe dieta em casa, em sistema aberto: com a base em branco, o sistema sugere as doses pelo VET. A distribuição aparece sobre o VET e sobre o que foi de fato ofertado, para a soma fechar em 100 %.</span></li>
+    <li><span class="faca">Desça até <span class="rot">Receita por administração</span> e <span class="rot">Embalagens estimadas por mês</span>.</span>
+      <span class="mostre">Por administração: Trophic 12,19 medidas, Carbodex 0,75, Albumix 0,5, óleo 0,125. Por mês: Trophic 14,73 latas, Carbodex 1,86, Albumix 2,48, óleo 0,22 frasco.</span>
+      <span class="diga">É a receita que a família leva para casa, e quanto comprar por mês.</span></li>
+    <li><span class="faca">Clique em <span class="rot">Imprimir esta conferência</span>.</span>
+      <span class="diga">A impressão leva só a ferramenta que está aberta.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"No último vídeo, as fichas de anamnese e as escalas de triagem."</i></p>
+</section>
+
+<!-- ═══════════════════════════ VÍDEO 13 ═══════════════════════════ -->
+<section class="video">
+  <h2>Vídeo 13 · Fichas de anamnese e escalas</h2>
+  <div class="meta">Cerca de 8 minutos · três fichas da Beatriz (do vídeo 2) e um modelo próprio</div>
+  <ol class="passos">
+    <li><span class="faca">Abra <span class="rot">Clínica › Fichas de anamnese</span>.</span>
+      <span class="mostre">As fichas já preenchidas, com a coluna <b>Escore</b> (por exemplo, a MNA da Maria de Lourdes) e o <b>Preenchimento</b> "X de Y".</span>
+      <span class="diga">A ficha é dirigida por modelo: o sistema traz cinco prontos, a anamnese adulto, a pediátrica, a hospitalar, e duas escalas de triagem pontuadas, a MNA e a NRS-2002.</span></li>
+    <li><span class="faca"><span class="rot">Nova ficha</span>. Paciente: <b>Beatriz Moura Andrade</b>. Modelo da ficha: <b>NRS-2002 — Triagem de risco nutricional</b>.</span></li>
+    <li><span class="faca">Na <span class="rot">Pré-triagem</span>, marque <b>Não</b> nas quatro perguntas.</span>
+      <span class="mostre">O painel conclui <b>"Sem risco na triagem inicial — repetir a triagem semanalmente"</b>, e as seções Estado nutricional e Gravidade da doença ficam desabilitadas.</span>
+      <span class="diga">Na NRS, se nenhum dos quatro critérios está presente, a triagem termina aqui. O sistema desabilita as próximas etapas, para ninguém somar pontos que a escala manda não somar.</span></li>
+    <li><span class="faca">Agora responda a pré-triagem de verdade, e as duas etapas.</span>
+      <span class="digite"><table>
+        <tr><th>Pergunta</th><th>Resposta</th></tr>
+        <tr><td>IMC menor que 20,5 kg/m²?</td><td>Não</td></tr>
+        <tr><td>Houve perda de peso nos últimos três meses?</td><td>Sim</td></tr>
+        <tr><td>Houve redução da ingestão alimentar na última semana?</td><td>Sim</td></tr>
+        <tr><td>Doença grave, por exemplo terapia intensiva?</td><td>Sim</td></tr>
+        <tr><td>Comprometimento do estado nutricional</td><td>Moderado — perda acima de 5 % em dois meses…</td></tr>
+        <tr><td>Gravidade da doença</td><td>Grave — paciente crítico…</td></tr>
+      </table></span>
+      <span class="mostre">Estado nutricional <b>2</b> · gravidade <b>3</b> · ajuste por idade <b>0</b> ("68 anos na data de preenchimento") · <b>escore 5 de 7 · Em risco nutricional</b> · "Iniciar plano de terapia nutricional".</span>
+      <span class="diga">O ponto da idade, para 70 anos ou mais, o sistema calcula pela data de nascimento do cadastro. A Beatriz tem 68, então não soma.</span></li>
+    <li><span class="faca"><span class="rot">Salvar</span>. Depois <span class="rot">Nova ficha</span> para a Beatriz com o modelo <b>MNA — Mini Nutritional Assessment</b>. Responda a triagem (A a F).</span>
+      <span class="digite"><table>
+        <tr><th></th><th>Resposta</th><th></th><th>Resposta</th></tr>
+        <tr><td>A</td><td>Diminuição moderada da ingesta</td><td>D</td><td>Sim</td></tr>
+        <tr><td>B</td><td>Entre um e três quilos</td><td>E</td><td>Sem problemas psicológicos</td></tr>
+        <tr><td>C</td><td>Deambula mas não é capaz de sair de casa</td><td>F</td><td>IMC de 23 ou mais</td></tr>
+      </table></span>
+      <span class="mostre">Triagem <b>9 de 14 · Sob risco de desnutrição</b>. O escore total espera a avaliação global.</span>
+      <span class="diga">Até 11 pontos na triagem, a MNA manda continuar para a avaliação global, e o painel avisa o que falta responder.</span></li>
+    <li><span class="faca">Responda a avaliação global (G a R).</span>
+      <span class="digite"><table>
+        <tr><td>G</td><td>Não</td><td>M</td><td>Três a cinco copos</td></tr>
+        <tr><td>H</td><td>Sim</td><td>N</td><td>Alimenta-se sozinho sem dificuldade</td></tr>
+        <tr><td>I</td><td>Não</td><td>O</td><td>Não sabe dizer</td></tr>
+        <tr><td>J</td><td>Três refeições</td><td>P</td><td>Pior</td></tr>
+        <tr><td>K</td><td>Duas respostas sim</td><td>Q</td><td>PB maior que 22</td></tr>
+        <tr><td>L</td><td>Sim</td><td>R</td><td>PP de 31 ou mais</td></tr>
+      </table></span>
+      <span class="mostre">Avaliação global <b>10 de 16</b> · <b>escore total 19 de 30 · Sob risco de desnutrição</b>.</span>
+      <span class="diga">O escore é calculado enquanto respondo, e fica congelado na ficha salva: se alguém editar o modelo amanhã, a pontuação de hoje não muda.</span></li>
+    <li><span class="faca"><span class="rot">Salvar</span>. Depois <span class="rot">Nova ficha</span> com o modelo <b>Anamnese nutricional hospitalar</b>.</span>
+      <span class="digite"><table>
+        <tr><td>Via de alimentação atual *</td><td>Enteral por sonda</td></tr>
+        <tr><td>Está em jejum?</td><td>Não</td></tr>
+        <tr><td>Dieta prescrita atualmente</td><td>Fresubin 1.2 HP Fibre por SNE a 45 ml/h + Nutren Just Protein</td></tr>
+        <tr><td>Apresenta constipação? · disfagia? · inapetência?</td><td>Sim · Sim · Sim</td></tr>
+        <tr><td>Náusea, vômito, diarreia</td><td>Não</td></tr>
+        <tr><td>Tem alergias alimentares? · Quais?</td><td>Sim · Frutos do mar</td></tr>
+        <tr><td>Observações da equipe</td><td>Fonoaudiologia reavalia a deglutição em 48 h.</td></tr>
+      </table></span>
+      <span class="diga">A pergunta com asterisco é obrigatória. As outras podem ficar em branco e são completadas depois.</span></li>
+    <li><span class="faca"><span class="rot">Salvar</span> e <span class="rot">Imprimir</span>.</span>
+      <span class="mostre">A ficha impressa com as respostas por seção.</span></li>
+    <li><span class="faca">Abra <span class="rot">Cadastros auxiliares › Modelos de ficha</span> e abra <b>Anamnese nutricional adulto</b>. Clique em <span class="rot">Clonar para editar</span>.</span>
+      <span class="diga">Os modelos do sistema não se editam. Para adaptar à rotina do serviço, eu clono: a cópia é minha e posso mudar à vontade.</span></li>
+    <li><span class="faca">Na cópia, troque o nome e acrescente uma pergunta.</span>
+      <span class="digite">Nome do modelo: <b>Anamnese nutricional — ambulatório</b> · <span class="rot">Adicionar pergunta</span>: Seção <b>Hábitos alimentares</b> · Pergunta <b>Usa adoçante?</b> · Tipo de resposta <b>Sim / Não</b> → <span class="rot">Salvar</span></span>
+      <span class="diga">E cada ficha guarda a pergunta como ela era no dia em que foi respondida. Se eu mudar o texto da pergunta depois, as fichas antigas continuam dizendo o que foi perguntado.</span></li>
+  </ol>
+  <p class="fecho"><b>Fechamento.</b> <i>"Esse foi o tour completo: cadastro, cálculo, avaliação, acompanhamento, painéis e fichas. Bom trabalho!"</i></p>
+</section>
+
+</body>
+</html>

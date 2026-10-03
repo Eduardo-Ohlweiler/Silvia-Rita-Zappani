@@ -3,6 +3,7 @@ import type { ComponentType, SVGProps } from 'react'
 import LogoFull from '@/assets/brand/logo-full.svg?react'
 import {
   IconCadastroAuxiliar,
+  IconConfiguracoes,
   IconDashboard,
   IconFicha,
   IconFechar,
@@ -123,6 +124,12 @@ const GRUPOS: Grupo[] = [
       { para: '/app/usuarios', rotulo: 'Usuários', Icone: IconUsuarios, roles: ['SUPERADMIN'] },
       { para: '/app/tenants', rotulo: 'Tenants', Icone: IconTenants, roles: ['SUPERADMIN'] },
       { para: '/app/log-acesso', rotulo: 'Log de acesso', Icone: IconLog, roles: ['SUPERADMIN'] },
+      {
+        para: '/app/configuracoes',
+        rotulo: 'Configurações gerais',
+        Icone: IconConfiguracoes,
+        roles: ['SUPERADMIN'],
+      },
     ],
   },
   {
@@ -135,6 +142,8 @@ interface SidebarProps {
   /** Aberta como drawer no mobile. */
   aberta: boolean
   onFechar: () => void
+  /** 'dark' na variante de menu escuro: a sidebar usa o escuro da paleta. */
+  moldura?: 'dark'
 }
 
 /**
@@ -143,7 +152,7 @@ interface SidebarProps {
  * Fixa a partir de `lg`; abaixo disso vira drawer sobre um overlay, conforme a
  * regra de responsividade.
  */
-export function Sidebar({ aberta, onFechar }: SidebarProps) {
+export function Sidebar({ aberta, onFechar, moldura }: SidebarProps) {
   const { hasRole } = useAuth()
 
   /** Sem `roles`, todo autenticado vê. Com, só quem tem o nível. */
@@ -162,6 +171,7 @@ export function Sidebar({ aberta, onFechar }: SidebarProps) {
       )}
 
       <aside
+        data-theme={moldura}
         className={`fixed inset-y-0 left-0 z-40 flex w-sidebar flex-col border-r border-line
           bg-sidebar transition-transform duration-200
           lg:translate-x-0

@@ -54,12 +54,17 @@ sistema silvia/
 │                                  # uti/calculo/ = 7 classes puras + UtiMatematica
 │                                  #   cascata/ PesoDeTrabalho · Altura · MetaEnergetica
 │                                  #            MetaProteica · VolumeDieta
+│                                  # configuracao/ = configuração do SISTEMA, sem tenant:
+│                                  #   uma linha só, por ora a paleta (docs/05 §11)
 └── nutri-hospitalar-web/          # fatia 2 pronta
     ├── public/                    # favicon, ícones, og-image
     └── src/
         ├── assets/brand/          # logo-full · logo-mark · logo-simbolo (currentColor)
         ├── assets/icons/          # SVG inline, módulo único
         ├── styles/theme.css       # tokens Tailwind v4 + temas claro/escuro
+        │                          # + 9 paletas [data-paleta] (doc 05 §11)
+        ├── styles/paletas.ts      # catálogo das paletas, sem hex
+        ├── scripts/validar-paletas.mjs  # npm run paletas — contraste e cascata
         ├── components/graficos/   # chrome · eixos · referencias (faixas com fonte)
         │                          # SerieNoTempo · MetaVersusOfertado · BarrasComZero
         ├── components/impressao/  # Folha · TiraIndicadores · Secao · LinhasDeValor
@@ -110,6 +115,7 @@ Testes contra o banco `nutridb_test` — nada de H2 nem Testcontainers.
 | **12.1 — O 500 da calculadora** | ✅ pronta · incidente em produção, 06/09/2026. Origem de peso escolhida no seletor não checava o sinal, e medida deslocada pela máscara faz Chumlea 1988 devolver peso **negativo** → `IllegalArgumentException` → 500. Corrigido em três camadas: a guarda que faltava, pisos de plausibilidade com frase que ensina a vírgula, e a recusa **inline** em vez de toast numa tela que recalcula sozinha |
 | **13 — Escalas nutricionais pontuadas** | ✅ pronta · especificação [docs/13](docs/13-escalas-nutricionais.md) · migration 031 · **MNA®** e **NRS-2002** como modelo do sistema · o ponto é **dado** (`campo_ficha.pontos`), a régua é **código com fonte citada** (`clinica/escore/`) · escore ao vivo, congelado na gravação, impresso e na listagem |
 | **14 — Régua de IMC do idoso** | ✅ pronta · migration 032 · **Lipschitz 1994** entra ao lado da **OPAS 2002** que já existia, como **escolha** e não como terceira linha — as duas discordam em toda a faixa central, e duas classificações contraditórias no mesmo prontuário é pior que uma. Padrão Lipschitz, corte em 60 anos, faixa de peso do idoso pela mesma régua |
+| **15 — Configurações gerais: paleta do sistema** | ✅ pronta · [docs/05 §11](docs/05-identidade-visual.md) · migrations 033 e 034 · tela do **superadmin** · **9 paletas** além da Padrão, que ficou intocada, e **as dez com menu e cabeçalho escuros** (§11.6) — 20 opções · cada uma com claro e escuro, na **mesma régua de claridade** da Padrão · escolha global, lida por rota pública só de leitura (o login já abre no tema) · `npm run paletas` mede contraste, cascata e as três listas (CSS, catálogo, enum) |
 | 4 — Atendimento | **a redefinir**, não a construir — ver abaixo |
 | 11 — `audit_log` | pendente · adiada para quando o sistema estiver em produção |
 
@@ -174,8 +180,9 @@ sistema, único que atravessa tenants) · **`ADMIN`** (administra o próprio ten
 A área administrativa — `/tenants`, `/usuarios`, `/login-logs` — é exclusiva do
 `SUPERADMIN`. `ADMIN` e `USER` acessam os módulos de negócio e `/usuarios/perfil`.
 
-**Sem autocadastro.** A superfície pública são duas rotas: `/auth/login` e
-`/auth/refresh`. Usuário só nasce por `POST /usuarios`, do superadmin — e é lá que
+**Sem autocadastro.** A superfície pública são duas rotas de autenticação,
+`/auth/login` e `/auth/refresh`, mais uma de leitura: `GET /configuracoes/aparencia`,
+que devolve só o nome da paleta para o login abrir no tema. Usuário só nasce por `POST /usuarios`, do superadmin — e é lá que
 um cliente novo ganha o seu tenant, quando nenhum é indicado.
 
 **A licença é do tenant, não do usuário.** `tenant.periodo_acesso`
@@ -858,6 +865,22 @@ com IMC abaixo de 18,5"*. A regra é imprimir a escolha **sob a mesma condição
 que fez o número existir** — aqui, haver classificação —, e não sob "o servidor
 me mandou um valor". Isto **não apareceu** em `tsc`, `lint` nem nos 495 testes:
 só no PDF. É a sexta vez.
+
+**Variável CSS que aponta para outra é resolvida onde é declarada.**
+O `@theme` do Tailwind declara `--color-bg: var(--bg)` no `:root`, e o
+utilitário `bg-bg` lê `--color-bg`. O que desce para os filhos é a cor **já
+resolvida** no `<html>` — redefinir `--bg` num elemento interno não muda nada.
+No `<html>` isso nunca aparece, porque tudo mora no mesmo elemento; apareceu
+na primeira vez que um tema foi aplicado a uma **subárvore**: as vinte
+miniaturas da tela de paletas saíram com a paleta em uso, inclusive as
+"Escuro". Medidas de contraste no DOM passaram todas — elas olhavam o `<html>`.
+Só o screenshot mostrou. O conserto é refazer a ponte em todo elemento com
+`data-theme` (`theme.css`, bloco `[data-theme] { --color-bg: var(--bg); … }`).
+Corolário, pago na mesma fatia: **seletor de descendente casa com qualquer
+ancestral, não com o mais próximo** — `[data-paleta=menta] [data-theme=dark]`
+pinta de menta uma miniatura da Padrão que esteja dentro do `<html>` menta. Daí
+o `:not([data-paleta])` e o `data-paleta="padrao"` explícito nas miniaturas
+(docs/05 §11.6).
 
 **Rota literal antes de `/{id}`.** `/usuarios/global`, `/select` e `/perfil`
 convivem com `/usuarios/{id}` porque o Spring prefere o literal. Se der
